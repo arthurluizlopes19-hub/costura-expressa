@@ -13,7 +13,12 @@ App de pedidos do ateliê **Costura Expressa** (Galeria Jaqueira Park Center, R.
 - **Serviços** e **Equipe**: tabela de preços e acessos.
 - **Impressão**: imprimir direto, nota como imagem e PDF em A4 ou térmica 80 mm.
 
-Os dados ficam no **Firebase (Firestore)** do ateliê, no plano gratuito.
+## Como o app é usado hoje
+
+O link do GitHub Pages (`index.html`) abre direto o app no Claude, onde os pedidos ficam salvos:
+https://claude.ai/artifact/TioZv6x9PDcfSAKF1yggdk
+
+O arquivo `app-firebase.html` é uma versão independente do Claude, que guarda os dados num **Firebase (Firestore)** do ateliê. Ela só funciona depois de seguir os passos abaixo; para usá-la como página principal, renomeie-a para `index.html`.
 
 ## Como colocar no ar
 
