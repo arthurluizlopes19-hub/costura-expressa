@@ -214,6 +214,36 @@ audio{width:100%;max-width:100%}
 .qr{background:var(--qr-bg);padding:22px;border-radius:8px;line-height:0;flex:none}
 .qr img,.qr canvas{width:170px!important;height:170px!important;display:block;image-rendering:pixelated}
 @media (max-width:400px){.qr-area{flex-direction:column;text-align:center}}
+
+.desc-row{display:flex;gap:8px;align-items:stretch}
+.desc-row input{flex:1;min-width:0}
+.seg{display:inline-flex;border:1px solid var(--line);border-radius:9px;overflow:hidden;flex:none}
+.seg button{border:0;background:var(--sunken);padding:0 16px;min-height:44px;font-weight:800;cursor:pointer;color:var(--muted)}
+.seg button[aria-pressed="true"]{background:var(--accent);color:var(--accent-ink)}
+.sumbox{display:flex;flex-direction:column;gap:4px;background:var(--sunken);border-radius:10px;padding:10px 12px;font-variant-numeric:tabular-nums}
+.sumbox:empty{display:none}
+.sumbox div{display:flex;justify-content:space-between;gap:8px;font-size:14px}
+.sumbox .disc{color:var(--st-pro);font-weight:700}
+.sumbox .tot{font-weight:800;font-size:16px;border-top:1px solid var(--line);padding-top:6px;margin-top:2px}
+.sumbox .err{color:var(--danger);font-weight:700;font-size:13px}
+.totalbar .was{font-size:12px;color:var(--muted);text-decoration:line-through;font-variant-numeric:tabular-nums}
+.items tr.disc td{color:var(--st-pro);font-weight:700}
+.danger-zone{display:flex;flex-direction:column;gap:8px}
+.btn.del{color:var(--danger);border-color:color-mix(in srgb,var(--danger) 45%,var(--line))}
+.btn.del.armed{background:var(--danger);color:#ffffff;border-color:var(--danger)}
+.paybox{display:flex;flex-direction:column;gap:6px}
+/* Caixa */
+.cx-head{display:flex;gap:10px;align-items:end;flex-wrap:wrap}
+.cx-head .field{flex:1;min-width:160px}
+.cx-big{background:var(--band);color:var(--band-ink);border-radius:14px;padding:16px;display:flex;flex-direction:column;gap:2px}
+.cx-big .t{font-size:12px;font-weight:800;letter-spacing:.1em;text-transform:uppercase;opacity:.85}
+.cx-big .n{font-family:var(--f-display);font-weight:700;font-size:36px;line-height:1.05;font-variant-numeric:tabular-nums}
+.cx-big .s{font-size:13px;opacity:.9}
+.cx-table{width:100%;border-collapse:collapse;font-size:14px;font-variant-numeric:tabular-nums}
+.cx-table td{padding:7px 0;border-bottom:1px dotted var(--line)}
+.cx-table td.n{text-align:right;font-family:var(--f-mono);white-space:nowrap;padding-left:10px}
+.cx-table tr.tot td{font-weight:800;border-bottom:0;border-top:1px solid var(--line)}
+.cx-table tr.minus td{color:var(--st-pro)}
 .tiles{display:grid;grid-template-columns:repeat(4,1fr);gap:8px}
 .hist-sum{display:grid;grid-template-columns:repeat(3,1fr);gap:8px}
 @media (max-width:420px){.hist-sum{grid-template-columns:1fr 1fr}.hist-sum .stat:last-child{grid-column:1/-1}}
@@ -222,7 +252,7 @@ audio{width:100%;max-width:100%}
 .stat .t{font-size:12.5px;font-weight:700;color:var(--muted)}
 .day-group{display:flex;flex-direction:column;gap:6px}
 .day-group+.day-group{margin-top:14px}
-.day-group h4{margin:0;font-size:13px;font-weight:800;color:var(--muted);display:flex;justify-content:space-between;gap:8px;text-transform:capitalize}
+.day-group h4{margin:0;font-size:13px;font-weight:800;color:var(--muted);display:flex;justify-content:space-between;gap:8px}
 .day-group h4 span:last-child{font-family:var(--f-mono);text-transform:none}
 .ord .val{font-family:var(--f-mono);font-weight:700;font-size:13px;white-space:nowrap;font-variant-numeric:tabular-nums}
 #ent-cost-box select{max-width:260px}
@@ -310,6 +340,7 @@ audio{width:100%;max-width:100%}
       <button id="tab-costureiras" role="tab" data-view="costureiras" aria-selected="false">Costureiras</button>
       <button id="tab-servicos" role="tab" data-view="servicos" aria-selected="false">Serviços</button>
       <button id="tab-logistica" role="tab" data-view="logistica" aria-selected="false">Logística</button>
+      <button id="tab-caixa" role="tab" data-view="caixa" aria-selected="false">Caixa do dia</button>
       <button id="tab-entregues" role="tab" data-view="entregues" aria-selected="false">Entregues</button>
       <button id="tab-equipe" role="tab" data-view="equipe" aria-selected="false">Equipe</button>
     </nav>
@@ -374,6 +405,13 @@ audio{width:100%;max-width:100%}
             <select id="c-pag"><option>Pix</option><option>Dinheiro</option><option>Cartão de débito</option><option>Cartão de crédito</option><option>Pagar na retirada</option></select></div>
           <div class="field"><label for="c-entrada">Valor de entrada (R$)</label><input type="number" id="c-entrada" min="0" step="0.01" inputmode="decimal" placeholder="0,00"></div>
         </div>
+        <div class="field"><label for="c-desc">Desconto</label>
+          <div class="desc-row">
+            <div class="seg" role="group" aria-label="Tipo de desconto"><button type="button" id="dt-valor" aria-pressed="true">R$</button><button type="button" id="dt-pct" aria-pressed="false">%</button></div>
+            <input type="number" id="c-desc" min="0" step="0.01" inputmode="decimal" placeholder="0,00">
+          </div>
+        </div>
+        <div class="sumbox" id="sumbox"></div>
       </div>
 
       <div class="row" style="justify-content:space-between">
@@ -403,6 +441,15 @@ audio{width:100%;max-width:100%}
       <h2 class="sec">Fila do ateliê</h2>
       <div class="chips" id="filters"></div>
       <div class="orders" id="queue"></div>
+    </section>
+
+    <!-- CAIXA DO DIA -->
+    <section class="view" id="view-caixa" hidden>
+      <div class="cx-head"><h2 class="sec" style="flex:1 1 100%">Caixa do dia</h2>
+        <div class="field"><label for="cx-dia">Dia</label><input type="date" id="cx-dia"></div>
+        <button class="btn" id="cx-hoje">Hoje</button>
+      </div>
+      <div id="cx-body"></div>
     </section>
 
     <!-- ENTREGUES -->
@@ -467,7 +514,7 @@ audio{width:100%;max-width:100%}
 
 <div class="totalbar" id="totalbar">
   <div class="wrap">
-    <div class="t"><span class="label">Total do pedido</span><span class="v" id="total">R$ 0,00</span></div>
+    <div class="t"><span class="label">Total do pedido</span><span class="v" id="total">R$ 0,00</span><span class="was" id="total-was" hidden></span></div>
     <button class="btn primary" id="finalizar" style="min-height:50px;padding-inline:20px">Finalizar pedido</button>
   </div>
 </div>
@@ -521,7 +568,7 @@ let saving = false;
 let sheetKey = -1;
 let takePhoto = null; // {blob,url}
 const ROLES = {admin:"Administração", atendente:"Atendente", costureira:"Costureira"};
-const VIEWS = {admin:["atendimento","costureiras","logistica","entregues","servicos","equipe"], atendente:["atendimento","entregues"], costureira:["costureiras","logistica","entregues"]};
+const VIEWS = {admin:["atendimento","caixa","costureiras","logistica","entregues","servicos","equipe"], atendente:["atendimento","caixa","entregues"], costureira:["costureiras","logistica","entregues"]};
 let team = [];
 let teamLoaded = false;
 let session = null;      // {id,nome,papel}
@@ -586,7 +633,7 @@ function setView(v){
   const allowed = session ? VIEWS[session.papel] : [];
   if(!allowed.includes(v)) v = allowed[0] || "atendimento";
   document.querySelectorAll("nav.tabs button").forEach(b=>b.setAttribute("aria-selected", String(b.dataset.view===v)));
-  ["atendimento","costureiras","logistica","entregues","servicos","equipe"].forEach(x=>$("#view-"+x).hidden = x!==v);
+  ["atendimento","caixa","costureiras","logistica","entregues","servicos","equipe"].forEach(x=>$("#view-"+x).hidden = x!==v);
   const tb=document.querySelector(`nav.tabs button[data-view="${v}"]`); if(tb&&tb.scrollIntoView) try{ tb.scrollIntoView({block:"nearest",inline:"center"}); }catch(e){}
   $("#totalbar").hidden = v!=="atendimento";
   ls.set("ce-view",v); window.scrollTo(0,0);
@@ -612,10 +659,34 @@ $("#svc-pick").addEventListener("click",e=>{
   if(d){const k=d.dataset.dec; cart[k]=Math.max(0,(cart[k]||0)-1); if(!cart[k]) delete cart[k]; renderPick();}
 });
 function cartItems(){ return services.filter(s=>cart[s.id]).map(s=>({nome:s.nome, preco:Number(s.preco)||0, qtd:cart[s.id]})); }
-function updateTotal(){
-  const it=cartItems(); const t=it.reduce((a,b)=>a+b.preco*b.qtd,0); const n=it.reduce((a,b)=>a+b.qtd,0);
-  $("#total").textContent=money(t); $("#cart-count").textContent = n? `${n} selecionado${n>1?"s":""}` : "";
+let descTipo="valor";
+const round2=v=>Math.round((Number(v)||0)*100)/100;
+function calcDesconto(sub){
+  const raw=Math.max(0,Number($("#c-desc").value)||0);
+  if(!raw) return {desc:0, raw:0, err:""};
+  if(descTipo==="pct"){ if(raw>100) return {desc:0, raw, err:"O desconto não pode passar de 100%."}; return {desc:round2(sub*raw/100), raw, err:""}; }
+  if(raw>sub) return {desc:0, raw, err:"O desconto é maior que o valor dos serviços."};
+  return {desc:round2(raw), raw, err:""};
 }
+function updateTotal(){
+  const it=cartItems(); const sub=round2(it.reduce((a,b)=>a+b.preco*b.qtd,0)); const n=it.reduce((a,b)=>a+b.qtd,0);
+  const d=calcDesconto(sub); const tot=round2(sub-d.desc);
+  $("#total").textContent=money(tot);
+  const was=$("#total-was"); was.hidden=!d.desc; was.textContent=d.desc?money(sub):"";
+  $("#cart-count").textContent = n? `${n} selecionado${n>1?"s":""}` : "";
+  const box=$("#sumbox");
+  if(!sub && !d.raw){ box.innerHTML=""; return; }
+  const lbl = descTipo==="pct" && d.raw ? `Desconto (${String(d.raw).replace(".",",")}%)` : "Desconto";
+  box.innerHTML=`<div><span>Serviços</span><span>${money(sub)}</span></div>
+    ${d.desc?`<div class="disc"><span>${lbl}</span><span>− ${money(d.desc)}</span></div>`:""}
+    <div class="tot"><span>Total</span><span>${money(tot)}</span></div>
+    ${d.err?`<div class="err">${d.err}</div>`:""}`;
+}
+function setDescTipo(t){ descTipo=t; $("#dt-valor").setAttribute("aria-pressed",String(t==="valor")); $("#dt-pct").setAttribute("aria-pressed",String(t==="pct"));
+  $("#c-desc").placeholder = t==="pct" ? "0 %" : "0,00"; $("#c-desc").step = t==="pct" ? "1" : "0.01"; updateTotal(); }
+$("#dt-valor").addEventListener("click",()=>setDescTipo("valor"));
+$("#dt-pct").addEventListener("click",()=>setDescTipo("pct"));
+$("#c-desc").addEventListener("input",updateTotal);
 
 /* ---------- atendimento: fotos ---------- */
 function renderPhotos(){
@@ -653,6 +724,8 @@ async function finalizar(){
   if(!nome){toast("Informe o nome da cliente."); $("#c-nome").focus(); return;}
   if(!itens.length){toast("Selecione pelo menos um serviço."); return;}
   if(!db){toast("Ainda conectando ao ateliê. Tente em instantes."); return;}
+  { const sub=round2(itens.reduce((a,b)=>a+b.preco*b.qtd,0)); const dc=calcDesconto(sub); if(dc.err){ toast(dc.err); $("#c-desc").focus(); return; }
+    const ent=Number($("#c-entrada").value)||0; if(ent>round2(sub-dc.desc)+0.001){ toast("A entrada é maior que o total do pedido."); $("#c-entrada").focus(); return; } }
   saving=true; const btn=$("#finalizar"); btn.disabled=true;
   const setBusy=t=>btn.innerHTML=`<span class="busy"><span class="spin"></span>${t}</span>`;
   try{
@@ -662,9 +735,11 @@ async function finalizar(){
     if(audio){ setBusy("Enviando áudio"); audioId=await saveBlob(audio.blob,"audio"); }
     setBusy("Gerando nota");
     const code=newCode(); const now=Date.now(); const atend=session?session.nome:"";
-    const total=itens.reduce((a,b)=>a+b.preco*b.qtd,0);
+    const subtotal=round2(itens.reduce((a,b)=>a+b.preco*b.qtd,0)); const dc=calcDesconto(subtotal);
+    const total=round2(subtotal-dc.desc);
     const pedido={codigo:code, cliente:{nome, telefone:$("#c-tel").value.trim(), cpf:$("#c-cpf").value.trim()},
-      itens, total, entrada:Math.max(0,Number($("#c-entrada").value)||0), pagamento:$("#c-pag").value,
+      itens, subtotal, desconto:dc.desc, descontoTipo:descTipo, descontoInformado:dc.raw, total,
+      entrada:Math.min(total,Math.max(0,Number($("#c-entrada").value)||0)), pagamento:$("#c-pag").value,
       entrega:$("#c-entrega").value||"", obs:$("#c-obs").value.trim(), fotos:fotoIds, audio:audioId,
       atendente:atend, costureira:"", status:"recebido", criadoEm:now,
       historico:[{status:"recebido", por:atend||"Atendimento", em:now}]};
@@ -674,7 +749,7 @@ async function finalizar(){
   finally{ saving=false; btn.disabled=false; btn.textContent="Finalizar pedido"; }
 }
 function resetForm(){
-  ["#c-nome","#c-tel","#c-cpf","#c-entrega","#c-obs","#c-entrada"].forEach(s=>$(s).value="");
+  ["#c-nome","#c-tel","#c-cpf","#c-entrega","#c-obs","#c-entrada","#c-desc"].forEach(s=>$(s).value=""); descTipo="valor"; setDescTipo("valor");
   cart={}; photos.forEach(p=>URL.revokeObjectURL(p.url)); photos=[]; if(audio) URL.revokeObjectURL(audio.url); audio=null;
   renderPick(); renderPhotos(); renderAudio();
 }
@@ -759,7 +834,9 @@ function layoutNota(doc,o,fmt,logo,qr){
     y+=lh(fs.b)*1.35*lines.length+(thermal?1.4:2.4);
   });
   hr(false); y+=thermal?5:7;
-  const restante=Math.max(0,(o.total||0)-(o.entrada||0));
+  const restante=restOf(o);
+  if(descOf(o)){ font(fs.b,"normal",ink); T("Subtotal",M,y); T(money(subOf(o)),R,y,{align:"right"}); y+=thermal?4:5.5;
+    font(fs.b,"bold",[24,121,78]); T(descLabel(o),M,y); T("- "+money(descOf(o)),R,y,{align:"right"}); y+=thermal?5:7; }
   font(fs.big,"bold",plum); T("TOTAL",M,y); T(money(o.total),R,y,{align:"right"}); y+=thermal?5:7;
   font(fs.b,"normal",ink); T("Entrada ("+(o.pagamento||"")+")",M,y); T(money(o.entrada),R,y,{align:"right"}); y+=thermal?4:5.5;
   font(fs.b,"bold",ink); T("A receber na retirada",M,y); T(money(restante),R,y,{align:"right"}); y+=thermal?5:8;
@@ -828,6 +905,62 @@ function lateTxt(o){
   return "entrega "+fmtDay(o.entrega);
 }
 function bucket(o){ const d=daysUntil(o.entrega); if(d===null) return "sem"; if(d<0) return "late"; if(d===0) return "today"; if(d===1) return "tom"; if(d<=7) return "week"; return "later"; }
+/* ---------- valores do pedido ---------- */
+const subOf=o=>Number(o.subtotal ?? o.total)||0;
+const descOf=o=>Number(o.desconto)||0;
+const totOf=o=>Number(o.total)||0;
+const restOf=o=>Math.max(0,round2(totOf(o)-(Number(o.entrada)||0)));
+function descLabel(o){ return o.descontoTipo==="pct" && o.descontoInformado ? `Desconto (${String(o.descontoInformado).replace(".",",")}%)` : "Desconto"; }
+
+/* ---------- caixa do dia ---------- */
+function cap(t){ t=String(t||""); return t.charAt(0).toUpperCase()+t.slice(1); }
+function dayRange(iso){ const a=new Date(iso+"T00:00:00").getTime(); return [a, a+864e5]; }
+function renderCaixa(){
+  const body=$("#cx-body"); if(!body) return;
+  const inp=$("#cx-dia"); if(!inp.value) inp.value=isoDay(new Date());
+  const [a,b]=dayRange(inp.value); const inDay=t=>t>=a&&t<b;
+  const feitos=orders.filter(o=>inDay(o.criadoEm||0));
+  const entregues=orders.filter(o=>o.status==="entregue"&&inDay(deliveredAt(o)));
+  const bruto=round2(feitos.reduce((x,o)=>x+subOf(o),0));
+  const desc=round2(feitos.reduce((x,o)=>x+descOf(o),0));
+  const liquido=round2(feitos.reduce((x,o)=>x+totOf(o),0));
+  const formas={};
+  const add=(f,v)=>{ if(!v) return; f=f||"Não informado"; formas[f]=round2((formas[f]||0)+v); };
+  feitos.forEach(o=>{ if(o.pagamento!=="Pagar na retirada") add(o.pagamento,Number(o.entrada)||0); });
+  entregues.forEach(o=>{ const v= o.valorRetirada!=null ? Number(o.valorRetirada)||0 : restOf(o); add(o.pagamentoRetirada,v); });
+  const recebido=round2(Object.values(formas).reduce((x,v)=>x+v,0));
+  const entradas=round2(feitos.reduce((x,o)=>x+(o.pagamento!=="Pagar na retirada"?(Number(o.entrada)||0):0),0));
+  const naRetirada=round2(recebido-entradas);
+  const aReceber=round2(feitos.filter(o=>o.status!=="entregue").reduce((x,o)=>x+restOf(o),0));
+  const isToday=inp.value===isoDay(new Date());
+  const dl=new Date(inp.value+"T12:00:00").toLocaleDateString("pt-BR",{weekday:"long",day:"2-digit",month:"long"});
+  const formaRows=Object.entries(formas).sort((x,y)=>y[1]-x[1]).map(([f,v])=>`<tr><td>${esc(f)}</td><td class="n">${money(v)}</td></tr>`).join("");
+  body.innerHTML=`
+    <div class="cx-big"><span class="t">Recebido ${isToday?"hoje":"no dia"}</span><span class="n">${money(recebido)}</span><span class="s">${esc(cap(dl))}</span></div>
+    <div class="hist-sum">
+      <div class="stat"><span class="n">${feitos.length}</span><span class="t">Pedidos feitos</span></div>
+      <div class="stat"><span class="n">${entregues.length}</span><span class="t">Pedidos entregues</span></div>
+      <div class="stat"><span class="n">${money(aReceber)}</span><span class="t">A receber dos pedidos do dia</span></div>
+    </div>
+    <div class="panel"><span class="label">Recebido por forma de pagamento</span>
+      ${formaRows?`<table class="cx-table">${formaRows}<tr class="tot"><td>Total recebido</td><td class="n">${money(recebido)}</td></tr></table>
+      <p class="hint">Entradas dos pedidos feitos no dia: ${money(entradas)} · Pagamentos na retirada: ${money(naRetirada)}</p>`:`<p class="hint">Nenhum pagamento registrado neste dia.</p>`}
+    </div>
+    <div class="panel"><span class="label">Pedidos feitos no dia</span>
+      <table class="cx-table">
+        <tr><td>Valor dos serviços</td><td class="n">${money(bruto)}</td></tr>
+        <tr class="minus"><td>Descontos dados</td><td class="n">− ${money(desc)}</td></tr>
+        <tr class="tot"><td>Total vendido</td><td class="n">${money(liquido)}</td></tr>
+      </table>
+      ${feitos.length?`<div class="orders">${feitos.sort((x,y)=>y.criadoEm-x.criadoEm).map(o=>`<button class="ord" data-open="${esc(o.codigo)}"><span class="stripe ${o.status}"></span>
+        <span class="mid"><span class="code">${esc(o.codigo)}</span><span class="who">${esc(o.cliente?.nome)}</span>
+        <span class="sub">${new Date(o.criadoEm).toLocaleTimeString("pt-BR",{hour:"2-digit",minute:"2-digit"})} · ${esc(o.pagamento||"")}${descOf(o)?" · desconto "+money(descOf(o)):""}</span></span>
+        <span class="val">${money(totOf(o))}</span></button>`).join("")}</div>`:`<div class="empty">Nenhum pedido feito neste dia.</div>`}
+    </div>`;
+}
+$("#cx-dia").addEventListener("change",renderCaixa);
+$("#cx-hoje").addEventListener("click",()=>{ $("#cx-dia").value=isoDay(new Date()); renderCaixa(); });
+
 /* ---------- entregues (histórico) ---------- */
 let entPer="mes", entBusca="", entCost="";
 function deliveredAt(o){
@@ -873,7 +1006,7 @@ function renderEntregues(){
   const yest=isoDay(new Date(today-864e5)), tod=isoDay(new Date(today));
   box.innerHTML=[...groups.entries()].map(([k,l])=>{
     const d=new Date(k+"T12:00:00");
-    const lbl = k===tod?"Hoje" : k===yest?"Ontem" : d.toLocaleDateString("pt-BR",{weekday:"long",day:"2-digit",month:"long"});
+    const lbl = k===tod?"Hoje" : k===yest?"Ontem" : cap(d.toLocaleDateString("pt-BR",{weekday:"long",day:"2-digit",month:"long"}));
     const sum=l.reduce((a,o)=>a+(Number(o.total)||0),0);
     return `<div class="day-group"><h4><span>${esc(lbl)}</span><span>${l.length} · ${money(sum)}</span></h4><div class="orders">${l.map(o=>{
       const qt=(o.itens||[]).reduce((a,b)=>a+b.qtd,0); const hr=new Date(deliveredAt(o)).toLocaleTimeString("pt-BR",{hour:"2-digit",minute:"2-digit"});
@@ -928,13 +1061,13 @@ async function openOrder(code, given){
   openCode=code; renderSheet(o); $("#overlay").hidden=false; document.body.style.overflow="hidden";
   $("#overlay").scrollTop=0;
 }
-function closeSheet(){ $("#overlay").hidden=true; openCode=null; if(takePhoto){URL.revokeObjectURL(takePhoto.url); takePhoto=null;} document.body.style.overflow=""; }
+function closeSheet(){ if(!$("#overlay")) return; $("#overlay").hidden=true; openCode=null; if(takePhoto){URL.revokeObjectURL(takePhoto.url); takePhoto=null;} document.body.style.overflow=""; }
 $("#overlay").addEventListener("click",e=>{ if(e.target.id==="overlay") closeSheet(); });
 document.addEventListener("keydown",e=>{ if(e.key==="Escape" && !$("#overlay").hidden) closeSheet(); });
 
 function renderSheet(o){
   sheetKey=(o.historico||[]).length;
-  const c=o.cliente||{}; const restante=Math.max(0,(o.total||0)-(o.entrada||0));
+  const c=o.cliente||{}; const restante=restOf(o);
   const rows=(o.itens||[]).map(i=>`<tr><td>${esc(i.nome)}</td><td class="n">${i.qtd}×</td><td class="n">${money(i.preco)}</td><td class="n">${money(i.preco*i.qtd)}</td></tr>`).join("");
   const papel = session ? session.papel : "";
   const may = {recebido:["costureira","admin"], em_costura:["costureira","admin"], pronto:["atendente","admin"], entregue:[]};
@@ -951,7 +1084,9 @@ function renderSheet(o){
       <button class="btn primary" id="tk-go">Confirmar e começar a costura</button>
       <p class="hint">O nome e a foto ficam registrados no pedido.</p></div>`,
     em_costura:`<button class="btn primary" data-st="pronto">Marcar como pronto</button>`,
-    pronto:`<button class="btn primary" data-st="entregue">Entregue à cliente</button>`,
+    pronto:`${restante>0?`<div class="paybox"><div class="field"><label for="pg-rest">Cliente pagou ${money(restante)} com</label>
+      <select id="pg-rest"><option>Pix</option><option>Dinheiro</option><option>Cartão de débito</option><option>Cartão de crédito</option></select></div></div>`:""}
+      <button class="btn primary" data-st="entregue">Entregue à cliente</button>`,
     entregue:``}[o.status]||"";
   const back = {em_costura:"recebido",pronto:"em_costura",entregue:"pronto"}[o.status];
   $("#sheet").innerHTML=`
@@ -973,9 +1108,10 @@ function renderSheet(o){
         <thead><tr><th>Serviço</th><th class="n">Qtd</th><th class="n">Unit.</th><th class="n">Valor</th></tr></thead>
         <tbody>${rows}</tbody>
         <tfoot>
+          ${descOf(o)?`<tr><td colspan="3">Subtotal</td><td class="n">${money(subOf(o))}</td></tr><tr class="disc"><td colspan="3">${descLabel(o)}</td><td class="n">− ${money(descOf(o))}</td></tr>`:""}
           <tr><td colspan="3">Total</td><td class="n big">${money(o.total)}</td></tr>
           <tr><td colspan="3" class="muted" style="font-weight:500">Entrada (${esc(o.pagamento)})</td><td class="n" style="font-weight:500">${money(o.entrada)}</td></tr>
-          <tr><td colspan="3">A receber na retirada</td><td class="n">${money(restante)}</td></tr>
+          ${o.status==="entregue"&&o.valorRetirada?`<tr><td colspan="3" class="muted" style="font-weight:500">Pago na retirada (${esc(o.pagamentoRetirada||"")})</td><td class="n" style="font-weight:500">${money(o.valorRetirada)}</td></tr><tr><td colspan="3">Situação</td><td class="n">Quitado</td></tr>`:`<tr><td colspan="3">A receber na retirada</td><td class="n">${money(restante)}</td></tr>`}
         </tfoot>
       </table></div>
       ${o.obs?`<div><div class="label" style="margin-bottom:6px">Observações</div><div class="obs">${esc(o.obs)}</div></div>`:""}
@@ -996,11 +1132,15 @@ function renderSheet(o){
     <div class="panel"><span class="label">Andamento</span>
       <div class="hist">${(o.historico||[]).map(h=>`<span>${fmtDate(h.em)} · <b>${STATUS[h.status]}</b>${h.por?" · "+esc(h.por):""}</span>`).join("")}</div>
       <div class="actions">${nextBtn}${back&&canBack?`<button class="btn ghost" data-st="${back}">Voltar para “${STATUS[back]}”</button>`:""}</div>
-    </div>`;
+    </div>
+    ${canDelete(o)?`<div class="panel danger-zone"><span class="label" style="color:var(--danger)">Excluir pedido</span>
+      <p class="hint">Apaga o pedido, as fotos e o áudio. Não dá para desfazer.</p>
+      <button class="btn del" id="del-ord">Excluir pedido ${esc(o.codigo)}</button></div>`:""}`;
   $("#sh-close").onclick=closeSheet;
   try{ new QRCode($("#qr"),{text:qrText(o.codigo),width:264,height:264,colorDark:"#111111",colorLight:"#ffffff",correctLevel:QRCode.CorrectLevel.Q}); }catch(e){ $("#qr").textContent=""; }
   $("#sheet").querySelectorAll("[data-st]").forEach(b=>b.onclick=()=>changeStatus(o.codigo,b.dataset.st,b));
   if(o.status==="recebido") wireTake(o);
+  const db_=$("#del-ord"); if(db_) db_.onclick=()=>deleteOrder(o,db_);
   $("#sheet").querySelectorAll("[data-print]").forEach(b=>b.onclick=()=>printNota(o.codigo,b.dataset.print,b));
   $("#print-img").onclick=()=>notaImage(o.codigo,$("#print-img"));
   $("#print-now").onclick=()=>{ const root=document.documentElement, prev=root.getAttribute("data-theme"); root.setAttribute("data-theme","light");
@@ -1040,14 +1180,31 @@ function wireTake(o){
     }catch(err){ writeErr(err); btn.disabled=false; btn.textContent="Confirmar e começar a costura"; }
   };
 }
+function canDelete(o){ const p=session?session.papel:""; return p==="admin" || (p==="atendente" && o.status!=="entregue"); }
+async function deleteOrder(o,btn){
+  if(!btn.classList.contains("armed")){
+    btn.classList.add("armed"); btn.textContent="Toque de novo para confirmar a exclusão";
+    clearTimeout(btn._t); btn._t=setTimeout(()=>{ btn.classList.remove("armed"); btn.textContent=`Excluir pedido ${o.codigo}`; },5000);
+    return;
+  }
+  clearTimeout(btn._t); btn.disabled=true; btn.innerHTML='<span class="busy"><span class="spin"></span>Excluindo</span>';
+  try{
+    const ids=[...(o.fotos||[]), o.audio, o.fotoCostureira].filter(Boolean);
+    await db.doc(`pedidos/${o.codigo}`).delete();
+    closeSheet(); toast(`Pedido ${o.codigo} excluído.`);
+    for(const id of ids){ try{ const m=await db.doc(`arquivos/${id}`).get(); const n=m.exists?(m.data().n||0):0;
+      for(let i=0;i<n;i++) await db.doc(`arquivos/${id}/partes/p${i}`).delete();
+      await db.doc(`arquivos/${id}`).delete(); blobCache.delete(id); }catch(e){ console.warn(e); } }
+  }catch(e){ writeErr(e); btn.disabled=false; btn.classList.remove("armed"); btn.textContent=`Excluir pedido ${o.codigo}`; }
+}
 async function changeStatus(code, st, btn){
   const o=orders.find(x=>x.codigo===code); if(!o||!db) return;
   const por = session ? session.nome : "";
   btn.disabled=true;
   const patch={status:st, historico:[...(o.historico||[]),{status:st, por, em:Date.now()}]};
   if(st==="em_costura") patch.costureira=por;
-  if(st==="entregue"){ patch.entregueEm=Date.now(); patch.entreguePor=por; }
-  if(o.status==="entregue" && st!=="entregue"){ patch.entregueEm=null; patch.entreguePor=""; }
+  if(st==="entregue"){ patch.entregueEm=Date.now(); patch.entreguePor=por; const r=restOf(o); patch.valorRetirada=r; patch.pagamentoRetirada= r>0 && $("#pg-rest") ? $("#pg-rest").value : ""; }
+  if(o.status==="entregue" && st!=="entregue"){ patch.entregueEm=null; patch.entreguePor=""; patch.valorRetirada=0; patch.pagamentoRetirada=""; }
   try{ await db.doc(`pedidos/${code}`).update(patch); toast(`Pedido ${code}: ${STATUS[st]}.`); }
   catch(e){ writeErr(e); btn.disabled=false; }
 }
@@ -1210,7 +1367,7 @@ function startSession(s){
   document.querySelectorAll("nav.tabs button").forEach(b=>b.hidden=!VIEWS[s.papel].includes(b.dataset.view));
   $("nav.tabs").hidden = VIEWS[s.papel].length<2;
   setView(hashCode && VIEWS[s.papel].includes("costureiras") ? "costureiras" : ls.get("ce-view",VIEWS[s.papel][0]));
-  renderRecent(); renderQueue(); renderLogi(); renderEntregues();
+  renderRecent(); renderQueue(); renderLogi(); renderEntregues(); renderCaixa();
   if(hashCode && ordersLoaded && !hashOpened){ hashOpened=true; openOrder(hashCode); }
 }
 function logout(){
@@ -1283,7 +1440,7 @@ async function localDB(){
 }
 
 /* ---------- inicialização ---------- */
-renderPick(); renderPhotos(); renderAudio(); renderRecent(); renderQueue(); renderLogi(); renderEntregues(); renderSvcEdit();
+renderPick(); renderPhotos(); renderAudio(); renderRecent(); renderQueue(); renderLogi(); renderEntregues(); renderCaixa(); renderSvcEdit();
 const hashCode = extractCode(decodeURIComponent(location.hash||""));
 let ordersLoaded=false, hashOpened=false;
 const offT=setTimeout(()=>{ if(!db) $("#offline").hidden=false; },4000);
@@ -1323,7 +1480,7 @@ function startData(){
   let first=true;
   db.collection("pedidos").orderBy("criadoEm","desc").limit(1000).onSnapshot(s=>{
     orders=s.docs.map(d=>d.data());
-    renderRecent(); renderQueue(); renderLogi(); renderEntregues();
+    renderRecent(); renderQueue(); renderLogi(); renderEntregues(); renderCaixa();
     if(openCode){ const o=orders.find(x=>x.codigo===openCode); if(o && (o.historico||[]).length!==sheetKey) renderSheet(o); }
     if(first){ first=false; ordersLoaded=true; if(hashCode && session && !hashOpened){ hashOpened=true; openOrder(hashCode); } }
   }, e=>console.error(e));
