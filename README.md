@@ -23,7 +23,7 @@ App de pedidos do ateliê **Costura Expressa** (Galeria Jaqueira Park Center, R.
 ### 1. Criar o Firebase (uma vez)
 
 1. Entre em [console.firebase.google.com](https://console.firebase.google.com) com uma conta Google e crie um projeto (ex.: `costura-expressa`). O Google Analytics pode ficar desligado.
-2. **Authentication** > Começar > aba **Método de login** > ative **E-mail/senha** (deixe o **Anônimo** desativado). Em **Configurações > Ações do usuário**, desmarque a criação de contas pelo site. Em **Usuários**, crie a conta do ateliê (e-mail e senha).
+2. **Authentication** > Começar > aba **Método de login** > ative **Anônimo**.
 3. **Firestore Database** > Criar banco de dados > escolha a região `southamerica-east1 (São Paulo)` > modo de produção.
 4. Na aba **Regras** do Firestore, cole o conteúdo do arquivo `firestore.rules` e publique.
 5. Em **Configurações do projeto** (engrenagem) > **Seus apps** > ícone **</>** (Web) > registre o app. Copie o bloco `firebaseConfig`.
@@ -48,4 +48,4 @@ Abra o link, crie o acesso de **Administração** e cadastre a equipe na aba **E
 - `firestore.rules`: regras de acesso do banco.
 - `logo-costura-expressa.png`: logo.
 
-Cada aparelho precisa entrar uma vez com o e-mail e a senha do ateliê; sem isso, o banco recusa leitura e gravação. Depois, cada pessoa entra com o próprio nome e PIN. A nota é um comprovante interno e não substitui a NF-e/NFS-e oficial.
+O login por senha organiza o ateliê, mas não é uma proteção forte: quem tiver o link pode abrir o app. A nota é um comprovante interno e não substitui a NF-e/NFS-e oficial.

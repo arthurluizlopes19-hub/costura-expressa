@@ -1,11 +1,9 @@
 rules_version = '2';
 service cloud.firestore {
   match /databases/{database}/documents {
-    // Só aparelhos que entraram com o e-mail e a senha do ateliê leem e gravam.
-    // Login anônimo e contas criadas pelo próprio site são recusados.
+    // Só quem abre o app (login anônimo do Firebase) lê e grava.
     match /{document=**} {
-      allow read, write: if request.auth != null
-        && request.auth.token.firebase.sign_in_provider == 'password';
+      allow read, write: if request.auth != null;
     }
   }
 }
