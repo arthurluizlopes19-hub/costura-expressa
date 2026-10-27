@@ -371,10 +371,7 @@ audio{width:100%;max-width:100%}
       <div class="panel">
         <span class="label">Cliente</span>
         <div class="field"><label for="c-nome">Nome completo</label><input type="text" id="c-nome" autocomplete="off" placeholder="Ex.: Maria José da Silva"></div>
-        <div class="grid2">
-          <div class="field"><label for="c-tel">Telefone / WhatsApp</label><input type="tel" id="c-tel" placeholder="(81) 9 9999-9999"></div>
-          <div class="field"><label for="c-cpf">CPF (opcional)</label><input type="text" id="c-cpf" inputmode="numeric" placeholder="000.000.000-00"></div>
-        </div>
+        <div class="field"><label for="c-tel">Telefone / WhatsApp</label><input type="tel" id="c-tel" placeholder="(81) 9 9999-9999"></div>
         <div class="grid2">
           <div class="field"><label for="c-entrega">Entrega prevista</label><input type="date" id="c-entrega"></div>
           <div class="field"><label for="c-atend">Atendente</label><input type="text" id="c-atend" readonly tabindex="-1"></div>
@@ -755,7 +752,7 @@ async function finalizar(){
     const code=newCode(); const now=Date.now(); const atend=session?session.nome:"";
     const subtotal=round2(itens.reduce((a,b)=>a+b.preco*b.qtd,0)); const dc=calcDesconto(subtotal);
     const total=round2(subtotal-dc.desc);
-    const pedido={codigo:code, cliente:{nome, telefone:$("#c-tel").value.trim(), cpf:$("#c-cpf").value.trim()},
+    const pedido={codigo:code, cliente:{nome, telefone:$("#c-tel").value.trim()},
       itens, subtotal, desconto:dc.desc, descontoTipo:descTipo, descontoInformado:dc.raw, total,
       entrada:Math.min(total,Math.max(0,Number($("#c-entrada").value)||0)), pagamento:$("#c-pag").value,
       entrega:$("#c-entrega").value||"", obs:$("#c-obs").value.trim(), fotos:fotoIds, audio:audioId,
@@ -767,7 +764,7 @@ async function finalizar(){
   finally{ saving=false; btn.disabled=false; btn.textContent="Finalizar pedido"; }
 }
 function resetForm(){
-  ["#c-nome","#c-tel","#c-cpf","#c-entrega","#c-obs","#c-entrada","#c-desc"].forEach(s=>$(s).value=""); descTipo="valor"; setDescTipo("valor");
+  ["#c-nome","#c-tel","#c-entrega","#c-obs","#c-entrada","#c-desc"].forEach(s=>$(s).value=""); descTipo="valor"; setDescTipo("valor");
   cart={}; photos.forEach(p=>URL.revokeObjectURL(p.url)); photos=[]; if(audio) URL.revokeObjectURL(audio.url); audio=null;
   renderPick(); renderPhotos(); renderAudio();
 }
@@ -838,7 +835,7 @@ function layoutNota(doc,o,fmt,logo,qr){
   y+=thermal?5:8;
   // dados
   const c=o.cliente||{};
-  const kv=[["Cliente",c.nome],["Telefone",c.telefone],["CPF",c.cpf],["Entrega prevista",o.entrega?fmtDay(o.entrega):""],["Atendente",o.atendente],["Costureira",o.costureira],["Local da peça",o.local]].filter(r=>r[1]);
+  const kv=[["Cliente",c.nome],["Telefone",c.telefone],["Entrega prevista",o.entrega?fmtDay(o.entrega):""],["Atendente",o.atendente],["Costureira",o.costureira],["Local da peça",o.local]].filter(r=>r[1]);
   const kx=M+(thermal?26:36);
   kv.forEach(([k,v])=>{ font(fs.b,"normal",grey); T(k,M,y); font(fs.b,"bold",ink); const lines=doc.splitTextToSize(String(v),R-kx); T(lines,kx,y); y+=lh(fs.b)*1.35*lines.length+ (thermal?.6:1.2); });
   y+=thermal?2:4;
@@ -1117,7 +1114,6 @@ function renderSheet(o){
       <dl class="kv">
         <dt>Cliente</dt><dd>${esc(c.nome)}</dd>
         ${c.telefone?`<dt>Telefone</dt><dd>${esc(c.telefone)}</dd>`:""}
-        ${c.cpf?`<dt>CPF</dt><dd>${esc(c.cpf)}</dd>`:""}
         <dt>Entrega</dt><dd>${fmtDay(o.entrega)}</dd>
         ${o.atendente?`<dt>Atendente</dt><dd>${esc(o.atendente)}</dd>`:""}
         ${o.costureira?`<dt>Costureira</dt><dd>${esc(o.costureira)}</dd>`:""}
