@@ -504,6 +504,9 @@ audio{width:100%;max-width:100%}
         <button class="btn primary" id="m-add">Criar acesso</button>
       </div>
       <div id="team-list"></div>
+      <div class="panel"><span class="label">Este aparelho</span>
+        <p class="hint">Desconecte quando o celular ou computador não for mais usado no ateliê. Para entrar de novo, vai pedir o e-mail e a senha do ateliê.</p>
+        <button class="btn del" id="dev-out">Desconectar este aparelho</button></div>
       <p class="hint">Atendente vê só o atendimento e entrega os pedidos prontos. Costureira vê só a fila e pega os pedidos. Administração vê tudo, inclusive serviços e equipe.</p>
     </section>
 
@@ -1510,6 +1513,13 @@ async function localDB(){
   return {doc:docRef, collection:colRef};
 }
 
+$("#dev-out").addEventListener("click",async()=>{
+  const b=$("#dev-out");
+  if(!b.classList.contains("armed")){ b.classList.add("armed"); b.textContent="Toque de novo para desconectar"; setTimeout(()=>{ b.classList.remove("armed"); b.textContent="Desconectar este aparelho"; },5000); return; }
+  try{ ls.set("ce-sess",""); if(window.firebase&&firebase.apps&&firebase.apps.length) await firebase.auth().signOut(); }catch(e){}
+  location.reload();
+});
+
 /* ---------- inicialização ---------- */
 renderPick(); renderPhotos(); renderAudio(); renderRecent(); renderQueue(); renderLogi(); renderEntregues(); renderCaixa(); renderSvcEdit();
 const hashCode = extractCode(decodeURIComponent(location.hash||""));
@@ -1525,15 +1535,44 @@ const offT=setTimeout(()=>{ if(!db) $("#offline").hidden=false; },4000);
     b.textContent="Modo de um aparelho: os pedidos ficam salvos só neste celular ou computador.";
     renderLogin(); startData(); return;
   }
+  let user=null;
   try{
     firebase.initializeApp(cfg);
-    await firebase.auth().signInAnonymously();
-    db=firebase.firestore();
-    try{ await db.enablePersistence({synchronizeTabs:true}); }catch(e){}
-  }catch(e){ console.error(e); fail("Não foi possível conectar ao Firebase ("+(e.code||e.message)+"). Confira se o login Anônimo está ativado no projeto."); db=null; return; }
+    user=await new Promise(res=>{ const un=firebase.auth().onAuthStateChanged(u=>{ un(); res(u); }); });
+  }catch(e){ console.error(e); fail("Não foi possível conectar ao banco do ateliê. Verifique a internet e recarregue a página."); return; }
   clearTimeout(offT); $("#offline").hidden=true;
-  renderLogin(); startData();
+  if(user && user.isAnonymous){ try{ await firebase.auth().signOut(); }catch(e){} user=null; }
+  if(!user){ renderDeviceLogin(); return; }
+  connectDB();
 })();
+function connectDB(){
+  db=firebase.firestore();
+  try{ db.enablePersistence({synchronizeTabs:true}).catch(()=>{}); }catch(e){}
+  renderLogin(); startData();
+}
+function renderDeviceLogin(err){
+  $("#login-body").innerHTML=`<form class="grp" id="dev-form" style="gap:14px" autocomplete="on">
+    <h2>Entrar no ateliê</h2>
+    <p>Este aparelho ainda não está liberado. Use o e-mail e a senha do ateliê. Isso é feito uma vez só em cada celular ou computador.</p>
+    <div class="field"><label for="dev-email">E-mail do ateliê</label><input type="email" id="dev-email" autocomplete="username" inputmode="email" required></div>
+    <div class="field"><label for="dev-pass">Senha do ateliê</label><input type="password" id="dev-pass" autocomplete="current-password" required></div>
+    ${err?`<div class="err">${esc(err)}</div>`:""}
+    <button class="btn primary" id="dev-go" type="submit">Liberar este aparelho</button>
+  </form>`;
+  $("#dev-form").addEventListener("submit",async e=>{
+    e.preventDefault(); const btn=$("#dev-go"); btn.disabled=true; btn.textContent="Entrando…";
+    try{
+      await firebase.auth().signInWithEmailAndPassword($("#dev-email").value.trim(), $("#dev-pass").value);
+      connectDB();
+    }catch(e){
+      const c=e&&e.code||"";
+      const m = /invalid-credential|wrong-password|user-not-found|invalid-email|invalid-login/.test(c) ? "E-mail ou senha incorretos."
+        : /too-many-requests/.test(c) ? "Muitas tentativas. Espere alguns minutos e tente de novo."
+        : /network/.test(c) ? "Sem internet. Verifique a conexão." : "Não foi possível entrar ("+c+").";
+      renderDeviceLogin(m);
+    }
+  });
+}
 function startData(){
   db.collection("equipe").onSnapshot(s=>{
     team=s.docs.map(d=>({id:d.id,...d.data()})); teamLoaded=true;
