@@ -286,6 +286,18 @@ audio{width:100%;max-width:100%}
 .camhelp summary{cursor:pointer;font-weight:700;padding:4px 0}
 .camhelp p{margin:6px 0 10px}
 .camhelp input{font-family:var(--f-mono);font-size:12px;text-transform:none!important}
+.scanner{position:fixed;inset:0;z-index:80;background:#000;display:flex;align-items:center;justify-content:center}
+.scanner video{position:absolute;inset:0;width:100%;height:100%;object-fit:cover}
+.sc-frame{position:relative;width:min(72vw,72vh,340px);aspect-ratio:1;border-radius:18px;box-shadow:0 0 0 200vmax rgba(0,0,0,.45);pointer-events:none}
+.sc-frame::before{content:"";position:absolute;inset:0;border:3px solid #ffffff;border-radius:18px}
+.sc-frame span{position:absolute;left:8%;right:8%;top:50%;height:2px;background:#2b9c8e;box-shadow:0 0 12px #2b9c8e;animation:scl 1.8s ease-in-out infinite alternate}
+@keyframes scl{from{top:12%}to{top:88%}}
+@media (prefers-reduced-motion:reduce){.sc-frame span{animation:none}}
+.sc-top{position:absolute;top:0;left:0;right:0;padding:calc(env(safe-area-inset-top,0px) + 18px) 20px 16px;color:#ffffff;text-align:center;display:flex;flex-direction:column;gap:4px;background:linear-gradient(rgba(0,0,0,.6),transparent)}
+.sc-top b{font-size:17px}
+.sc-top span{font-size:14px;opacity:.9}
+.sc-bottom{position:absolute;bottom:0;left:0;right:0;padding:16px 20px calc(env(safe-area-inset-bottom,0px) + 24px);display:flex;gap:10px;justify-content:center;background:linear-gradient(transparent,rgba(0,0,0,.6))}
+.sc-bottom .btn{background:#ffffff;color:#1b2424;border-color:#ffffff;min-width:120px}
 .scan-status{display:flex;gap:12px;align-items:center;background:color-mix(in srgb,var(--band-ink) 12%,transparent);border-radius:10px;padding:10px;font-size:14px;font-weight:600}
 .scan-status img{width:64px;height:64px;object-fit:cover;border-radius:6px;flex:none}
 .qr-area .cd{font-family:var(--f-mono);font-weight:700;font-size:20px;letter-spacing:.04em}
@@ -301,7 +313,7 @@ audio{width:100%;max-width:100%}
 .proof b{display:block;font-size:16px}
 .hist{display:flex;flex-direction:column;gap:4px;font-size:13px;color:var(--muted)}
 
-.toast{position:fixed;left:50%;transform:translateX(-50%);bottom:calc(env(safe-area-inset-bottom,0px) + 86px);z-index:60;background:var(--ink);color:var(--bg);padding:11px 16px;border-radius:10px;font-weight:600;max-width:calc(100% - 32px);box-shadow:0 6px 24px rgba(0,0,0,.25)}
+.toast{position:fixed;left:50%;transform:translateX(-50%);top:calc(env(safe-area-inset-top,0px) + 12px);z-index:60;background:var(--ink);color:var(--bg);padding:11px 16px;border-radius:10px;font-weight:600;max-width:calc(100% - 32px);box-shadow:0 6px 24px rgba(0,0,0,.25)}
 .banner{background:var(--st-cos-bg);color:var(--st-cos);border-radius:10px;padding:10px 12px;font-size:13.5px;font-weight:600}
 .busy{display:flex;align-items:center;gap:10px}
 .spin{width:18px;height:18px;border-radius:50%;border:2.5px solid currentColor;border-right-color:transparent;animation:sp .8s linear infinite}
@@ -424,9 +436,9 @@ audio{width:100%;max-width:100%}
     <section class="view" id="view-costureiras" hidden>
       <div class="scan">
         <span class="label" style="color:inherit;opacity:.75">Pegar pedido</span>
-        <label class="btn primary filebtn"><svg><use href="#i-qr"/></svg>Escanear QR code<input type="file" id="qr-in" accept="image/*" capture="environment"></label>
-        <label class="btn ghost filebtn"><svg><use href="#i-img"/></svg>Escolher foto do QR na galeria<input type="file" id="qr-gal" accept="image/*"></label>
-        <p>Tire a foto com o QR centralizado, ocupando boa parte da tela, sem reflexo. Se não ler, digite o código que aparece ao lado do QR.</p>
+        <button class="btn primary" id="scan-live"><svg><use href="#i-qr"/></svg>Escanear QR code</button>
+        <label class="btn ghost filebtn"><svg><use href="#i-img"/></svg>Ler o QR de uma foto<input type="file" id="qr-gal" accept="image/*"></label>
+        <p>Abre a câmera: aponte para o QR da nota e espere um instante, a leitura é automática. Se não ler, digite o código que aparece ao lado do QR.</p>
         <div class="scan-status" id="scan-status" hidden></div>
         <details class="camhelp"><summary>A câmera não abre?</summary>
           <p>Confira se o navegador tem permissão para usar a câmera (nas configurações do celular). Abra o app direto no Chrome ou no Safari, não dentro do WhatsApp ou do Instagram.</p>
@@ -531,6 +543,12 @@ audio{width:100%;max-width:100%}
   <div class="sheet" id="sheet"></div>
 </div>
 <div class="toast" id="toast" hidden></div>
+<div class="scanner" id="scanner" hidden>
+  <video id="scan-video" playsinline muted autoplay></video>
+  <div class="sc-frame" aria-hidden="true"><span></span></div>
+  <div class="sc-top"><b>Aponte para o QR code da nota</b><span id="scan-msg">Abrindo a câmera…</span></div>
+  <div class="sc-bottom"><button class="btn" id="scan-torch" hidden>Lanterna</button><button class="btn" id="scan-close">Fechar</button></div>
+</div>
 <datalist id="locais"></datalist>
 <div class="imgview" id="imgview" hidden>
   <div class="iv-bar"><button class="btn" id="iv-save">Salvar imagem</button><button class="btn" id="iv-close">Fechar</button></div>
@@ -542,10 +560,10 @@ audio{width:100%;max-width:100%}
 <script src="https://www.gstatic.com/firebasejs/10.12.2/firebase-auth-compat.js"></script>
 <script src="https://www.gstatic.com/firebasejs/10.12.2/firebase-firestore-compat.js"></script>
 <script src="firebase-config.js"></script>
-<script src="https://cdnjs.cloudflare.com/ajax/libs/qrcodejs/1.0.0/qrcode.min.js"></script>
+<script src="qrcode.min.js"></script>
 <script src="https://cdnjs.cloudflare.com/ajax/libs/jspdf/2.5.1/jspdf.umd.min.js"></script>
 <script src="https://cdnjs.cloudflare.com/ajax/libs/html2canvas/1.4.1/html2canvas.min.js"></script>
-<script src="https://cdn.jsdelivr.net/npm/jsqr@1.4.0/dist/jsQR.js"></script>
+<script src="jsQR.min.js"></script>
 <script>
 (function(){
 const ARTIFACT_URL = location.href.split("#")[0];
@@ -1230,15 +1248,68 @@ async function onQrFile(e){
     else st.innerHTML=`<img src="${prev}" alt=""><span>Não encontrei o QR nesta foto. Chegue mais perto, centralize o QR e evite reflexo. Ou digite o código abaixo.</span>`;
   }catch(err){ console.error(err); st.innerHTML=`<span>Não consegui abrir a foto. Tente de novo ou digite o código.</span>`; }
 }
-$("#qr-in").addEventListener("change", onQrFile);
 $("#qr-gal").addEventListener("change", onQrFile);
+
+/* ---------- leitor ao vivo pela câmera ---------- */
+let scanStream=null, scanRaf=0, scanBusy=false, scanDet=null, scanLast=0, scanN=0;
+async function openScanner(){
+  const msg=$("#scan-msg"); $("#scanner").hidden=false; document.body.style.overflow="hidden";
+  msg.textContent="Abrindo a câmera…";
+  if(!navigator.mediaDevices || !navigator.mediaDevices.getUserMedia){ msg.textContent="Este navegador não abre a câmera. Use “Ler o QR de uma foto” ou digite o código."; return; }
+  try{
+    scanStream=await navigator.mediaDevices.getUserMedia({audio:false, video:{facingMode:{ideal:"environment"}, width:{ideal:1280}, height:{ideal:720}}});
+  }catch(e){
+    console.warn(e);
+    msg.textContent = e && e.name==="NotAllowedError" ? "A câmera foi bloqueada. Toque no cadeado ao lado do endereço do site e permita a câmera." : "Não consegui abrir a câmera. Use “Ler o QR de uma foto” ou digite o código.";
+    return;
+  }
+  const v=$("#scan-video"); v.srcObject=scanStream; try{ await v.play(); }catch(e){}
+  msg.textContent="Lendo…";
+  try{ const tr=scanStream.getVideoTracks()[0]; const cap=tr.getCapabilities&&tr.getCapabilities(); $("#scan-torch").hidden=!(cap&&cap.torch); }catch(e){}
+  scanDet=null;
+  if("BarcodeDetector" in window){ try{ const f=await BarcodeDetector.getSupportedFormats(); if(f.includes("qr_code")) scanDet=new BarcodeDetector({formats:["qr_code"]}); }catch(e){} }
+  const cv=document.createElement("canvas"); const ctx=cv.getContext("2d",{willReadFrequently:true});
+  const tick=async(t)=>{
+    if(!scanStream) return;
+    scanRaf=requestAnimationFrame(tick);
+    if(scanBusy || t-scanLast<120 || v.readyState<2) return;
+    scanLast=t; scanBusy=true;
+    try{
+      let txt=null;
+      if(scanDet){ const r=await scanDet.detect(v); if(r&&r[0]) txt=r[0].rawValue; }
+      if(!txt && window.jsQR){
+        const vw=v.videoWidth, vh=v.videoHeight; scanN++;
+        let sx=0, sy=0, sw=vw, sh=vh;
+        if(scanN%2){ const side=Math.min(vw,vh)*0.8; sx=(vw-side)/2; sy=(vh-side)/2; sw=sh=side; }
+        const k=Math.min(1,720/Math.max(sw,sh)); const w=Math.round(sw*k), h=Math.round(sh*k);
+        cv.width=w; cv.height=h; ctx.drawImage(v,sx,sy,sw,sh,0,0,w,h);
+        const r=jsQR(ctx.getImageData(0,0,w,h).data,w,h,{inversionAttempts:"attemptBoth"}); if(r&&r.data) txt=r.data;
+      }
+      const code=extractCode(txt);
+      if(code){ try{ navigator.vibrate&&navigator.vibrate(80); }catch(e){} closeScanner(); openOrder(code); }
+      else if(txt){ msg.textContent="Esse QR não é de um pedido da Costura Expressa."; }
+    }catch(e){ console.warn(e); }
+    scanBusy=false;
+  };
+  scanRaf=requestAnimationFrame(tick);
+}
+function closeScanner(){
+  cancelAnimationFrame(scanRaf); scanRaf=0; scanBusy=false;
+  if(scanStream){ scanStream.getTracks().forEach(t=>t.stop()); scanStream=null; }
+  const v=$("#scan-video"); v.srcObject=null;
+  $("#scanner").hidden=true; document.body.style.overflow="";
+}
+$("#scan-live").addEventListener("click",openScanner);
+$("#scan-close").addEventListener("click",closeScanner);
+$("#scan-torch").addEventListener("click",async()=>{ try{ const tr=scanStream&&scanStream.getVideoTracks()[0]; if(!tr) return; tr._on=!tr._on; await tr.applyConstraints({advanced:[{torch:tr._on}]}); }catch(e){ toast("A lanterna não está disponível."); } });
+document.addEventListener("visibilitychange",()=>{ if(document.hidden && scanStream) closeScanner(); });
 function saveFile(blob,filename){
   const url=URL.createObjectURL(blob); const a=document.createElement("a"); a.href=url; a.download=filename;
   document.body.appendChild(a); a.click(); a.remove(); setTimeout(()=>URL.revokeObjectURL(url),60000);
 }
 function ensureJsQR(){
   if(window.jsQR) return Promise.resolve();
-  return new Promise(res=>{ const sc=document.createElement("script"); sc.src="https://cdnjs.cloudflare.com/ajax/libs/jsqr/1.4.0/jsQR.min.js"; sc.onload=res; sc.onerror=res; document.head.appendChild(sc); setTimeout(res,6000); });
+  return new Promise(res=>{ const sc=document.createElement("script"); sc.src="jsQR.min.js"; sc.onload=res; sc.onerror=res; document.head.appendChild(sc); setTimeout(res,6000); });
 }
 async function decodeQR(file){
   const url=URL.createObjectURL(file);
@@ -1248,8 +1319,8 @@ async function decodeQR(file){
     if(!window.jsQR) return null;
     const W=img.naturalWidth||img.width, H=img.naturalHeight||img.height;
     // tenta a foto inteira em vários tamanhos e depois recortes do centro
-    const crops=[[0,0,1],[.15,.15,.7],[.25,.25,.5],[.08,.08,.84]];
-    const sizes=[800,1200,500,1600];
+    const crops=[[0,0,1],[.15,.15,.7],[.25,.25,.5],[.08,.08,.84],[0,0,.6],[.4,0,.6],[0,.4,.6],[.4,.4,.6]];
+    const sizes=[800,1200,500,1600,350];
     for(const [fx,fy,fs] of crops){
       const sx=W*fx, sy=H*fy, sw=W*fs, sh=H*fs;
       for(const max of sizes){
