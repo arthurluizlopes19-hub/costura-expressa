@@ -1542,7 +1542,7 @@ window.addEventListener("appinstalled",()=>{ installEvt=null; showInstall(); toa
 $("#install-go").addEventListener("click",doInstall);
 $("#install-login").addEventListener("click",doInstall);
 $("#install-x").addEventListener("click",()=>{ try{ localStorage.setItem("ce-install-x",String(Date.now())); }catch(e){} $("#install-bar").hidden=true; });
-if("serviceWorker" in navigator && location.protocol==="https:"){
+if("serviceWorker" in navigator && window.isSecureContext){
   window.addEventListener("load",()=>{ navigator.serviceWorker.register("sw.js").catch(e=>console.warn("SW",e)); });
 }
 
