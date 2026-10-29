@@ -5,8 +5,14 @@
 <meta name="viewport" content="width=device-width,initial-scale=1,viewport-fit=cover">
 <meta name="theme-color" content="#2b9c8e">
 <title>Costura Expressa</title>
-<link rel="icon" href="logo-costura-expressa.png">
-<link rel="apple-touch-icon" href="logo-costura-expressa.png">
+<link rel="manifest" href="manifest.webmanifest">
+<link rel="icon" type="image/png" sizes="48x48" href="icons/favicon-48.png">
+<link rel="icon" type="image/png" sizes="192x192" href="icons/icon-192.png">
+<link rel="apple-touch-icon" href="icons/apple-touch-icon.png">
+<meta name="apple-mobile-web-app-capable" content="yes">
+<meta name="mobile-web-app-capable" content="yes">
+<meta name="apple-mobile-web-app-title" content="Costura Expressa">
+<meta name="apple-mobile-web-app-status-bar-style" content="default">
 <link rel="preconnect" href="https://fonts.googleapis.com">
 <link rel="stylesheet" href="https://fonts.googleapis.com/css2?family=Fredoka:wght@500;600;700&family=Nunito:wght@400;600;700;800&family=Pacifico&family=JetBrains+Mono:wght@500;700&display=swap">
 <style>
@@ -282,6 +288,10 @@ audio{width:100%;max-width:100%}
 .imgview .iv-bar .btn{background:#ffffff;color:#1b2424;border-color:#ffffff}
 .imgview .iv-tip{color:#ffffff;opacity:.85;font-size:13.5px;margin:0;max-width:520px;text-align:center}
 .imgview img{width:100%;max-width:520px;background:#ffffff;border-radius:6px;-webkit-touch-callout:default;user-select:auto}
+.install-bar{position:fixed;left:max(12px,env(safe-area-inset-left,0px));right:max(12px,env(safe-area-inset-right,0px));bottom:calc(env(safe-area-inset-bottom,0px) + 84px);z-index:35;max-width:520px;margin:0 auto;background:var(--surface);border:1px solid var(--line);border-radius:14px;box-shadow:0 8px 28px rgba(0,0,0,.18);padding:12px;display:flex;gap:8px;align-items:center;flex-wrap:wrap}
+.install-bar span{flex:1 1 180px;display:flex;flex-direction:column;min-width:0}
+.install-bar small{color:var(--muted);font-size:12.5px}
+.install-bar .btn{min-height:40px;padding:8px 14px}
 .camhelp{font-size:14px}
 .camhelp summary{cursor:pointer;font-weight:700;padding:4px 0}
 .camhelp p{margin:6px 0 10px}
@@ -534,12 +544,18 @@ audio{width:100%;max-width:100%}
     <p class="slogan">Seu look merece o melhor acabamento</p>
     <div class="tape" style="border-radius:6px"></div>
     <div id="login-body"><p>Conectando ao ateliê…</p></div>
+    <button class="btn ghost" id="install-login" hidden>Instalar o app neste aparelho</button>
   </div>
 </div>
 <div class="overlay" id="overlay" hidden>
   <div class="sheet" id="sheet"></div>
 </div>
 <div class="toast" id="toast" hidden></div>
+<div class="install-bar" id="install-bar" hidden>
+  <span><b>Instalar o Costura Expressa</b><small>Abre direto da tela inicial, como um aplicativo.</small></span>
+  <button class="btn primary" id="install-go">Instalar</button>
+  <button class="btn ghost" id="install-x" aria-label="Agora não">Agora não</button>
+</div>
 <div class="scanner" id="scanner" hidden>
   <video id="scan-video" playsinline muted autoplay></video>
   <div class="sc-frame" aria-hidden="true"><span></span></div>
@@ -1504,6 +1520,30 @@ async function localDB(){
   function colRef(p){ return {...query(p), path:p, doc:id=>docRef(p+"/"+(id||rid())), add:async d=>{ const r=docRef(p+"/"+rid()); await r.set(d); return r; }}; }
   try{ if(navigator.storage&&navigator.storage.persist) navigator.storage.persist(); }catch(e){}
   return {doc:docRef, collection:colRef};
+}
+
+/* ---------- app instalável ---------- */
+let installEvt=null;
+const isStandalone=()=>window.matchMedia("(display-mode: standalone)").matches || navigator.standalone===true;
+function showInstall(){
+  const can=!!installEvt && !isStandalone();
+  $("#install-login").hidden=!can;
+  let dismissed=false; try{ dismissed=Date.now()-Number(localStorage.getItem("ce-install-x")||0) < 7*864e5; }catch(e){}
+  $("#install-bar").hidden=!(can && !dismissed);
+}
+async function doInstall(){
+  if(!installEvt) return;
+  installEvt.prompt();
+  try{ const r=await installEvt.userChoice; if(r&&r.outcome==="accepted") toast("Instalando o app…"); }catch(e){}
+  installEvt=null; showInstall();
+}
+window.addEventListener("beforeinstallprompt",e=>{ e.preventDefault(); installEvt=e; showInstall(); });
+window.addEventListener("appinstalled",()=>{ installEvt=null; showInstall(); toast("App instalado. Abra pelo ícone Costura Expressa."); });
+$("#install-go").addEventListener("click",doInstall);
+$("#install-login").addEventListener("click",doInstall);
+$("#install-x").addEventListener("click",()=>{ try{ localStorage.setItem("ce-install-x",String(Date.now())); }catch(e){} $("#install-bar").hidden=true; });
+if("serviceWorker" in navigator && location.protocol==="https:"){
+  window.addEventListener("load",()=>{ navigator.serviceWorker.register("sw.js").catch(e=>console.warn("SW",e)); });
 }
 
 /* ---------- inicialização ---------- */
