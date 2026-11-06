@@ -292,6 +292,12 @@ audio{width:100%;max-width:100%}
 .install-bar span{flex:1 1 180px;display:flex;flex-direction:column;min-width:0}
 .install-bar small{color:var(--muted);font-size:12.5px}
 .install-bar .btn{min-height:40px;padding:8px 14px}
+.btn.wa{background:#1fa855;border-color:#1fa855;color:#ffffff;text-decoration:none}
+.btn.wa:hover{background:#178a45;border-color:#178a45}
+.btn.wa.ghostwa{background:transparent;color:#178a45;border-color:#1fa855}
+.btn.wa svg{width:20px;height:20px;flex:none}
+.btn.wa[aria-disabled="true"]{opacity:.5;pointer-events:none}
+.wa-box{border-color:color-mix(in srgb,#1fa855 40%,var(--line))}
 .camhelp{font-size:14px}
 .camhelp summary{cursor:pointer;font-weight:700;padding:4px 0}
 .camhelp p{margin:6px 0 10px}
@@ -564,7 +570,7 @@ audio{width:100%;max-width:100%}
 </div>
 <datalist id="locais"></datalist>
 <div class="imgview" id="imgview" hidden>
-  <div class="iv-bar"><button class="btn" id="iv-save">Salvar imagem</button><button class="btn" id="iv-close">Fechar</button></div>
+  <div class="iv-bar"><button class="btn" id="iv-save">Salvar imagem</button><button class="btn" id="iv-share" hidden>Compartilhar</button><button class="btn" id="iv-close">Fechar</button></div>
   <p class="iv-tip">Toque e segure na nota para salvar ou compartilhar. Depois imprima pela galeria do celular.</p>
   <img id="iv-img" alt="Nota do pedido pronta para imprimir">
 </div>
@@ -775,7 +781,8 @@ async function finalizar(){
       atendente:atend, costureira:"", status:"recebido", criadoEm:now,
       historico:[{status:"recebido", por:atend||"Atendimento", em:now}]};
     await db.doc(`pedidos/${code}`).set(pedido);
-    resetForm(); openOrder(code, pedido); toast("Pedido "+code+" finalizado.");
+    resetForm(); await openOrder(code, pedido); toast("Pedido "+code+" finalizado. Envie a nota pelo WhatsApp.");
+    setTimeout(()=>{ const w=$("#sheet .wa-box"); if(w) w.scrollIntoView({behavior:"smooth",block:"center"}); },500);
   }catch(e){ writeErr(e); }
   finally{ saving=false; btn.disabled=false; btn.textContent="Finalizar pedido"; }
 }
@@ -902,6 +909,76 @@ async function printNota(code,fmt,btn){
 }
 
 let ivBlob=null, ivCode="";
+/* ---------- WhatsApp ---------- */
+const waIcon='<svg viewBox="0 0 24 24" aria-hidden="true"><path fill="currentColor" d="M12 2a10 10 0 0 0-8.6 15.1L2 22l5-1.3A10 10 0 1 0 12 2Zm0 18.2a8.2 8.2 0 0 1-4.2-1.2l-.3-.2-3 .8.8-2.9-.2-.3A8.2 8.2 0 1 1 12 20.2Zm4.5-6.1c-.2-.1-1.5-.7-1.7-.8s-.4-.1-.6.1l-.8 1c-.1.2-.3.2-.5.1a6.7 6.7 0 0 1-3.3-2.9c-.2-.4.2-.4.7-1.3.1-.2 0-.3 0-.4l-.8-1.8c-.2-.5-.4-.4-.6-.4h-.5a1 1 0 0 0-.7.3 3 3 0 0 0-.9 2.2 5.2 5.2 0 0 0 1.1 2.7 11.8 11.8 0 0 0 4.5 4c1.7.7 2.3.8 3.2.6a2.7 2.7 0 0 0 1.8-1.3 2.2 2.2 0 0 0 .2-1.3c-.1-.1-.3-.2-.5-.3Z"/></svg>';
+function waNumber(tel){
+  let d=String(tel||"").replace(/\D/g,"");
+  if(!d) return "";
+  d=d.replace(/^0+/,"");
+  if(d.startsWith("55") && d.length>=12) return d;
+  if(d.length===10 || d.length===11) return "55"+d;
+  if(d.length===8 || d.length===9) return "5581"+d;
+  return d.length>=10 ? d : "";
+}
+function waLink(tel,text){ const n=waNumber(tel); return "https://wa.me/"+(n||"")+"?text="+encodeURIComponent(text); }
+function waNotaText(o){
+  const c=o.cliente||{}; const nome=String(c.nome||"").trim().split(/\s+/)[0]||"";
+  const L=[];
+  L.push(`Olá${nome?", "+nome:""}! Aqui é da *Costura Expressa*.`);
+  L.push(""); L.push(`*Nota de serviço Nº ${o.codigo}*`); L.push(`Data: ${fmtDate(o.criadoEm)}`); L.push("");
+  (o.itens||[]).forEach(i=>L.push(`• ${i.qtd}× ${i.nome}: ${money(i.preco*i.qtd)}`));
+  L.push("");
+  if(descOf(o)){ L.push(`Subtotal: ${money(subOf(o))}`); L.push(`${descLabel(o)}: - ${money(descOf(o))}`); }
+  L.push(`*Total: ${money(totOf(o))}*`);
+  if(Number(o.entrada)) L.push(`Entrada (${o.pagamento}): ${money(o.entrada)}`);
+  if(o.status==="entregue") L.push("Situação: quitado");
+  else L.push(`A pagar na retirada: ${money(restOf(o))}`);
+  if(o.entrega) L.push(`Entrega prevista: ${fmtDay(o.entrega)}`);
+  if(o.obs){ L.push(""); L.push(`Observações: ${o.obs}`); }
+  L.push(""); L.push(`Para retirar a peça, apresente o código *${o.codigo}*.`);
+  L.push(""); L.push("Galeria Jaqueira Park Center, R. do Futuro, 913, Graças, Recife/PE"); L.push("WhatsApp (81) 99616-0055");
+  return L.join("\n");
+}
+function waProntoText(o){
+  const c=o.cliente||{}; const nome=String(c.nome||"").trim().split(/\s+/)[0]||"";
+  const r=restOf(o);
+  return [`Olá${nome?", "+nome:""}! Aqui é da *Costura Expressa*.`,"",`Sua peça do pedido *${o.codigo}* está pronta para retirada.`,
+    r>0?`Valor a pagar na retirada: ${money(r)}`:"O pedido já está pago.","",
+    "Galeria Jaqueira Park Center, R. do Futuro, 913, Graças, Recife/PE"].join("\n");
+}
+function wireWhats(o){
+  const a=$("#wa-nota"), ap=$("#wa-pronto"), inp=$("#wa-tel");
+  const refresh=()=>{
+    const tel = inp ? inp.value : (o.cliente||{}).telefone;
+    const ok=!!waNumber(tel);
+    a.href=waLink(tel,waNotaText(o)); a.setAttribute("aria-disabled",String(!ok));
+    if(ap){ ap.href=waLink(tel,waProntoText(o)); ap.setAttribute("aria-disabled",String(!ok)); }
+  };
+  if(inp) inp.addEventListener("input",refresh);
+  refresh();
+  const mark=async(field,extra)=>{
+    try{
+      const patch={[field]:Date.now(), ...extra};
+      if(inp && waNumber(inp.value) && inp.value.trim()!==String((o.cliente||{}).telefone||"").trim()) patch.cliente={...(o.cliente||{}), telefone:inp.value.trim()};
+      await db.doc(`pedidos/${o.codigo}`).update(patch);
+    }catch(e){ console.warn(e); }
+  };
+  a.addEventListener("click",()=>mark("whatsEnviadoEm"));
+  if(ap) ap.addEventListener("click",()=>mark("whatsProntoEm"));
+  $("#wa-img").onclick=()=>shareNotaImage(o.codigo,$("#wa-img"));
+}
+async function shareNotaImage(code,btn){
+  await notaImage(code,btn);
+  if(!ivBlob) return;
+  const file=new File([ivBlob],`nota-${code}.png`,{type:"image/png"});
+  if(navigator.canShare && navigator.canShare({files:[file]})){
+    try{ await navigator.share({files:[file], title:`Nota ${code}`, text:`Nota de serviço ${code} · Costura Expressa`}); $("#imgview").hidden=true; return; }
+    catch(e){ if(e && e.name==="AbortError"){ $("#imgview").hidden=true; return; } }
+  }
+  $("#iv-share").hidden=!(navigator.canShare && navigator.canShare({files:[file]}));
+  toast("Toque em Compartilhar e escolha o WhatsApp, ou salve a imagem e envie pela conversa da cliente.");
+}
+
 async function notaImage(code,btn){
   const el=document.querySelector("#sheet .nota"); if(!el) return;
   if(!window.html2canvas){ toast("O gerador de imagem não carregou. Verifique a internet."); return; }
@@ -914,9 +991,14 @@ async function notaImage(code,btn){
     const url=canvas.toDataURL("image/png");
     ivBlob=await new Promise(r=>canvas.toBlob(r,"image/png")); ivCode=code;
     $("#iv-img").src=url; $("#imgview").hidden=false; $("#imgview").scrollTop=0;
+    try{ const f=new File([ivBlob],`nota-${code}.png`,{type:"image/png"}); $("#iv-share").hidden=!(navigator.canShare&&navigator.canShare({files:[f]})); }catch(e){ $("#iv-share").hidden=true; }
   }catch(e){ console.error(e); toast("Não consegui montar a imagem da nota. Tente de novo."); }
   finally{ if(prevTheme==null) root.removeAttribute("data-theme"); else root.setAttribute("data-theme",prevTheme); btn.disabled=false; btn.textContent=old; }
 }
+$("#iv-share").addEventListener("click",async()=>{
+  if(!ivBlob) return; const f=new File([ivBlob],`nota-${ivCode}.png`,{type:"image/png"});
+  try{ await navigator.share({files:[f], title:`Nota ${ivCode}`}); }catch(e){ if(!(e&&e.name==="AbortError")) toast("Não deu para compartilhar. Salve a imagem e envie pelo WhatsApp."); }
+});
 $("#iv-close").addEventListener("click",()=>{ $("#imgview").hidden=true; $("#iv-img").removeAttribute("src"); });
 $("#iv-save").addEventListener("click",async()=>{
   if(!ivBlob) return;
@@ -1148,6 +1230,13 @@ function renderSheet(o){
       <div class="qr-area"><div class="qr" id="qr"></div><div><div class="label">Código do pedido</div><div class="cd">${esc(o.codigo)}</div><p class="hint" style="margin-top:6px">Apresente esta nota para retirar a peça.</p></div></div>
       <div class="foot">WhatsApp (81) 99616-0055<small>Comprovante interno do ateliê · sem valor fiscal</small></div>
     </article>
+    <div class="panel wa-box"><span class="label">Enviar para a cliente</span>
+      ${waNumber(c.telefone)?"":`<div class="field"><label for="wa-tel">WhatsApp da cliente</label><input type="tel" id="wa-tel" placeholder="(81) 9 9999-9999" value="${esc(c.telefone||"")}"></div>`}
+      <a class="btn wa" id="wa-nota" href="${waLink(c.telefone,waNotaText(o))}" target="_blank" rel="noopener">${waIcon}Enviar nota pelo WhatsApp</a>
+      ${o.status==="pronto"?`<a class="btn wa ghostwa" id="wa-pronto" href="${waLink(c.telefone,waProntoText(o))}" target="_blank" rel="noopener">${waIcon}Avisar que a peça está pronta</a>`:""}
+      <button class="btn" id="wa-img">Enviar imagem da nota</button>
+      <p class="hint">${o.whatsEnviadoEm?`Nota enviada pelo WhatsApp em ${fmtDate(o.whatsEnviadoEm)}. `:""}O WhatsApp abre com a mensagem pronta para ${waNumber(c.telefone)?esc(c.telefone):"o número informado"}. É só tocar em enviar.</p>
+    </div>
     <div class="panel print-box"><span class="label">Imprimir nota</span>
       <button class="btn primary" id="print-now">Imprimir nota</button>
       <button class="btn" id="print-img">Abrir nota como imagem</button>
@@ -1173,6 +1262,7 @@ function renderSheet(o){
   const db_=$("#del-ord"); if(db_) db_.onclick=()=>deleteOrder(o,db_);
   $("#sheet").querySelectorAll("[data-print]").forEach(b=>b.onclick=()=>printNota(o.codigo,b.dataset.print,b));
   $("#print-img").onclick=()=>notaImage(o.codigo,$("#print-img"));
+  wireWhats(o);
   $("#print-now").onclick=()=>{ const root=document.documentElement, prev=root.getAttribute("data-theme"); root.setAttribute("data-theme","light");
     setTimeout(()=>{ window.print(); setTimeout(()=>{ if(prev==null) root.removeAttribute("data-theme"); else root.setAttribute("data-theme",prev); },500); },100); };
   const ls_=$("#sh-local-save"); if(ls_) ls_.onclick=async()=>{ const v=$("#sh-local").value.trim(); if(v===(o.local||"")) return; ls_.disabled=true;
