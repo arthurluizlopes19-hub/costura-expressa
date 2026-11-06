@@ -580,8 +580,8 @@ audio{width:100%;max-width:100%}
 <script src="https://www.gstatic.com/firebasejs/10.12.2/firebase-firestore-compat.js"></script>
 <script src="firebase-config.js"></script>
 <script src="qrcode.min.js"></script>
-<script src="https://cdnjs.cloudflare.com/ajax/libs/jspdf/2.5.1/jspdf.umd.min.js"></script>
-<script src="https://cdnjs.cloudflare.com/ajax/libs/html2canvas/1.4.1/html2canvas.min.js"></script>
+<script src="jspdf.umd.min.js"></script>
+<script src="html2canvas.min.js"></script>
 <script src="jsQR.min.js"></script>
 <script>
 (function(){
@@ -887,19 +887,23 @@ function layoutNota(doc,o,fmt,logo,qr){
   font(fs.s,"normal",grey); T("Comprovante interno do ateliê · sem valor fiscal",W/2,y,{align:"center"}); y+=M;
   return y;
 }
+async function buildNotaPdf(o,fmt){
+  if(!window.jspdf) throw new Error("jspdf");
+  const {jsPDF}=window.jspdf; const logo=await getLogo().catch(()=>null); const qr=qrPng(o.codigo);
+  let doc;
+  if(fmt==="80"){ const probe=new jsPDF({unit:"mm",format:[80,1000]}); const h=Math.ceil(layoutNota(probe,o,fmt,logo,qr)); doc=new jsPDF({unit:"mm",format:[80,Math.max(120,h)],compress:true}); }
+  else doc=new jsPDF({unit:"mm",format:"a4",compress:true});
+  layoutNota(doc,o,fmt,logo,qr);
+  doc.setProperties({title:"Nota "+o.codigo+" · Costura Expressa"});
+  return doc.output("blob");
+}
 async function printNota(code,fmt,btn){
   const o=orders.find(x=>x.codigo===code); const msg=$("#print-msg");
   if(!o) return;
   if(!window.jspdf){ msg.textContent="O gerador de PDF não carregou. Verifique a internet e abra a nota de novo."; return; }
   const old=btn.textContent; btn.disabled=true; btn.innerHTML='<span class="busy"><span class="spin"></span>Gerando PDF</span>';
   try{
-    const {jsPDF}=window.jspdf; const logo=await getLogo().catch(()=>null); const qr=qrPng(code);
-    let doc;
-    if(fmt==="80"){ const probe=new jsPDF({unit:"mm",format:[80,1000]}); const h=Math.ceil(layoutNota(probe,o,fmt,logo,qr)); doc=new jsPDF({unit:"mm",format:[80,Math.max(120,h)]}); }
-    else doc=new jsPDF({unit:"mm",format:"a4"});
-    layoutNota(doc,o,fmt,logo,qr);
-    doc.setProperties({title:"Nota "+code+" · Costura Expressa"});
-    const blob=doc.output("blob");
+    const blob=await buildNotaPdf(o,fmt);
     saveFile(blob,`nota-${code}${fmt==="80"?"-termica":""}.pdf`);
     msg.textContent="PDF baixado. Abra o arquivo e toque em Imprimir.";
   }catch(e){
@@ -965,20 +969,29 @@ function wireWhats(o){
   };
   a.addEventListener("click",()=>mark("whatsEnviadoEm"));
   if(ap) ap.addEventListener("click",()=>mark("whatsProntoEm"));
-  $("#wa-img").onclick=()=>shareNotaImage(o.codigo,$("#wa-img"));
+  // prepara o PDF assim que a nota abre, para o compartilhamento sair na hora do toque
+  let pdf=null; const pb=$("#wa-pdf"); const pm=$("#wa-msg");
+  pb.disabled=true; const pbHtml=pb.innerHTML; pb.innerHTML='<span class="busy"><span class="spin"></span>Preparando o PDF</span>';
+  buildNotaPdf(o,"a4").then(b=>{ pdf=new File([b],`nota-${o.codigo}.pdf`,{type:"application/pdf"}); })
+    .catch(e=>{ console.error(e); pm.textContent="Não consegui gerar o PDF agora. Verifique a internet e abra a nota de novo."; })
+    .finally(()=>{ pb.disabled=false; pb.innerHTML=pbHtml; });
+  pb.onclick=async()=>{
+    if(!pdf){ toast("O PDF ainda não ficou pronto. Tente de novo em instantes."); return; }
+    const tel = inp ? inp.value : (o.cliente||{}).telefone;
+    const nome=String((o.cliente||{}).nome||"").trim().split(/\s+/)[0]||"";
+    const legenda=`Olá${nome?", "+nome:""}! Segue a nota do seu pedido ${o.codigo} na Costura Expressa.`;
+    if(navigator.canShare && navigator.canShare({files:[pdf]})){
+      try{ await navigator.share({files:[pdf], title:`Nota ${o.codigo}`, text:legenda}); mark("whatsEnviadoEm"); pm.textContent=`Nota enviada em ${fmtDate(Date.now())}.`; }
+      catch(e){ if(!(e&&e.name==="AbortError")){ console.warn(e); pm.textContent="Não deu para compartilhar o PDF. Tente de novo."; } }
+      return;
+    }
+    // computador ou navegador sem compartilhamento: baixa o PDF e abre a conversa da cliente
+    saveFile(pdf,pdf.name);
+    if(waNumber(tel)) window.open(waLink(tel,legenda+" (PDF em anexo)"),"_blank","noopener");
+    mark("whatsEnviadoEm");
+    pm.textContent="PDF baixado. Na conversa do WhatsApp que abriu, toque no clipe e anexe o arquivo "+pdf.name+".";
+  };
 }
-async function shareNotaImage(code,btn){
-  await notaImage(code,btn);
-  if(!ivBlob) return;
-  const file=new File([ivBlob],`nota-${code}.png`,{type:"image/png"});
-  if(navigator.canShare && navigator.canShare({files:[file]})){
-    try{ await navigator.share({files:[file], title:`Nota ${code}`, text:`Nota de serviço ${code} · Costura Expressa`}); $("#imgview").hidden=true; return; }
-    catch(e){ if(e && e.name==="AbortError"){ $("#imgview").hidden=true; return; } }
-  }
-  $("#iv-share").hidden=!(navigator.canShare && navigator.canShare({files:[file]}));
-  toast("Toque em Compartilhar e escolha o WhatsApp, ou salve a imagem e envie pela conversa da cliente.");
-}
-
 async function notaImage(code,btn){
   const el=document.querySelector("#sheet .nota"); if(!el) return;
   if(!window.html2canvas){ toast("O gerador de imagem não carregou. Verifique a internet."); return; }
@@ -1232,10 +1245,10 @@ function renderSheet(o){
     </article>
     <div class="panel wa-box"><span class="label">Enviar para a cliente</span>
       ${waNumber(c.telefone)?"":`<div class="field"><label for="wa-tel">WhatsApp da cliente</label><input type="tel" id="wa-tel" placeholder="(81) 9 9999-9999" value="${esc(c.telefone||"")}"></div>`}
-      <a class="btn wa" id="wa-nota" href="${waLink(c.telefone,waNotaText(o))}" target="_blank" rel="noopener">${waIcon}Enviar nota pelo WhatsApp</a>
+      <button class="btn wa" id="wa-pdf">${waIcon}Enviar PDF da nota pelo WhatsApp</button>
+      <a class="btn wa ghostwa" id="wa-nota" href="${waLink(c.telefone,waNotaText(o))}" target="_blank" rel="noopener">${waIcon}Enviar só a mensagem de texto</a>
       ${o.status==="pronto"?`<a class="btn wa ghostwa" id="wa-pronto" href="${waLink(c.telefone,waProntoText(o))}" target="_blank" rel="noopener">${waIcon}Avisar que a peça está pronta</a>`:""}
-      <button class="btn" id="wa-img">Enviar imagem da nota</button>
-      <p class="hint">${o.whatsEnviadoEm?`Nota enviada pelo WhatsApp em ${fmtDate(o.whatsEnviadoEm)}. `:""}O WhatsApp abre com a mensagem pronta para ${waNumber(c.telefone)?esc(c.telefone):"o número informado"}. É só tocar em enviar.</p>
+      <p class="hint" id="wa-msg">${o.whatsEnviadoEm?`Nota enviada pelo WhatsApp em ${fmtDate(o.whatsEnviadoEm)}. `:""}O PDF é o mesmo da impressão em folha A4. No envio, escolha o WhatsApp e depois a conversa de ${esc((c.nome||"").split(" ")[0]||"cliente")}${waNumber(c.telefone)?" ("+esc(c.telefone)+")":""}.</p>
     </div>
     <div class="panel print-box"><span class="label">Imprimir nota</span>
       <button class="btn primary" id="print-now">Imprimir nota</button>

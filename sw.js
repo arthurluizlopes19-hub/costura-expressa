@@ -1,13 +1,15 @@
 // Service worker do Costura Expressa: deixa o app instalável e abre mesmo com internet fraca.
 // Arquivos do próprio site: tenta a rede primeiro (sempre a versão mais nova) e usa a cópia guardada se cair.
 // Banco de dados e outros sites (Firebase, fontes) passam direto, sem cache.
-const CACHE = "costura-expressa-v2";
+const CACHE = "costura-expressa-v3";
 const ARQUIVOS = [
   "./",
   "./index.html",
   "./firebase-config.js",
   "./jsQR.min.js",
   "./qrcode.min.js",
+  "./jspdf.umd.min.js",
+  "./html2canvas.min.js",
   "./logo-costura-expressa.png",
   "./manifest.webmanifest",
   "./icons/icon-192.png",
