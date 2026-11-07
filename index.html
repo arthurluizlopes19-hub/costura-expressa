@@ -304,6 +304,14 @@ audio{width:100%;max-width:100%}
 .cli-code{display:flex;flex-direction:column;gap:2px;border-top:1px solid var(--line);padding-top:12px}
 .cli-code b{font-family:var(--f-mono);font-size:20px;letter-spacing:.04em}
 .cli-code span:last-child{font-size:13px;color:var(--muted)}
+input[type="text"]:not(#app-link):not(#m-pin):not(#lg-pin):not([inputmode="numeric"]), input[type="search"], textarea{text-transform:uppercase}
+.svc .nm,.svc-edit .nm,.ord .who,.ord .sub,.kv dd,.items td:first-child,.obs,.member b,.who .nm b,.person .hd b,.mem-row .nm,.loc,.proof b,.hist b{text-transform:uppercase}
+.svc-search{display:flex;align-items:center;gap:8px;background:var(--sunken);border:1px solid var(--line);border-radius:9px;padding:0 12px}
+.svc-search svg{width:18px;height:18px;flex:none;color:var(--muted)}
+.svc-search input{border:0!important;background:transparent!important;padding:10px 0!important;min-height:44px;flex:1;min-width:0;font:inherit;color:inherit}
+.svc-search input:focus{outline:none}
+.svc-search:focus-within{outline:2px solid var(--accent);outline-offset:2px}
+.svc-none{padding:14px;text-align:center;color:var(--muted);font-size:14px}
 .camhelp{font-size:14px}
 .camhelp summary{cursor:pointer;font-weight:700;padding:4px 0}
 .camhelp p{margin:6px 0 10px}
@@ -402,6 +410,7 @@ audio{width:100%;max-width:100%}
 
       <div class="panel">
         <div class="row" style="justify-content:space-between"><span class="label">Serviços</span><span class="hint" id="cart-count"></span></div>
+        <label class="svc-search" for="svc-busca"><svg viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2.2" stroke-linecap="round" aria-hidden="true"><circle cx="11" cy="11" r="7"/><path d="m20 20-3.5-3.5"/></svg><input type="search" id="svc-busca" placeholder="PESQUISAR SERVIÇO" autocomplete="off" aria-label="Pesquisar serviço"></label>
         <div id="svc-pick"></div>
       </div>
 
@@ -540,6 +549,7 @@ audio{width:100%;max-width:100%}
         </div>
         <button class="btn primary" id="s-add">Adicionar à tabela</button>
       </div>
+      <label class="svc-search" for="svc-busca2"><svg viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2.2" stroke-linecap="round" aria-hidden="true"><circle cx="11" cy="11" r="7"/><path d="m20 20-3.5-3.5"/></svg><input type="search" id="svc-busca2" placeholder="PESQUISAR NA TABELA" autocomplete="off" aria-label="Pesquisar serviço"></label>
       <div id="svc-edit-list"></div>
       <p class="hint">Mude o valor direto no campo; ele é salvo ao sair do campo. Os pedidos já feitos mantêm o valor da época.</p>
     </section>
@@ -693,18 +703,22 @@ function renderPick(){
     el.innerHTML=`<div class="empty"><span>Nenhum serviço cadastrado ainda.</span><button class="btn" id="go-svc">Cadastrar serviços</button></div>`;
     $("#go-svc").onclick=()=>setView("servicos");
   } else {
-    el.innerHTML=`<div class="svc-list">${services.map(s=>{const q=cart[s.id]||0;return `
+    const q0=norm($("#svc-busca").value).trim();
+    const lista=q0?services.filter(s=>norm(s.nome).includes(q0)):services;
+    el.innerHTML=!lista.length?`<div class="svc-list"><div class="svc-none">Nenhum serviço encontrado com “${esc(U($("#svc-busca").value))}”.</div></div>`:`<div class="svc-list">${lista.map(s=>{const q=cart[s.id]||0;return `
       <div class="svc ${q?"on":""}"><div style="min-width:0"><div class="nm">${esc(s.nome)}</div><div class="pr">${money(s.preco)}</div></div>
       <div class="step"><button data-dec="${s.id}" aria-label="Remover ${esc(s.nome)}">−</button><span class="q">${q}</span><button data-inc="${s.id}" aria-label="Adicionar ${esc(s.nome)}">+</button></div></div>`}).join("")}</div>`;
   }
   updateTotal();
 }
+$("#svc-busca").addEventListener("input",()=>renderPick());
+$("#svc-busca2").addEventListener("input",()=>renderSvcEdit());
 $("#svc-pick").addEventListener("click",e=>{
   const i=e.target.closest("[data-inc]"), d=e.target.closest("[data-dec]");
   if(i){cart[i.dataset.inc]=(cart[i.dataset.inc]||0)+1; renderPick();}
   if(d){const k=d.dataset.dec; cart[k]=Math.max(0,(cart[k]||0)-1); if(!cart[k]) delete cart[k]; renderPick();}
 });
-function cartItems(){ return services.filter(s=>cart[s.id]).map(s=>({nome:s.nome, preco:Number(s.preco)||0, qtd:cart[s.id]})); }
+function cartItems(){ return services.filter(s=>cart[s.id]).map(s=>({nome:U(s.nome), preco:Number(s.preco)||0, qtd:cart[s.id]})); }
 let descTipo="valor";
 const round2=v=>Math.round((Number(v)||0)*100)/100;
 function calcDesconto(sub){
@@ -783,10 +797,10 @@ async function finalizar(){
     const code=newCode(); const now=Date.now(); const atend=session?session.nome:"";
     const subtotal=round2(itens.reduce((a,b)=>a+b.preco*b.qtd,0)); const dc=calcDesconto(subtotal);
     const total=round2(subtotal-dc.desc);
-    const pedido={codigo:code, cliente:{nome, telefone:$("#c-tel").value.trim()},
+    const pedido={codigo:code, cliente:{nome:U(nome), telefone:$("#c-tel").value.trim()},
       itens, subtotal, desconto:dc.desc, descontoTipo:descTipo, descontoInformado:dc.raw, total,
       entrada:Math.min(total,Math.max(0,Number($("#c-entrada").value)||0)), pagamento:$("#c-pag").value,
-      entrega:$("#c-entrega").value||"", obs:$("#c-obs").value.trim(), fotos:fotoIds, audio:audioId,
+      entrega:$("#c-entrega").value||"", obs:U($("#c-obs").value.trim()), fotos:fotoIds, audio:audioId,
       atendente:atend, costureira:"", status:"recebido", criadoEm:now,
       historico:[{status:"recebido", por:atend||"Atendimento", em:now}]};
     await db.doc(`pedidos/${code}`).set(pedido);
@@ -796,7 +810,7 @@ async function finalizar(){
   finally{ saving=false; btn.disabled=false; btn.textContent="Finalizar pedido"; }
 }
 function resetForm(){
-  ["#c-nome","#c-tel","#c-entrega","#c-obs","#c-entrada","#c-desc"].forEach(s=>$(s).value=""); descTipo="valor"; setDescTipo("valor");
+  ["#c-nome","#c-tel","#c-entrega","#c-obs","#c-entrada","#c-desc","#svc-busca"].forEach(s=>$(s).value=""); descTipo="valor"; setDescTipo("valor");
   cart={}; photos.forEach(p=>URL.revokeObjectURL(p.url)); photos=[]; if(audio) URL.revokeObjectURL(audio.url); audio=null;
   renderPick(); renderPhotos(); renderAudio();
 }
@@ -867,7 +881,7 @@ function layoutNota(doc,o,fmt,logo,qr){
   y+=thermal?5:8;
   // dados
   const c=o.cliente||{};
-  const kv=[["Cliente",c.nome],["Telefone",c.telefone],["Entrega prevista",o.entrega?fmtDay(o.entrega):""],["Atendente",o.atendente],["Costureira",o.costureira],["Local da peça",o.local]].filter(r=>r[1]);
+  const kv=[["Cliente",c.nome],["Telefone",c.telefone],["Entrega prevista",o.entrega?fmtDay(o.entrega):""],["Atendente",o.atendente],["Costureira",o.costureira],["Local da peça",o.local]].filter(r=>r[1]).map(([k,v])=>[k,U(v)]);
   const kx=M+(thermal?26:36);
   kv.forEach(([k,v])=>{ font(fs.b,"normal",grey); T(k,M,y); font(fs.b,"bold",ink); const lines=doc.splitTextToSize(String(v),R-kx); T(lines,kx,y); y+=lh(fs.b)*1.35*lines.length+ (thermal?.6:1.2); });
   y+=thermal?2:4;
@@ -876,7 +890,7 @@ function layoutNota(doc,o,fmt,logo,qr){
   font(fs.s,"bold",teal); T("SERVIÇO",M,y); T("QTD",cQ,y,{align:"right"}); if(!thermal) T("UNIT.",cU,y,{align:"right"}); T("VALOR",R,y,{align:"right"});
   y+=1.8; hr(false); y+=thermal?3.8:5;
   (o.itens||[]).forEach(i=>{
-    const nameW=(thermal?cQ-8:cQ-14)-M; font(fs.b,"normal",ink); const lines=doc.splitTextToSize(i.nome,nameW); T(lines,M,y);
+    const nameW=(thermal?cQ-8:cQ-14)-M; font(fs.b,"normal",ink); const lines=doc.splitTextToSize(U(i.nome),nameW); T(lines,M,y);
     T(i.qtd+"×",cQ,y,{align:"right"}); if(!thermal) T(money(i.preco),cU,y,{align:"right"}); T(money(i.preco*i.qtd),R,y,{align:"right"});
     y+=lh(fs.b)*1.35*lines.length+(thermal?1.4:2.4);
   });
@@ -887,7 +901,7 @@ function layoutNota(doc,o,fmt,logo,qr){
   font(fs.big,"bold",plum); T("TOTAL",M,y); T(money(o.total),R,y,{align:"right"}); y+=thermal?5:7;
   font(fs.b,"normal",ink); T("Entrada ("+(o.pagamento||"")+")",M,y); T(money(o.entrada),R,y,{align:"right"}); y+=thermal?4:5.5;
   font(fs.b,"bold",ink); T("A receber na retirada",M,y); T(money(restante),R,y,{align:"right"}); y+=thermal?5:8;
-  if(o.obs){ font(fs.s,"bold",teal); T("OBSERVAÇÕES",M,y); y+=thermal?3.8:5; font(fs.b,"normal",ink); const lines=doc.splitTextToSize(o.obs,CW); T(lines,M,y); y+=lh(fs.b)*1.35*lines.length+(thermal?3:5); }
+  if(o.obs){ font(fs.s,"bold",teal); T("OBSERVAÇÕES",M,y); y+=thermal?3.8:5; font(fs.b,"normal",ink); const lines=doc.splitTextToSize(U(o.obs),CW); T(lines,M,y); y+=lh(fs.b)*1.35*lines.length+(thermal?3:5); }
   hr(true); y+=thermal?4:7;
   // QR
   const qs=thermal?34:38;
@@ -903,7 +917,7 @@ async function buildNotaPdf(o,fmt){
   if(fmt==="80"){ const probe=new jsPDF({unit:"mm",format:[80,1000]}); const h=Math.ceil(layoutNota(probe,o,fmt,logo,qr)); doc=new jsPDF({unit:"mm",format:[80,Math.max(120,h)],compress:true}); }
   else doc=new jsPDF({unit:"mm",format:"a4",compress:true});
   layoutNota(doc,o,fmt,logo,qr);
-  doc.setProperties({title:"Nota "+o.codigo+" · Costura Expressa"});
+  doc.setProperties({title:"Pedido "+o.codigo+" · Costura Expressa"});
   return doc.output("blob");
 }
 async function printNota(code,fmt,btn){
@@ -913,7 +927,7 @@ async function printNota(code,fmt,btn){
   const old=btn.textContent; btn.disabled=true; btn.innerHTML='<span class="busy"><span class="spin"></span>Gerando PDF</span>';
   try{
     const blob=await buildNotaPdf(o,fmt);
-    saveFile(blob,`nota-${code}${fmt==="80"?"-termica":""}.pdf`);
+    saveFile(blob,`pedido-${code}${fmt==="80"?"-termica":""}.pdf`);
     msg.textContent="PDF baixado. Abra o arquivo e toque em Imprimir.";
   }catch(e){
     console.error(e);
@@ -939,7 +953,7 @@ function waNotaText(o){
   const L=[];
   L.push(`Olá${nome?", "+nome:""}! Aqui é da *Costura Expressa*.`);
   L.push(""); L.push(`*Pedido Nº ${o.codigo}*`); L.push(`Data: ${fmtDate(o.criadoEm)}`); L.push("");
-  (o.itens||[]).forEach(i=>L.push(`• ${i.qtd}× ${i.nome}: ${money(i.preco*i.qtd)}`));
+  (o.itens||[]).forEach(i=>L.push(`• ${i.qtd}× ${U(i.nome)}: ${money(i.preco*i.qtd)}`));
   L.push("");
   if(descOf(o)){ L.push(`Subtotal: ${money(subOf(o))}`); L.push(`${descLabel(o)}: - ${money(descOf(o))}`); }
   L.push(`*Total: ${money(totOf(o))}*`);
@@ -947,7 +961,7 @@ function waNotaText(o){
   if(o.status==="entregue") L.push("Situação: quitado");
   else L.push(`A pagar na retirada: ${money(restOf(o))}`);
   if(o.entrega) L.push(`Entrega prevista: ${fmtDay(o.entrega)}`);
-  if(o.obs){ L.push(""); L.push(`Observações: ${o.obs}`); }
+  if(o.obs){ L.push(""); L.push(`Observações: ${U(o.obs)}`); }
   L.push(""); L.push(`Para retirar a peça, apresente o código *${o.codigo}*.`);
   L.push(""); L.push("Galeria Jaqueira Park Center, R. do Futuro, 913, Graças, Recife/PE"); L.push("WhatsApp (81) 99616-0055");
   return L.join("\n");
@@ -984,7 +998,7 @@ function wireWhats(o){
   clienteImagem(o).then(b=>{ img=new File([b],`pedido-${o.codigo}.png`,{type:"image/png"}); })
     .catch(e=>{ console.error(e); pm.textContent="Não consegui gerar a imagem agora. Verifique a internet e abra o pedido de novo."; })
     .finally(()=>{ ib.disabled=false; sb.disabled=false; ib.innerHTML=ibHtml; });
-  const legenda=()=>{ const nome=String((o.cliente||{}).nome||"").trim().split(/\s+/)[0]||""; return `Olá${nome?", "+nome:""}! Segue a nota do pedido ${o.codigo} da Costura Expressa.`; };
+  const legenda=()=>{ const nome=String((o.cliente||{}).nome||"").trim().split(/\s+/)[0]||""; return `Olá${nome?", "+nome:""}! Segue o seu pedido ${o.codigo} da Costura Expressa.`; };
   ib.onclick=async()=>{
     const tel = inp ? inp.value : (o.cliente||{}).telefone;
     if(!waNumber(tel)){ toast("Informe o WhatsApp da cliente."); if(inp) inp.focus(); return; }
@@ -1032,18 +1046,18 @@ async function notaImage(code,btn){
     const url=canvas.toDataURL("image/png");
     ivBlob=await new Promise(r=>canvas.toBlob(r,"image/png")); ivCode=code;
     $("#iv-img").src=url; $("#imgview").hidden=false; $("#imgview").scrollTop=0;
-    try{ const f=new File([ivBlob],`nota-${code}.png`,{type:"image/png"}); $("#iv-share").hidden=!(navigator.canShare&&navigator.canShare({files:[f]})); }catch(e){ $("#iv-share").hidden=true; }
+    try{ const f=new File([ivBlob],`pedido-${code}.png`,{type:"image/png"}); $("#iv-share").hidden=!(navigator.canShare&&navigator.canShare({files:[f]})); }catch(e){ $("#iv-share").hidden=true; }
   }catch(e){ console.error(e); toast("Não consegui montar a imagem da nota. Tente de novo."); }
   finally{ if(prevTheme==null) root.removeAttribute("data-theme"); else root.setAttribute("data-theme",prevTheme); btn.disabled=false; btn.textContent=old; }
 }
 $("#iv-share").addEventListener("click",async()=>{
-  if(!ivBlob) return; const f=new File([ivBlob],`nota-${ivCode}.png`,{type:"image/png"});
-  try{ await navigator.share({files:[f], title:`Nota ${ivCode}`}); }catch(e){ if(!(e&&e.name==="AbortError")) toast("Não deu para compartilhar. Salve a imagem e envie pelo WhatsApp."); }
+  if(!ivBlob) return; const f=new File([ivBlob],`pedido-${ivCode}.png`,{type:"image/png"});
+  try{ await navigator.share({files:[f], title:`Pedido ${ivCode}`}); }catch(e){ if(!(e&&e.name==="AbortError")) toast("Não deu para compartilhar. Salve a imagem e envie pelo WhatsApp."); }
 });
 $("#iv-close").addEventListener("click",()=>{ $("#imgview").hidden=true; $("#iv-img").removeAttribute("src"); });
 $("#iv-save").addEventListener("click",async()=>{
   if(!ivBlob) return;
-  try{ saveFile(ivBlob,`nota-${ivCode}.png`); toast("Imagem baixada."); }
+  try{ saveFile(ivBlob,`pedido-${ivCode}.png`); toast("Imagem baixada."); }
   catch(e){ toast("Não deu para baixar. Toque e segure na imagem da nota."); }
 });
 
@@ -1283,7 +1297,7 @@ function renderSheet(o){
       <button class="btn" id="wa-share" hidden>Compartilhar a imagem de outro jeito</button>
       <a class="btn wa ghostwa" id="wa-nota" href="${waLink(c.telefone,waNotaText(o))}" target="_blank" rel="noopener">${waIcon}Enviar só a mensagem de texto</a>
       ${o.status==="pronto"?`<a class="btn wa ghostwa" id="wa-pronto" href="${waLink(c.telefone,waProntoText(o))}" target="_blank" rel="noopener">${waIcon}Avisar que a peça está pronta</a>`:""}
-      <p class="hint" id="wa-msg">${o.whatsEnviadoEm?`Pedido enviado pelo WhatsApp em ${fmtDate(o.whatsEnviadoEm)}. `:""}Abre a conversa de ${esc((c.nome||"").split(" ")[0]||"cliente")}${waNumber(c.telefone)?" ("+esc(c.telefone)+")":""} com o texto “Segue a nota do pedido” pronto e a imagem copiada: toque e segure na caixa de mensagem, escolha <b>Colar</b> e envie junto com o texto.</p>
+      <p class="hint" id="wa-msg">${o.whatsEnviadoEm?`Pedido enviado pelo WhatsApp em ${fmtDate(o.whatsEnviadoEm)}. `:""}Abre a conversa de ${esc((c.nome||"").split(" ")[0]||"cliente")}${waNumber(c.telefone)?" ("+esc(c.telefone)+")":""} com o texto “Segue o seu pedido” pronto e a imagem copiada: toque e segure na caixa de mensagem, escolha <b>Colar</b> e envie junto com o texto.</p>
     </div>`:""}
     ${verValores?`<div class="panel print-box"><span class="label">Imprimir nota</span>
       <button class="btn primary" id="print-now">Imprimir nota</button>
@@ -1501,7 +1515,10 @@ function renderSvcEdit(){
     el.innerHTML=`<div class="empty"><span>A tabela está vazia. Cadastre acima ou comece com uma lista comum de ateliê e ajuste os valores.</span><button class="btn" id="s-seed">Usar lista sugerida</button></div>`;
     $("#s-seed").onclick=seedServices; return;
   }
-  el.innerHTML=`<div class="svc-list">${services.map(s=>`<div class="svc-edit"><span class="nm">${esc(s.nome)}</span>
+  const q0=norm($("#svc-busca2").value).trim();
+  const lista=q0?services.filter(s=>norm(s.nome).includes(q0)):services;
+  if(!lista.length){ el.innerHTML=`<div class="svc-list"><div class="svc-none">Nenhum serviço encontrado com “${esc(U($("#svc-busca2").value))}”.</div></div>`; return; }
+  el.innerHTML=`<div class="svc-list">${lista.map(s=>`<div class="svc-edit"><span class="nm">${esc(s.nome)}</span>
     <input type="number" step="0.01" min="0" inputmode="decimal" id="pr-${s.id}" data-price="${s.id}" value="${Number(s.preco).toFixed(2)}" aria-label="Valor de ${esc(s.nome)}">
     <button class="btn ghost ${pendingDel===s.id?"danger":""}" data-del="${s.id}" style="min-height:40px;padding:8px 10px">${pendingDel===s.id?"Confirmar":"Excluir"}</button></div>`).join("")}</div>`;
 }
@@ -1526,7 +1543,7 @@ $("#s-add").addEventListener("click",async()=>{
 });
 async function seedServices(){
   const base=[["Barra de calça",20],["Barra de calça jeans (original)",30],["Ajuste de cintura",35],["Apertar laterais",30],["Encurtar manga",25],["Troca de zíper",25],["Bainha de vestido",35],["Ajuste de alças",15],["Pregar botão",5],["Remendo / cerzido",20]];
-  try{ for(const [nome,preco] of base){ await db.collection("servicos").add({nome,preco,criadoEm:Date.now()}); } toast("Lista sugerida adicionada. Ajuste os valores."); }
+  try{ for(const [nome,preco] of base){ await db.collection("servicos").add({nome:U(nome),preco,criadoEm:Date.now()}); } toast("Lista sugerida adicionada. Ajuste os valores."); }
   catch(err){ writeErr(err); }
 }
 
@@ -1691,6 +1708,24 @@ $("#dev-out").addEventListener("click",async()=>{
   try{ ls.set("ce-sess",""); if(window.firebase&&firebase.apps&&firebase.apps.length) await firebase.auth().signOut(); }catch(e){}
   location.reload();
 });
+
+/* ---------- tudo em maiúsculo ---------- */
+const NO_UPPER=new Set(["app-link","m-pin","dev-email","dev-pass","lg-pin","code-in"]);
+function upperable(el){
+  if(!el || el.readOnly) return false;
+  if(el.tagName==="TEXTAREA") return true;
+  if(el.tagName!=="INPUT") return false;
+  if(!["text","search",""].includes(el.type)) return false;
+  if(NO_UPPER.has(el.id) || /^pe-/.test(el.id) || el.inputMode==="numeric") return false;
+  return true;
+}
+document.addEventListener("input",e=>{
+  const el=e.target; if(!upperable(el) || e.isComposing) return;
+  const v=el.value, u=v.toLocaleUpperCase("pt-BR"); if(v===u) return;
+  const a=el.selectionStart, b=el.selectionEnd; el.value=u;
+  try{ el.setSelectionRange(a,b); }catch(_){}
+},true);
+const U=t=>String(t??"").toLocaleUpperCase("pt-BR");
 
 /* ---------- inicialização ---------- */
 renderPick(); renderPhotos(); renderAudio(); renderRecent(); renderQueue(); renderLogi(); renderEntregues(); renderCaixa(); renderSvcEdit();
