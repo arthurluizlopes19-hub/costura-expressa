@@ -298,6 +298,12 @@ audio{width:100%;max-width:100%}
 .btn.wa svg{width:20px;height:20px;flex:none}
 .btn.wa[aria-disabled="true"]{opacity:.5;pointer-events:none}
 .wa-box{border-color:color-mix(in srgb,#1fa855 40%,var(--line))}
+.force-light{  --bg:#f1f5f5; --surface:#ffffff; --sunken:#f3f7f7; --ink:#2a2b33; --muted:#647079; --line:#d5e1e0;   --accent:#9c3567; --accent-soft:#f7e7ef; --accent-ink:#ffffff;   --band:#2b9c8e; --band-deep:#23867a; --band-ink:#ffffff;   --logo-bg:#ffffff; --logo-plum:#9c3567; --logo-teal:#2b9c8e;   --st-rec:#1f5fbf; --st-rec-bg:#e3edfb; --st-cos:#a3620a; --st-cos-bg:#fbefd9; --st-pro:#18794e; --st-pro-bg:#dff3e8; --st-ent:#5a6677; --st-ent-bg:#e7ebf0;   --danger:#b42318; --qr-bg:#ffffff; --qr-fg:#111111;   --f-display:"Fredoka","Nunito",system-ui,sans-serif;   --f-body:"Nunito",system-ui,-apple-system,"Segoe UI",Roboto,sans-serif;   --f-script:"Pacifico","Brush Script MT",cursive;   --f-mono:"JetBrains Mono",ui-monospace,Menlo,Consolas,monospace;   --r:14px; color:var(--ink)}
+.cli-render{position:fixed;left:-10000px;top:0;width:420px;padding:0;pointer-events:none}
+.cli-render .nota{outline:none}
+.cli-code{display:flex;flex-direction:column;gap:2px;border-top:1px solid var(--line);padding-top:12px}
+.cli-code b{font-family:var(--f-mono);font-size:20px;letter-spacing:.04em}
+.cli-code span:last-child{font-size:13px;color:var(--muted)}
 .camhelp{font-size:14px}
 .camhelp summary{cursor:pointer;font-weight:700;padding:4px 0}
 .camhelp p{margin:6px 0 10px}
@@ -781,7 +787,7 @@ async function finalizar(){
       atendente:atend, costureira:"", status:"recebido", criadoEm:now,
       historico:[{status:"recebido", por:atend||"Atendimento", em:now}]};
     await db.doc(`pedidos/${code}`).set(pedido);
-    resetForm(); await openOrder(code, pedido); toast("Pedido "+code+" finalizado. Envie a nota pelo WhatsApp.");
+    resetForm(); await openOrder(code, pedido); toast("Pedido "+code+" finalizado. Envie o pedido pelo WhatsApp.");
     setTimeout(()=>{ const w=$("#sheet .wa-box"); if(w) w.scrollIntoView({behavior:"smooth",block:"center"}); },500);
   }catch(e){ writeErr(e); }
   finally{ saving=false; btn.disabled=false; btn.textContent="Finalizar pedido"; }
@@ -929,7 +935,7 @@ function waNotaText(o){
   const c=o.cliente||{}; const nome=String(c.nome||"").trim().split(/\s+/)[0]||"";
   const L=[];
   L.push(`Olá${nome?", "+nome:""}! Aqui é da *Costura Expressa*.`);
-  L.push(""); L.push(`*Nota de serviço Nº ${o.codigo}*`); L.push(`Data: ${fmtDate(o.criadoEm)}`); L.push("");
+  L.push(""); L.push(`*Pedido Nº ${o.codigo}*`); L.push(`Data: ${fmtDate(o.criadoEm)}`); L.push("");
   (o.itens||[]).forEach(i=>L.push(`• ${i.qtd}× ${i.nome}: ${money(i.preco*i.qtd)}`));
   L.push("");
   if(descOf(o)){ L.push(`Subtotal: ${money(subOf(o))}`); L.push(`${descLabel(o)}: - ${money(descOf(o))}`); }
@@ -969,28 +975,46 @@ function wireWhats(o){
   };
   a.addEventListener("click",()=>mark("whatsEnviadoEm"));
   if(ap) ap.addEventListener("click",()=>mark("whatsProntoEm"));
-  // prepara o PDF assim que a nota abre, para o compartilhamento sair na hora do toque
-  let pdf=null; const pb=$("#wa-pdf"); const pm=$("#wa-msg");
-  pb.disabled=true; const pbHtml=pb.innerHTML; pb.innerHTML='<span class="busy"><span class="spin"></span>Preparando o PDF</span>';
-  buildNotaPdf(o,"a4").then(b=>{ pdf=new File([b],`nota-${o.codigo}.pdf`,{type:"application/pdf"}); })
-    .catch(e=>{ console.error(e); pm.textContent="Não consegui gerar o PDF agora. Verifique a internet e abra a nota de novo."; })
-    .finally(()=>{ pb.disabled=false; pb.innerHTML=pbHtml; });
-  pb.onclick=async()=>{
-    if(!pdf){ toast("O PDF ainda não ficou pronto. Tente de novo em instantes."); return; }
+  // prepara a imagem do pedido (sem QR) assim que a nota abre, para copiar/compartilhar na hora do toque
+  let img=null; const ib=$("#wa-img"), sb=$("#wa-share"), pm=$("#wa-msg");
+  const ibHtml=ib.innerHTML; ib.disabled=true; sb.disabled=true; ib.innerHTML='<span class="busy"><span class="spin"></span>Preparando a imagem</span>';
+  clienteImagem(o).then(b=>{ img=new File([b],`pedido-${o.codigo}.png`,{type:"image/png"}); })
+    .catch(e=>{ console.error(e); pm.textContent="Não consegui gerar a imagem agora. Verifique a internet e abra o pedido de novo."; })
+    .finally(()=>{ ib.disabled=false; sb.disabled=false; ib.innerHTML=ibHtml; });
+  const legenda=()=>{ const nome=String((o.cliente||{}).nome||"").trim().split(/\s+/)[0]||""; return `Olá${nome?", "+nome:""}! Segue o seu pedido ${o.codigo} da Costura Expressa.`; };
+  ib.onclick=async()=>{
     const tel = inp ? inp.value : (o.cliente||{}).telefone;
-    const nome=String((o.cliente||{}).nome||"").trim().split(/\s+/)[0]||"";
-    const legenda=`Olá${nome?", "+nome:""}! Segue a nota do seu pedido ${o.codigo} na Costura Expressa.`;
-    if(navigator.canShare && navigator.canShare({files:[pdf]})){
-      try{ await navigator.share({files:[pdf], title:`Nota ${o.codigo}`, text:legenda}); mark("whatsEnviadoEm"); pm.textContent=`Nota enviada em ${fmtDate(Date.now())}.`; }
-      catch(e){ if(!(e&&e.name==="AbortError")){ console.warn(e); pm.textContent="Não deu para compartilhar o PDF. Tente de novo."; } }
+    if(!waNumber(tel)){ toast("Informe o WhatsApp da cliente."); if(inp) inp.focus(); return; }
+    if(!img){ toast("A imagem ainda está sendo preparada. Tente de novo em instantes."); return; }
+    let copiou=false;
+    try{ if(navigator.clipboard && window.ClipboardItem){ await navigator.clipboard.write([new ClipboardItem({"image/png":img})]); copiou=true; } }catch(e){ console.warn(e); }
+    window.open(waLink(tel,legenda()),"_blank","noopener");
+    mark("whatsEnviadoEm");
+    pm.innerHTML = copiou
+      ? "Imagem do pedido copiada. Na conversa que abriu, toque e segure na caixa de mensagem, escolha <b>Colar</b> e envie."
+      : "Este aparelho não deixou copiar a imagem. Use <b>Compartilhar imagem do pedido</b> e escolha a conversa da cliente.";
+  };
+  sb.onclick=async()=>{
+    if(!img){ toast("A imagem ainda está sendo preparada. Tente de novo em instantes."); return; }
+    if(navigator.canShare && navigator.canShare({files:[img]})){
+      try{ await navigator.share({files:[img], text:legenda()}); mark("whatsEnviadoEm"); pm.textContent=`Pedido enviado em ${fmtDate(Date.now())}.`; }
+      catch(e){ if(!(e&&e.name==="AbortError")) pm.textContent="Não deu para compartilhar. Tente de novo."; }
       return;
     }
-    // computador ou navegador sem compartilhamento: baixa o PDF e abre a conversa da cliente
-    saveFile(pdf,pdf.name);
-    if(waNumber(tel)) window.open(waLink(tel,legenda+" (PDF em anexo)"),"_blank","noopener");
-    mark("whatsEnviadoEm");
-    pm.textContent="PDF baixado. Na conversa do WhatsApp que abriu, toque no clipe e anexe o arquivo "+pdf.name+".";
+    saveFile(img,img.name); pm.textContent="Imagem baixada ("+img.name+"). Anexe na conversa da cliente pelo clipe.";
   };
+}
+async function clienteImagem(o){
+  if(!window.html2canvas) throw new Error("html2canvas");
+  const box=document.createElement("div");
+  box.className="force-light cli-render";
+  box.innerHTML=notaHTML(o,{precos:true, qr:false});
+  document.body.appendChild(box);
+  try{
+    await new Promise(r=>requestAnimationFrame(()=>requestAnimationFrame(r)));
+    const cv=await html2canvas(box.querySelector(".nota"),{scale:2,backgroundColor:"#ffffff",useCORS:true,logging:false});
+    return await new Promise((res,rej)=>cv.toBlob(b=>b?res(b):rej(new Error("imagem")),"image/png"));
+  } finally { box.remove(); }
 }
 async function notaImage(code,btn){
   const el=document.querySelector("#sheet .nota"); if(!el) return;
@@ -1122,7 +1146,7 @@ function renderEntregues(){
   $("#ent-sum").innerHTML=`
     <div class="stat"><span class="n">${list.length}</span><span class="t">Pedidos entregues ${perTxt}</span></div>
     <div class="stat"><span class="n">${pecas}</span><span class="t">Serviços feitos</span></div>
-    <div class="stat"><span class="n">${money(total)}</span><span class="t">Valor dos pedidos</span></div>`;
+    ${session&&session.papel==="costureira"?"":`<div class="stat"><span class="n">${money(total)}</span><span class="t">Valor dos pedidos</span></div>`}`;
   if(!list.length){
     box.innerHTML=`<div class="empty">${all.length? (q||entCost?"Nenhum pedido entregue encontrado com essa busca.":"Nenhum pedido entregue "+perTxt+". Toque em Tudo para ver os anteriores.") : "Quando a atendente marcar um pedido como entregue, ele aparece aqui."}</div>`;
     return;
@@ -1134,13 +1158,13 @@ function renderEntregues(){
     const d=new Date(k+"T12:00:00");
     const lbl = k===tod?"Hoje" : k===yest?"Ontem" : cap(d.toLocaleDateString("pt-BR",{weekday:"long",day:"2-digit",month:"long"}));
     const sum=l.reduce((a,o)=>a+(Number(o.total)||0),0);
-    return `<div class="day-group"><h4><span>${esc(lbl)}</span><span>${l.length} · ${money(sum)}</span></h4><div class="orders">${l.map(o=>{
+    return `<div class="day-group"><h4><span>${esc(lbl)}</span><span>${l.length}${session&&session.papel==="costureira"?"":" · "+money(sum)}</span></h4><div class="orders">${l.map(o=>{
       const qt=(o.itens||[]).reduce((a,b)=>a+b.qtd,0); const hr=new Date(deliveredAt(o)).toLocaleTimeString("pt-BR",{hour:"2-digit",minute:"2-digit"});
       const by=deliveredBy(o);
       return `<button class="ord" data-open="${esc(o.codigo)}"><span class="stripe entregue"></span>
         <span class="mid"><span class="code">${esc(o.codigo)}</span><span class="who">${esc(o.cliente?.nome)}</span>
         <span class="sub">${qt} serviço${qt>1?"s":""} · entregue às ${hr}${by?" por "+esc(by):""}${o.costureira?" · costura: "+esc(o.costureira):""}</span></span>
-        <span class="val">${money(o.total)}</span></button>`; }).join("")}</div></div>`;
+        ${session&&session.papel==="costureira"?"":`<span class="val">${money(o.total)}</span>`}</button>`; }).join("")}</div></div>`;
   }).join("");
 }
 $("#ent-periodo").addEventListener("click",e=>{ const b=e.target.closest("[data-per]"); if(!b) return; entPer=b.dataset.per;
@@ -1191,11 +1215,42 @@ function closeSheet(){ if(!$("#overlay")) return; $("#overlay").hidden=true; ope
 $("#overlay").addEventListener("click",e=>{ if(e.target.id==="overlay") closeSheet(); });
 document.addEventListener("keydown",e=>{ if(e.key==="Escape" && !$("#overlay").hidden) closeSheet(); });
 
+function notaHTML(o,{precos=true,qr=true}={}){
+  const c=o.cliente||{}; const restante=restOf(o);
+  const rows=(o.itens||[]).map(i=>`<tr><td>${esc(i.nome)}</td><td class="n">${i.qtd}×</td>${precos?`<td class="n">${money(i.preco)}</td><td class="n">${money(i.preco*i.qtd)}</td>`:""}</tr>`).join("");
+  return `
+    <article class="nota" aria-label="Pedido ${esc(o.codigo)}">
+      <div class="nota-head">
+        <div><span class="logo" role="img" aria-label="Costura Expressa"></span><div class="addr">Galeria Jaqueira Park Center<br>R. do Futuro, 913 · Graças · Recife/PE</div></div>
+        <div class="meta">Nº<b>${esc(o.codigo)}</b>${fmtDate(o.criadoEm)}</div>
+      </div>
+      <dl class="kv">
+        <dt>Cliente</dt><dd>${esc(c.nome)}</dd>
+        ${c.telefone?`<dt>Telefone</dt><dd>${esc(c.telefone)}</dd>`:""}
+        <dt>Entrega</dt><dd>${fmtDay(o.entrega)}</dd>
+        ${o.atendente?`<dt>Atendente</dt><dd>${esc(o.atendente)}</dd>`:""}
+        ${o.costureira?`<dt>Costureira</dt><dd>${esc(o.costureira)}</dd>`:""}
+      </dl>
+      <div style="overflow-x:auto"><table class="items">
+        <thead><tr><th>Serviço</th><th class="n">Qtd</th>${precos?`<th class="n">Unit.</th><th class="n">Valor</th>`:""}</tr></thead>
+        <tbody>${rows}</tbody>
+        ${precos?`<tfoot>
+          ${descOf(o)?`<tr><td colspan="3">Subtotal</td><td class="n">${money(subOf(o))}</td></tr><tr class="disc"><td colspan="3">${descLabel(o)}</td><td class="n">− ${money(descOf(o))}</td></tr>`:""}
+          <tr><td colspan="3">Total</td><td class="n big">${money(o.total)}</td></tr>
+          <tr><td colspan="3" class="muted" style="font-weight:500">Entrada (${esc(o.pagamento)})</td><td class="n" style="font-weight:500">${money(o.entrada)}</td></tr>
+          ${o.status==="entregue"&&o.valorRetirada?`<tr><td colspan="3" class="muted" style="font-weight:500">Pago na retirada (${esc(o.pagamentoRetirada||"")})</td><td class="n" style="font-weight:500">${money(o.valorRetirada)}</td></tr><tr><td colspan="3">Situação</td><td class="n">Quitado</td></tr>`:`<tr><td colspan="3">A receber na retirada</td><td class="n">${money(restante)}</td></tr>`}
+        </tfoot>`:""}
+      </table></div>
+      ${o.obs?`<div><div class="label" style="margin-bottom:6px">Observações</div><div class="obs">${esc(o.obs)}</div></div>`:""}
+      ${qr?`<div class="qr-area"><div class="qr" id="qr"></div><div><div class="label">Código do pedido</div><div class="cd">${esc(o.codigo)}</div><p class="hint" style="margin-top:6px">Apresente este pedido para retirar a peça.</p></div></div>`:`<div class="cli-code"><span class="label">Código do pedido</span><b>${esc(o.codigo)}</b><span>Apresente este código para retirar a peça.</span></div>`}
+      <div class="foot">WhatsApp (81) 99616-0055${qr?`<small>Comprovante interno do ateliê · sem valor fiscal</small>`:""}</div>
+    </article>`;
+}
 function renderSheet(o){
   sheetKey=(o.historico||[]).length;
   const c=o.cliente||{}; const restante=restOf(o);
-  const rows=(o.itens||[]).map(i=>`<tr><td>${esc(i.nome)}</td><td class="n">${i.qtd}×</td><td class="n">${money(i.preco)}</td><td class="n">${money(i.preco*i.qtd)}</td></tr>`).join("");
   const papel = session ? session.papel : "";
+  const verValores = papel!=="costureira";
   const may = {recebido:["costureira","admin"], em_costura:["costureira","admin"], pronto:["atendente","admin"], entregue:[]};
   const mayBack = {em_costura:["costureira","admin"], pronto:["costureira","admin"], entregue:["atendente","admin"]};
   const canNext = (may[o.status]||[]).includes(papel);
@@ -1217,46 +1272,22 @@ function renderSheet(o){
   const back = {em_costura:"recebido",pronto:"em_costura",entregue:"pronto"}[o.status];
   $("#sheet").innerHTML=`
     <div class="sheet-top"><span class="pill st-${o.status}">${STATUS[o.status]}</span><button class="btn" id="sh-close">Fechar</button></div>
-    <article class="nota" aria-label="Nota do pedido ${esc(o.codigo)}">
-      <div class="nota-head">
-        <div><span class="logo" role="img" aria-label="Costura Expressa"></span><div class="addr">Galeria Jaqueira Park Center<br>R. do Futuro, 913 · Graças · Recife/PE</div></div>
-        <div class="meta">Nº<b>${esc(o.codigo)}</b>${fmtDate(o.criadoEm)}</div>
-      </div>
-      <dl class="kv">
-        <dt>Cliente</dt><dd>${esc(c.nome)}</dd>
-        ${c.telefone?`<dt>Telefone</dt><dd>${esc(c.telefone)}</dd>`:""}
-        <dt>Entrega</dt><dd>${fmtDay(o.entrega)}</dd>
-        ${o.atendente?`<dt>Atendente</dt><dd>${esc(o.atendente)}</dd>`:""}
-        ${o.costureira?`<dt>Costureira</dt><dd>${esc(o.costureira)}</dd>`:""}
-      </dl>
-      <div style="overflow-x:auto"><table class="items">
-        <thead><tr><th>Serviço</th><th class="n">Qtd</th><th class="n">Unit.</th><th class="n">Valor</th></tr></thead>
-        <tbody>${rows}</tbody>
-        <tfoot>
-          ${descOf(o)?`<tr><td colspan="3">Subtotal</td><td class="n">${money(subOf(o))}</td></tr><tr class="disc"><td colspan="3">${descLabel(o)}</td><td class="n">− ${money(descOf(o))}</td></tr>`:""}
-          <tr><td colspan="3">Total</td><td class="n big">${money(o.total)}</td></tr>
-          <tr><td colspan="3" class="muted" style="font-weight:500">Entrada (${esc(o.pagamento)})</td><td class="n" style="font-weight:500">${money(o.entrada)}</td></tr>
-          ${o.status==="entregue"&&o.valorRetirada?`<tr><td colspan="3" class="muted" style="font-weight:500">Pago na retirada (${esc(o.pagamentoRetirada||"")})</td><td class="n" style="font-weight:500">${money(o.valorRetirada)}</td></tr><tr><td colspan="3">Situação</td><td class="n">Quitado</td></tr>`:`<tr><td colspan="3">A receber na retirada</td><td class="n">${money(restante)}</td></tr>`}
-        </tfoot>
-      </table></div>
-      ${o.obs?`<div><div class="label" style="margin-bottom:6px">Observações</div><div class="obs">${esc(o.obs)}</div></div>`:""}
-      <div class="qr-area"><div class="qr" id="qr"></div><div><div class="label">Código do pedido</div><div class="cd">${esc(o.codigo)}</div><p class="hint" style="margin-top:6px">Apresente esta nota para retirar a peça.</p></div></div>
-      <div class="foot">WhatsApp (81) 99616-0055<small>Comprovante interno do ateliê · sem valor fiscal</small></div>
-    </article>
-    <div class="panel wa-box"><span class="label">Enviar para a cliente</span>
+    ${notaHTML(o,{precos:papel!=="costureira", qr:true})}
+    ${verValores?`<div class="panel wa-box"><span class="label">Enviar para a cliente</span>
       ${waNumber(c.telefone)?"":`<div class="field"><label for="wa-tel">WhatsApp da cliente</label><input type="tel" id="wa-tel" placeholder="(81) 9 9999-9999" value="${esc(c.telefone||"")}"></div>`}
-      <button class="btn wa" id="wa-pdf">${waIcon}Enviar PDF da nota pelo WhatsApp</button>
+      <button class="btn wa" id="wa-img">${waIcon}Enviar pedido no WhatsApp da cliente</button>
+      <button class="btn" id="wa-share">Compartilhar imagem do pedido</button>
       <a class="btn wa ghostwa" id="wa-nota" href="${waLink(c.telefone,waNotaText(o))}" target="_blank" rel="noopener">${waIcon}Enviar só a mensagem de texto</a>
       ${o.status==="pronto"?`<a class="btn wa ghostwa" id="wa-pronto" href="${waLink(c.telefone,waProntoText(o))}" target="_blank" rel="noopener">${waIcon}Avisar que a peça está pronta</a>`:""}
-      <p class="hint" id="wa-msg">${o.whatsEnviadoEm?`Nota enviada pelo WhatsApp em ${fmtDate(o.whatsEnviadoEm)}. `:""}O PDF é o mesmo da impressão em folha A4. No envio, escolha o WhatsApp e depois a conversa de ${esc((c.nome||"").split(" ")[0]||"cliente")}${waNumber(c.telefone)?" ("+esc(c.telefone)+")":""}.</p>
-    </div>
-    <div class="panel print-box"><span class="label">Imprimir nota</span>
+      <p class="hint" id="wa-msg">${o.whatsEnviadoEm?`Pedido enviado pelo WhatsApp em ${fmtDate(o.whatsEnviadoEm)}. `:""}Abre a conversa de ${esc((c.nome||"").split(" ")[0]||"cliente")}${waNumber(c.telefone)?" ("+esc(c.telefone)+")":""} com a imagem do pedido (sem QR code) já copiada: toque e segure na caixa de mensagem e escolha <b>Colar</b>.</p>
+    </div>`:""}
+    ${verValores?`<div class="panel print-box"><span class="label">Imprimir nota</span>
       <button class="btn primary" id="print-now">Imprimir nota</button>
       <button class="btn" id="print-img">Abrir nota como imagem</button>
       <p class="hint">Imprimir abre a janela de impressão do navegador. A imagem serve para salvar, compartilhar no WhatsApp ou imprimir pela galeria.</p>
       <div class="grid2"><button class="btn" data-print="a4">Baixar PDF A4</button><button class="btn" data-print="80">Baixar PDF térmica 80 mm</button></div>
       <p class="hint" id="print-msg"></p>
-    </div>
+    </div>`:""}
     ${o.audio?`<div class="panel"><span class="label">Áudio da atendente</span><div id="sh-audio" class="busy muted"><span class="spin"></span>Carregando áudio…</div></div>`:""}
     ${(o.fotos||[]).length?`<div class="panel"><span class="label">Fotos da peça</span><div class="thumbs" id="sh-photos">${o.fotos.map(()=>`<div class="thumb"></div>`).join("")}</div></div>`:""}
     ${o.status!=="entregue" && ["costureira","admin"].includes(papel)?`<div class="panel"><span class="label">Local da peça</span><div class="locbox"><input type="text" id="sh-local" value="${esc(o.local||"")}" placeholder="Ex.: Arara 2, Caixa 5" list="locais" aria-label="Local da peça"><button class="btn" id="sh-local-save">Salvar</button></div></div>`:(o.local?`<div class="panel"><span class="label">Local da peça</span><b>${esc(o.local)}</b></div>`:"")}
@@ -1269,15 +1300,17 @@ function renderSheet(o){
       <p class="hint">Apaga o pedido, as fotos e o áudio. Não dá para desfazer.</p>
       <button class="btn del" id="del-ord">Excluir pedido ${esc(o.codigo)}</button></div>`:""}`;
   $("#sh-close").onclick=closeSheet;
-  try{ new QRCode($("#qr"),{text:qrText(o.codigo),width:264,height:264,colorDark:"#111111",colorLight:"#ffffff",correctLevel:QRCode.CorrectLevel.Q}); }catch(e){ $("#qr").textContent=""; }
+  if($("#qr")) try{ new QRCode($("#qr"),{text:qrText(o.codigo),width:264,height:264,colorDark:"#111111",colorLight:"#ffffff",correctLevel:QRCode.CorrectLevel.Q}); }catch(e){ $("#qr").textContent=""; }
   $("#sheet").querySelectorAll("[data-st]").forEach(b=>b.onclick=()=>changeStatus(o.codigo,b.dataset.st,b));
   if(o.status==="recebido") wireTake(o);
   const db_=$("#del-ord"); if(db_) db_.onclick=()=>deleteOrder(o,db_);
   $("#sheet").querySelectorAll("[data-print]").forEach(b=>b.onclick=()=>printNota(o.codigo,b.dataset.print,b));
+  if(verValores){
   $("#print-img").onclick=()=>notaImage(o.codigo,$("#print-img"));
   wireWhats(o);
   $("#print-now").onclick=()=>{ const root=document.documentElement, prev=root.getAttribute("data-theme"); root.setAttribute("data-theme","light");
     setTimeout(()=>{ window.print(); setTimeout(()=>{ if(prev==null) root.removeAttribute("data-theme"); else root.setAttribute("data-theme",prev); },500); },100); };
+  }
   const ls_=$("#sh-local-save"); if(ls_) ls_.onclick=async()=>{ const v=$("#sh-local").value.trim(); if(v===(o.local||"")) return; ls_.disabled=true;
     try{ await db.doc(`pedidos/${o.codigo}`).update({local:v}); toast(v?`Local salvo: ${v}.`:"Local removido."); }catch(err){ writeErr(err); } ls_.disabled=false; };
   if(o.fotoCostureira) loadBlob(o.fotoCostureira).then(u=>{const t=$("#sh-take"); if(t) t.innerHTML=`<a href="${u}" target="_blank" rel="noopener"><img src="${u}" alt="Foto da costureira ao pegar o pedido"></a>`;}).catch(()=>{});
