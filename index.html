@@ -324,6 +324,10 @@ input[type="text"]:not(#app-link):not(#m-pin):not(#lg-pin):not([inputmode="numer
 .edit-add{display:grid;grid-template-columns:1fr auto;gap:8px}
 .edit-bar{position:sticky;bottom:0;display:flex;gap:8px;background:var(--surface);padding:10px;border:1px solid var(--line);border-radius:12px;box-shadow:0 -6px 18px rgba(0,0,0,.12)}
 .edit-bar .btn{flex:1}
+.found{display:flex;align-items:center;gap:10px;flex-wrap:wrap;background:var(--st-pro-bg);color:var(--st-pro);border-radius:10px;padding:10px 12px;font-size:14px;font-weight:600}
+.found.new{background:var(--sunken);color:var(--muted);font-weight:500}
+.found b{text-transform:uppercase}
+.found .btn{min-height:34px;padding:4px 12px;font-size:13px}
 .camhelp{font-size:14px}
 .camhelp summary{cursor:pointer;font-weight:700;padding:4px 0}
 .camhelp p{margin:6px 0 10px}
@@ -412,8 +416,9 @@ input[type="text"]:not(#app-link):not(#m-pin):not(#lg-pin):not([inputmode="numer
 
       <div class="panel">
         <span class="label">Cliente</span>
+        <div class="field"><label for="c-tel">Telefone / WhatsApp</label><input type="tel" id="c-tel" placeholder="(81) 9 9999-9999" autocomplete="off"></div>
+        <div class="found" id="c-found" hidden></div>
         <div class="field"><label for="c-nome">Nome completo</label><input type="text" id="c-nome" autocomplete="off" placeholder="Ex.: Maria José da Silva"></div>
-        <div class="field"><label for="c-tel">Telefone / WhatsApp</label><input type="tel" id="c-tel" placeholder="(81) 9 9999-9999"></div>
         <div class="grid2">
           <div class="field"><label for="c-entrega">Entrega prevista</label><input type="date" id="c-entrega"></div>
           <div class="field"><label for="c-atend">Atendente</label><input type="text" id="c-atend" readonly tabindex="-1"></div>
@@ -847,12 +852,14 @@ async function finalizar(){
       atendente:atend, costureira:"", status:"recebido", criadoEm:now,
       historico:[{status:"recebido", por:atend||"Atendimento", em:now}]};
     await db.doc(`pedidos/${code}`).set(pedido);
+    saveCliente(pedido.cliente.nome, pedido.cliente.telefone);
     resetForm(); await openOrder(code, pedido); toast("Pedido "+code+" finalizado. Envie o pedido pelo WhatsApp.");
     setTimeout(()=>{ const w=$("#sheet .wa-box"); if(w) w.scrollIntoView({behavior:"smooth",block:"center"}); },500);
   }catch(e){ writeErr(e); }
   finally{ saving=false; btn.disabled=false; btn.textContent="Finalizar pedido"; }
 }
 function resetForm(){
+  autoNome=""; $("#c-found").hidden=true;
   extras=[]; $("#av-nome").value=""; $("#av-preco").value=""; renderExtras();
   ["#c-nome","#c-tel","#c-entrega","#c-obs","#c-entrada","#c-desc","#svc-busca"].forEach(s=>$(s).value=""); descTipo="valor"; setDescTipo("valor");
   cart={}; photos.forEach(p=>URL.revokeObjectURL(p.url)); photos=[]; if(audio) URL.revokeObjectURL(audio.url); audio=null;
@@ -1392,7 +1399,7 @@ function renderEdit(o){
       editadoEm:now, editadoPor:session?session.nome:"",
       historico:[...(cur.historico||[]),{status:cur.status, acao:"Pedido editado", por:session?session.nome:"", em:now}] };
     if(cur.status==="entregue"){ patch.valorRetirada=Math.max(0,round2(r.tot-r.ent)); }
-    try{ await db.doc(`pedidos/${o.codigo}`).update(patch); editing=null; toast(`Pedido ${o.codigo} atualizado.`);
+    try{ await db.doc(`pedidos/${o.codigo}`).update(patch); editing=null; toast(`Pedido ${o.codigo} atualizado.`); saveCliente(patch.cliente.nome, patch.cliente.telefone);
       renderSheet({...cur, ...patch}); $("#overlay").scrollTop=0; }
     catch(err){ writeErr(err); btn.disabled=false; btn.textContent="Salvar alterações"; }
   };
@@ -1847,6 +1854,37 @@ $("#dev-out").addEventListener("click",async()=>{
   location.reload();
 });
 
+/* ---------- clientes: encontrar pelo telefone ---------- */
+const clientes=new Map(); // chave: número completo (55+DDD+número)
+let autoNome="";
+function telKey(tel){ const n=waNumber(tel); return n && n.length>=12 ? n : ""; }
+function findCliente(tel){
+  const k=telKey(tel); if(!k) return null;
+  const doc=clientes.get(k);
+  const ped=orders.filter(o=>telKey((o.cliente||{}).telefone)===k).sort((a,b)=>(b.criadoEm||0)-(a.criadoEm||0));
+  if(!doc && !ped.length) return null;
+  return { nome: U(doc&&doc.nome || (ped[0].cliente||{}).nome || ""), pedidos: ped.length, ultimo: ped[0]||null };
+}
+function checkCliente(){
+  const tel=$("#c-tel").value, box=$("#c-found"), nomeEl=$("#c-nome");
+  if(!telKey(tel)){ box.hidden=true; if(autoNome && nomeEl.value===autoNome){ nomeEl.value=""; } autoNome=""; return; }
+  const c=findCliente(tel);
+  if(!c||!c.nome){ box.hidden=false; box.className="found new"; box.textContent="Cliente nova: digite o nome abaixo."; if(autoNome && nomeEl.value===autoNome) nomeEl.value=""; autoNome=""; return; }
+  box.hidden=false; box.className="found";
+  const info=c.pedidos?` · ${c.pedidos} pedido${c.pedidos>1?"s":""}${c.ultimo?", o último em "+fmtDate(c.ultimo.criadoEm).slice(0,10):""}`:"";
+  const vazio=!nomeEl.value.trim() || nomeEl.value===autoNome;
+  if(vazio){ nomeEl.value=c.nome; autoNome=c.nome; box.innerHTML=`Cliente encontrada: <b>${esc(c.nome)}</b>${info}`; }
+  else if(U(nomeEl.value.trim())!==c.nome){ box.innerHTML=`Este telefone é de <b>${esc(c.nome)}</b>${info}. <button class="btn" type="button" id="c-usar">Usar este nome</button>`;
+    $("#c-usar").onclick=()=>{ nomeEl.value=c.nome; autoNome=c.nome; checkCliente(); }; }
+  else box.innerHTML=`Cliente encontrada: <b>${esc(c.nome)}</b>${info}`;
+}
+$("#c-tel").addEventListener("input",checkCliente);
+$("#c-nome").addEventListener("input",()=>{ if($("#c-nome").value!==autoNome) autoNome=""; });
+async function saveCliente(nome,tel){
+  const k=telKey(tel); if(!k||!nome||!db) return;
+  try{ await db.doc(`clientes/${k}`).set({nome:U(nome), telefone:String(tel).trim(), atualizadoEm:Date.now()}); }catch(e){ console.warn(e); }
+}
+
 /* ---------- tudo em maiúsculo ---------- */
 const NO_UPPER=new Set(["app-link","m-pin","dev-email","dev-pass","lg-pin","code-in"]);
 function upperable(el){
@@ -1927,6 +1965,7 @@ function startData(){
     if(!session) renderLogin();
     renderTeam(); renderLogi();
   }, e=>console.error(e));
+  db.collection("clientes").onSnapshot(s=>{ clientes.clear(); s.docs.forEach(d=>clientes.set(d.id,d.data())); if(telKey($("#c-tel").value)) checkCliente(); }, e=>console.warn(e));
   db.collection("servicos").orderBy("nome").onSnapshot(s=>{
     services=s.docs.map(d=>({id:d.id,...d.data()})).sort((a,b)=>String(a.nome).localeCompare(String(b.nome),"pt-BR"));
     Object.keys(cart).forEach(k=>{ if(!services.find(x=>x.id===k)) delete cart[k]; });
