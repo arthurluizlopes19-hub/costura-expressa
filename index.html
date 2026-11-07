@@ -1557,7 +1557,7 @@ function renderLogin(){
   }
   if(!loginPick){
     const grp=(p,t)=>{const m=team.filter(x=>x.papel===p); return m.length?`<div class="grp"><span class="label">${t}</span>${m.map(x=>`<button class="member" data-pick="${x.id}"><span class="av">${esc(initials(x.nome))}</span><span><b>${esc(x.nome)}</b><small>${ROLES[x.papel]}</small></span></button>`).join("")}</div>`:"";};
-    el.innerHTML=`<div class="grp" style="gap:18px"><h2>Quem está entrando?</h2>${grp("atendente","Atendimento")}${grp("costureira","Costureiras")}${grp("admin","Administração")}${ownerLink}</div>`;
+    el.innerHTML=`<div class="grp" style="gap:18px"><h2>Quem está entrando?</h2>${grp("admin","Administração")}${grp("atendente","Atendimento")}${grp("costureira","Costureiras")}${ownerLink}</div>`;
     el.querySelectorAll("[data-pick]").forEach(b=>b.onclick=()=>{loginPick=team.find(x=>x.id===b.dataset.pick); loginErr=""; renderLogin();});
   } else {
     el.innerHTML=`<div class="grp" style="gap:14px">
