@@ -312,6 +312,18 @@ input[type="text"]:not(#app-link):not(#m-pin):not(#lg-pin):not([inputmode="numer
 .svc-search input:focus{outline:none}
 .svc-search:focus-within{outline:2px solid var(--accent);outline-offset:2px}
 .svc-none{padding:14px;text-align:center;color:var(--muted);font-size:14px}
+.avulso{display:flex;flex-direction:column;gap:8px;border-top:1px dashed var(--line);padding-top:12px}
+.av-row{display:grid;grid-template-columns:1fr 110px auto;gap:8px}
+@media (max-width:420px){.av-row{grid-template-columns:1fr 1fr}.av-row input:first-child{grid-column:1/-1}}
+.edit-items{display:flex;flex-direction:column;gap:8px}
+.ei{display:grid;grid-template-columns:1fr 92px auto auto;gap:8px;align-items:center;padding:8px;border:1px solid var(--line);border-radius:10px;background:var(--surface)}
+.ei .nm{font-weight:700;min-width:0;text-transform:uppercase;overflow-wrap:anywhere}
+.ei input{min-height:40px;padding:6px 8px;font-family:var(--f-mono)}
+.ei .x{border:0;background:none;color:var(--danger);font-weight:800;cursor:pointer;min-width:36px;min-height:36px;font-size:18px}
+@media (max-width:420px){.ei{grid-template-columns:1fr auto auto}.ei .nm{grid-column:1/-1}}
+.edit-add{display:grid;grid-template-columns:1fr auto;gap:8px}
+.edit-bar{position:sticky;bottom:0;display:flex;gap:8px;background:var(--surface);padding:10px;border:1px solid var(--line);border-radius:12px;box-shadow:0 -6px 18px rgba(0,0,0,.12)}
+.edit-bar .btn{flex:1}
 .camhelp{font-size:14px}
 .camhelp summary{cursor:pointer;font-weight:700;padding:4px 0}
 .camhelp p{margin:6px 0 10px}
@@ -412,6 +424,15 @@ input[type="text"]:not(#app-link):not(#m-pin):not(#lg-pin):not([inputmode="numer
         <div class="row" style="justify-content:space-between"><span class="label">Serviços</span><span class="hint" id="cart-count"></span></div>
         <label class="svc-search" for="svc-busca"><svg viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2.2" stroke-linecap="round" aria-hidden="true"><circle cx="11" cy="11" r="7"/><path d="m20 20-3.5-3.5"/></svg><input type="search" id="svc-busca" placeholder="PESQUISAR SERVIÇO" autocomplete="off" aria-label="Pesquisar serviço"></label>
         <div id="svc-pick"></div>
+        <div class="avulso">
+          <span class="label">Serviço fora da tabela</span>
+          <div class="av-row">
+            <input type="text" id="av-nome" placeholder="DESCREVA O SERVIÇO" aria-label="Nome do serviço fora da tabela" autocomplete="off">
+            <input type="number" id="av-preco" min="0" step="0.01" inputmode="decimal" placeholder="R$ 0,00" aria-label="Valor do serviço">
+            <button class="btn" id="av-add" type="button">Adicionar</button>
+          </div>
+          <div id="av-list"></div>
+        </div>
       </div>
 
       <div class="panel">
@@ -718,7 +739,29 @@ $("#svc-pick").addEventListener("click",e=>{
   if(i){cart[i.dataset.inc]=(cart[i.dataset.inc]||0)+1; renderPick();}
   if(d){const k=d.dataset.dec; cart[k]=Math.max(0,(cart[k]||0)-1); if(!cart[k]) delete cart[k]; renderPick();}
 });
-function cartItems(){ return services.filter(s=>cart[s.id]).map(s=>({nome:U(s.nome), preco:Number(s.preco)||0, qtd:cart[s.id]})); }
+let extras=[]; // serviços fora da tabela: {id,nome,preco,qtd}
+function cartItems(){ return services.filter(s=>cart[s.id]).map(s=>({nome:U(s.nome), preco:Number(s.preco)||0, qtd:cart[s.id]}))
+  .concat(extras.map(x=>({nome:U(x.nome), preco:Number(x.preco)||0, qtd:x.qtd, avulso:true}))); }
+function renderExtras(){
+  $("#av-list").innerHTML = extras.length ? `<div class="svc-list">${extras.map(x=>`
+    <div class="svc on"><div style="min-width:0"><div class="nm">${esc(U(x.nome))}</div><div class="pr">${money(x.preco)} · fora da tabela</div></div>
+    <div class="step"><button data-xdec="${x.id}" aria-label="Diminuir ${esc(x.nome)}">−</button><span class="q">${x.qtd}</span><button data-xinc="${x.id}" aria-label="Aumentar ${esc(x.nome)}">+</button></div></div>`).join("")}</div>` : "";
+  updateTotal();
+}
+$("#av-add").addEventListener("click",()=>{
+  const nome=U($("#av-nome").value.trim()); const preco=Number($("#av-preco").value);
+  if(!nome){ toast("Descreva o serviço."); $("#av-nome").focus(); return; }
+  if($("#av-preco").value==="" || !(preco>=0)){ toast("Informe o valor do serviço."); $("#av-preco").focus(); return; }
+  extras.push({id:"x"+Date.now().toString(36), nome, preco:round2(preco), qtd:1});
+  $("#av-nome").value=""; $("#av-preco").value=""; renderExtras(); $("#av-nome").focus();
+});
+$("#av-preco").addEventListener("keydown",e=>{ if(e.key==="Enter"){ e.preventDefault(); $("#av-add").click(); } });
+$("#av-list").addEventListener("click",e=>{
+  const i=e.target.closest("[data-xinc]"), d=e.target.closest("[data-xdec]");
+  if(i){ const x=extras.find(y=>y.id===i.dataset.xinc); if(x) x.qtd++; }
+  if(d){ const x=extras.find(y=>y.id===d.dataset.xdec); if(x){ x.qtd--; if(x.qtd<=0) extras=extras.filter(y=>y!==x); } }
+  if(i||d) renderExtras();
+});
 let descTipo="valor";
 const round2=v=>Math.round((Number(v)||0)*100)/100;
 function calcDesconto(sub){
@@ -810,6 +853,7 @@ async function finalizar(){
   finally{ saving=false; btn.disabled=false; btn.textContent="Finalizar pedido"; }
 }
 function resetForm(){
+  extras=[]; $("#av-nome").value=""; $("#av-preco").value=""; renderExtras();
   ["#c-nome","#c-tel","#c-entrega","#c-obs","#c-entrada","#c-desc","#svc-busca"].forEach(s=>$(s).value=""); descTipo="valor"; setDescTipo("valor");
   cart={}; photos.forEach(p=>URL.revokeObjectURL(p.url)); photos=[]; if(audio) URL.revokeObjectURL(audio.url); audio=null;
   renderPick(); renderPhotos(); renderAudio();
@@ -1229,7 +1273,7 @@ async function openOrder(code, given){
   openCode=code; renderSheet(o); $("#overlay").hidden=false; document.body.style.overflow="hidden";
   $("#overlay").scrollTop=0;
 }
-function closeSheet(){ if(!$("#overlay")) return; $("#overlay").hidden=true; openCode=null; if(takePhoto){URL.revokeObjectURL(takePhoto.url); takePhoto=null;} document.body.style.overflow=""; }
+function closeSheet(){ editing=null; if(!$("#overlay")) return; $("#overlay").hidden=true; openCode=null; if(takePhoto){URL.revokeObjectURL(takePhoto.url); takePhoto=null;} document.body.style.overflow=""; }
 $("#overlay").addEventListener("click",e=>{ if(e.target.id==="overlay") closeSheet(); });
 document.addEventListener("keydown",e=>{ if(e.key==="Escape" && !$("#overlay").hidden) closeSheet(); });
 
@@ -1263,6 +1307,96 @@ function notaHTML(o,{precos=true,qr=true}={}){
       ${qr?`<div class="qr-area"><div class="qr" id="qr"></div><div><div class="label">Código do pedido</div><div class="cd">${esc(o.codigo)}</div><p class="hint" style="margin-top:6px">Apresente este pedido para retirar a peça.</p></div></div>`:`<div class="cli-code"><span class="label">Código do pedido</span><b>${esc(o.codigo)}</b><span>Apresente este código para retirar a peça.</span></div>`}
       <div class="foot">WhatsApp (81) 99616-0055${qr?`<small>Comprovante interno do ateliê · sem valor fiscal</small>`:""}</div>
     </article>`;
+}
+let editing=null;
+function renderEdit(o){
+  const c=o.cliente||{};
+  const e={ itens:(o.itens||[]).map(i=>({nome:U(i.nome), preco:Number(i.preco)||0, qtd:Number(i.qtd)||1})),
+    tipo:o.descontoTipo==="pct"?"pct":"valor", desc: o.descontoTipo==="pct" ? (Number(o.descontoInformado)||0) : (Number(o.desconto)||0) };
+  editing=o.codigo;
+  const pagOpts=["Pix","Dinheiro","Cartão de débito","Cartão de crédito","Pagar na retirada"];
+  $("#sheet").innerHTML=`
+    <div class="sheet-top"><span class="pill st-${o.status}">Editando ${esc(o.codigo)}</span><button class="btn" id="ed-cancel-top">Cancelar</button></div>
+    <div class="panel"><span class="label">Cliente</span>
+      <div class="field"><label for="ed-nome">Nome</label><input type="text" id="ed-nome" value="${esc(U(c.nome))}"></div>
+      <div class="field"><label for="ed-tel">Telefone / WhatsApp</label><input type="tel" id="ed-tel" value="${esc(c.telefone||"")}"></div>
+      <div class="field"><label for="ed-entrega">Entrega prevista</label><input type="date" id="ed-entrega" value="${esc(o.entrega||"")}"></div>
+    </div>
+    <div class="panel"><span class="label">Serviços</span>
+      <div class="edit-items" id="ed-items"></div>
+      <div class="edit-add"><select id="ed-add-sel" aria-label="Adicionar serviço da tabela"><option value="">ADICIONAR SERVIÇO DA TABELA…</option>${services.map(s=>`<option value="${s.id}">${esc(U(s.nome))} · ${money(s.preco)}</option>`).join("")}</select><button class="btn" id="ed-add" type="button">Adicionar</button></div>
+      <div class="av-row"><input type="text" id="ed-av-nome" placeholder="SERVIÇO FORA DA TABELA" aria-label="Serviço fora da tabela"><input type="number" id="ed-av-preco" min="0" step="0.01" inputmode="decimal" placeholder="R$ 0,00" aria-label="Valor"><button class="btn" id="ed-av-add" type="button">Adicionar</button></div>
+    </div>
+    <div class="panel"><span class="label">Pagamento</span>
+      <div class="field"><label for="ed-desc">Desconto</label>
+        <div class="desc-row"><div class="seg" role="group" aria-label="Tipo de desconto"><button type="button" id="ed-dt-valor">R$</button><button type="button" id="ed-dt-pct">%</button></div>
+        <input type="number" id="ed-desc" min="0" step="0.01" inputmode="decimal" value="${e.desc||""}" placeholder="0"></div></div>
+      <div class="grid2">
+        <div class="field"><label for="ed-pag">Forma de pagamento da entrada</label><select id="ed-pag">${pagOpts.map(x=>`<option${x===o.pagamento?" selected":""}>${x}</option>`).join("")}</select></div>
+        <div class="field"><label for="ed-entrada">Valor de entrada (R$)</label><input type="number" id="ed-entrada" min="0" step="0.01" inputmode="decimal" value="${Number(o.entrada)||""}"></div>
+      </div>
+      <div class="sumbox" id="ed-sum"></div>
+    </div>
+    <div class="panel"><span class="label">Observações</span><textarea id="ed-obs">${esc(U(o.obs||""))}</textarea></div>
+    <div class="edit-bar"><button class="btn ghost" id="ed-cancel">Cancelar</button><button class="btn primary" id="ed-save">Salvar alterações</button></div>`;
+  $("#overlay").scrollTop=0;
+  const calc=()=>{
+    const sub=round2(e.itens.reduce((a,i)=>a+i.preco*i.qtd,0));
+    const raw=Math.max(0,Number($("#ed-desc").value)||0);
+    let desc=0, err="";
+    if(e.tipo==="pct"){ if(raw>100) err="O desconto não pode passar de 100%."; else desc=round2(sub*raw/100); }
+    else { if(raw>sub) err="O desconto é maior que o valor dos serviços."; else desc=round2(raw); }
+    const tot=round2(sub-desc); const ent=Math.max(0,Number($("#ed-entrada").value)||0);
+    if(!err && ent>tot+0.001) err="A entrada é maior que o total do pedido.";
+    if(!err && !e.itens.length) err="O pedido precisa ter pelo menos um serviço.";
+    return {sub,raw,desc,tot,ent,err};
+  };
+  const paint=()=>{
+    $("#ed-items").innerHTML = e.itens.length ? e.itens.map((i,k)=>`<div class="ei"><span class="nm">${esc(i.nome)}</span>
+      <input type="number" min="0" step="0.01" inputmode="decimal" data-ep="${k}" value="${i.preco.toFixed(2)}" aria-label="Valor de ${esc(i.nome)}">
+      <div class="step"><button type="button" data-edec="${k}" aria-label="Diminuir">−</button><span class="q">${i.qtd}</span><button type="button" data-einc="${k}" aria-label="Aumentar">+</button></div>
+      <button type="button" class="x" data-erm="${k}" aria-label="Remover ${esc(i.nome)}">×</button></div>`).join("") : `<div class="empty">Nenhum serviço. Adicione abaixo.</div>`;
+    $("#ed-dt-valor").setAttribute("aria-pressed",String(e.tipo==="valor")); $("#ed-dt-pct").setAttribute("aria-pressed",String(e.tipo==="pct"));
+    sum();
+  };
+  const sum=()=>{ const r=calc();
+    $("#ed-sum").innerHTML=`<div><span>Serviços</span><span>${money(r.sub)}</span></div>${r.desc?`<div class="disc"><span>Desconto${e.tipo==="pct"?" ("+String(r.raw).replace(".",",")+"%)":""}</span><span>− ${money(r.desc)}</span></div>`:""}
+      <div class="tot"><span>Total</span><span>${money(r.tot)}</span></div><div><span>A receber na retirada</span><span>${money(Math.max(0,r.tot-r.ent))}</span></div>${r.err?`<div class="err">${r.err}</div>`:""}`; };
+  $("#ed-items").addEventListener("click",ev=>{
+    const a=ev.target.closest("[data-einc]"), d=ev.target.closest("[data-edec]"), x=ev.target.closest("[data-erm]");
+    if(a) e.itens[+a.dataset.einc].qtd++;
+    if(d){ const it=e.itens[+d.dataset.edec]; it.qtd=Math.max(1,it.qtd-1); }
+    if(x) e.itens.splice(+x.dataset.erm,1);
+    if(a||d||x) paint();
+  });
+  $("#ed-items").addEventListener("input",ev=>{ const k=ev.target.dataset.ep; if(k==null) return; e.itens[+k].preco=round2(Math.max(0,Number(ev.target.value)||0)); sum(); });
+  $("#ed-add").onclick=()=>{ const sv=services.find(x=>x.id===$("#ed-add-sel").value); if(!sv){ toast("Escolha um serviço da tabela."); return; }
+    const ex=e.itens.find(i=>i.nome===U(sv.nome) && i.preco===Number(sv.preco)); if(ex) ex.qtd++; else e.itens.push({nome:U(sv.nome), preco:Number(sv.preco)||0, qtd:1});
+    $("#ed-add-sel").value=""; paint(); };
+  $("#ed-av-add").onclick=()=>{ const n=U($("#ed-av-nome").value.trim()), v=Number($("#ed-av-preco").value);
+    if(!n){ toast("Descreva o serviço."); return; } if($("#ed-av-preco").value===""||!(v>=0)){ toast("Informe o valor do serviço."); return; }
+    e.itens.push({nome:n, preco:round2(v), qtd:1}); $("#ed-av-nome").value=""; $("#ed-av-preco").value=""; paint(); };
+  $("#ed-dt-valor").onclick=()=>{ e.tipo="valor"; paint(); };
+  $("#ed-dt-pct").onclick=()=>{ e.tipo="pct"; paint(); };
+  ["#ed-desc","#ed-entrada"].forEach(q=>$(q).addEventListener("input",sum));
+  const sair=()=>{ editing=null; const cur=orders.find(x=>x.codigo===o.codigo)||o; renderSheet(cur); $("#overlay").scrollTop=0; };
+  $("#ed-cancel").onclick=sair; $("#ed-cancel-top").onclick=sair;
+  $("#ed-save").onclick=async()=>{
+    const r=calc(); if(r.err){ toast(r.err); return; }
+    const nome=U($("#ed-nome").value.trim()); if(!nome){ toast("Informe o nome da cliente."); $("#ed-nome").focus(); return; }
+    const btn=$("#ed-save"); btn.disabled=true; btn.textContent="Salvando…";
+    const cur=orders.find(x=>x.codigo===o.codigo)||o; const now=Date.now();
+    const patch={ cliente:{...(cur.cliente||{}), nome, telefone:$("#ed-tel").value.trim()}, entrega:$("#ed-entrega").value||"",
+      itens:e.itens.map(i=>({nome:i.nome, preco:i.preco, qtd:i.qtd})), subtotal:r.sub, desconto:r.desc, descontoTipo:e.tipo, descontoInformado:r.raw,
+      total:r.tot, entrada:round2(r.ent), pagamento:$("#ed-pag").value, obs:U($("#ed-obs").value.trim()),
+      editadoEm:now, editadoPor:session?session.nome:"",
+      historico:[...(cur.historico||[]),{status:cur.status, acao:"Pedido editado", por:session?session.nome:"", em:now}] };
+    if(cur.status==="entregue"){ patch.valorRetirada=Math.max(0,round2(r.tot-r.ent)); }
+    try{ await db.doc(`pedidos/${o.codigo}`).update(patch); editing=null; toast(`Pedido ${o.codigo} atualizado.`);
+      renderSheet({...cur, ...patch}); $("#overlay").scrollTop=0; }
+    catch(err){ writeErr(err); btn.disabled=false; btn.textContent="Salvar alterações"; }
+  };
+  paint();
 }
 function renderSheet(o){
   sheetKey=(o.historico||[]).length;
@@ -1311,9 +1445,12 @@ function renderSheet(o){
     ${o.status!=="entregue" && ["costureira","admin"].includes(papel)?`<div class="panel"><span class="label">Local da peça</span><div class="locbox"><input type="text" id="sh-local" value="${esc(o.local||"")}" placeholder="Ex.: Arara 2, Caixa 5" list="locais" aria-label="Local da peça"><button class="btn" id="sh-local-save">Salvar</button></div></div>`:(o.local?`<div class="panel"><span class="label">Local da peça</span><b>${esc(o.local)}</b></div>`:"")}
     ${o.costureira?`<div class="panel"><span class="label">Pego pela costureira</span><div class="proof"><div class="thumb" id="sh-take">${o.fotoCostureira?"":'<span class="muted" style="font-size:12px;padding:8px;display:block">sem foto</span>'}</div><div><b>${esc(o.costureira)}</b><span class="muted">${o.pegoEm?fmtDate(o.pegoEm):""}</span></div></div></div>`:""}
     <div class="panel"><span class="label">Andamento</span>
-      <div class="hist">${(o.historico||[]).map(h=>`<span>${fmtDate(h.em)} · <b>${STATUS[h.status]}</b>${h.por?" · "+esc(h.por):""}</span>`).join("")}</div>
+      <div class="hist">${(o.historico||[]).map(h=>`<span>${fmtDate(h.em)} · <b>${h.acao?esc(h.acao):STATUS[h.status]}</b>${h.por?" · "+esc(h.por):""}</span>`).join("")}</div>
       <div class="actions">${nextBtn}${back&&canBack?`<button class="btn ghost" data-st="${back}">Voltar para “${STATUS[back]}”</button>`:""}</div>
     </div>
+    ${papel==="admin"?`<div class="panel"><span class="label">Editar pedido</span>
+      <p class="hint">Altere cliente, serviços, valores, desconto, entrada, entrega e observações.</p>
+      <button class="btn" id="edit-ord">Editar pedido</button></div>`:""}
     ${canDelete(o)?`<div class="panel danger-zone"><span class="label" style="color:var(--danger)">Excluir pedido</span>
       <p class="hint">Apaga o pedido, as fotos e o áudio. Não dá para desfazer.</p>
       <button class="btn del" id="del-ord">Excluir pedido ${esc(o.codigo)}</button></div>`:""}`;
@@ -1322,6 +1459,7 @@ function renderSheet(o){
   $("#sheet").querySelectorAll("[data-st]").forEach(b=>b.onclick=()=>changeStatus(o.codigo,b.dataset.st,b));
   if(o.status==="recebido") wireTake(o);
   const db_=$("#del-ord"); if(db_) db_.onclick=()=>deleteOrder(o,db_);
+  const ed_=$("#edit-ord"); if(ed_) ed_.onclick=()=>renderEdit(o);
   $("#sheet").querySelectorAll("[data-print]").forEach(b=>b.onclick=()=>printNota(o.codigo,b.dataset.print,b));
   if(verValores){
   $("#print-img").onclick=()=>notaImage(o.codigo,$("#print-img"));
@@ -1798,7 +1936,7 @@ function startData(){
   db.collection("pedidos").orderBy("criadoEm","desc").limit(1000).onSnapshot(s=>{
     orders=s.docs.map(d=>d.data());
     renderRecent(); renderQueue(); renderLogi(); renderEntregues(); renderCaixa();
-    if(openCode){ const o=orders.find(x=>x.codigo===openCode); if(o && (o.historico||[]).length!==sheetKey) renderSheet(o); }
+    if(openCode){ const o=orders.find(x=>x.codigo===openCode); if(o && !editing && (o.historico||[]).length!==sheetKey) renderSheet(o); }
     if(first){ first=false; ordersLoaded=true; if(hashCode && session && !hashOpened){ hashOpened=true; openOrder(hashCode); } }
   }, e=>console.error(e));
 }
