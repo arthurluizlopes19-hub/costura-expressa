@@ -333,6 +333,20 @@ input[type="text"]:not(#app-link):not(#m-pin):not(#lg-pin):not([inputmode="numer
 .ret-items{display:flex;flex-direction:column;gap:6px}
 .ret-items label{display:flex;gap:10px;align-items:center;padding:10px;border:1px solid var(--line);border-radius:10px;background:var(--surface);font-weight:700;text-transform:uppercase;cursor:pointer}
 .ret-items input{width:20px;height:20px;accent-color:var(--accent)}
+.cs{border:1px solid var(--line);border-radius:12px;background:var(--surface);padding:12px;display:flex;flex-direction:column;gap:10px}
+.cs-hd{display:flex;align-items:center;gap:10px}
+.cs-hd .av{width:38px;height:38px;border-radius:50%;background:var(--accent);color:var(--accent-ink);display:grid;place-items:center;font-weight:800;flex:none}
+.cs-hd b{font-size:16px;text-transform:uppercase}
+.cs-nums{display:grid;grid-template-columns:1fr 1fr;gap:8px}
+.cs-nums div{background:var(--sunken);border-radius:10px;padding:8px 10px;display:flex;flex-direction:column}
+.cs-nums .n{font-family:var(--f-display);font-weight:700;font-size:24px;line-height:1.1;font-variant-numeric:tabular-nums}
+.cs-nums .n.doing{color:var(--st-cos)} .cs-nums .n.done{color:var(--st-pro)}
+.cs-nums .t{font-size:12px;font-weight:700;color:var(--muted)}
+.cs-list{display:flex;flex-direction:column;gap:6px}
+.cs-item{display:grid;grid-template-columns:1fr auto;gap:8px;align-items:center;text-align:left;border:1px solid var(--line);background:var(--sunken);border-radius:9px;padding:8px 10px;cursor:pointer;width:100%}
+.cs-item b{text-transform:uppercase;min-width:0;overflow:hidden;text-overflow:ellipsis;white-space:nowrap}
+.cs-item span{font-size:12.5px;color:var(--muted);font-family:var(--f-mono)}
+.cs-grid{display:grid;grid-template-columns:repeat(auto-fill,minmax(260px,1fr));gap:10px}
 .camhelp{font-size:14px}
 .camhelp summary{cursor:pointer;font-weight:700;padding:4px 0}
 .camhelp p{margin:6px 0 10px}
@@ -400,7 +414,8 @@ input[type="text"]:not(#app-link):not(#m-pin):not(#lg-pin):not([inputmode="numer
     </div>
     <nav class="tabs" role="tablist">
       <button id="tab-atendimento" role="tab" data-view="atendimento" aria-selected="true">Atendimento</button>
-      <button id="tab-costureiras" role="tab" data-view="costureiras" aria-selected="false">Costureiras</button>
+      <button id="tab-costureiras" role="tab" data-view="costureiras" aria-selected="false">Fila de costura</button>
+      <button id="tab-producao" role="tab" data-view="producao" aria-selected="false">Costureiras</button>
       <button id="tab-servicos" role="tab" data-view="servicos" aria-selected="false">Serviços</button>
       <button id="tab-logistica" role="tab" data-view="logistica" aria-selected="false">Logística</button>
       <button id="tab-caixa" role="tab" data-view="caixa" aria-selected="false">Caixa do dia</button>
@@ -512,6 +527,18 @@ input[type="text"]:not(#app-link):not(#m-pin):not(#lg-pin):not([inputmode="numer
       <h2 class="sec">Fila do ateliê</h2>
       <div class="chips" id="filters"></div>
       <div class="orders" id="queue"></div>
+    </section>
+
+    <!-- COSTUREIRAS (visão da administração) -->
+    <section class="view" id="view-producao" hidden>
+      <h2 class="sec">Costureiras</h2>
+      <div class="chips" id="pr-periodo">
+        <button class="chip" data-per="hoje" aria-pressed="false">Hoje</button>
+        <button class="chip" data-per="7" aria-pressed="false">7 dias</button>
+        <button class="chip" data-per="mes" aria-pressed="true">Este mês</button>
+        <button class="chip" data-per="tudo" aria-pressed="false">Tudo</button>
+      </div>
+      <div id="pr-body"></div>
     </section>
 
     <!-- CAIXA DO DIA -->
@@ -655,7 +682,7 @@ let saving = false;
 let sheetKey = -1;
 let takePhoto = null; // {blob,url}
 const ROLES = {admin:"Administração", atendente:"Atendente", costureira:"Costureira"};
-const VIEWS = {admin:["atendimento","caixa","costureiras","logistica","entregues","servicos","equipe"], atendente:["atendimento","caixa","entregues"], costureira:["costureiras","logistica","entregues"]};
+const VIEWS = {admin:["atendimento","caixa","producao","entregues","servicos","equipe"], atendente:["atendimento","caixa","entregues"], costureira:["costureiras","logistica","entregues"]};
 let team = [];
 let teamLoaded = false;
 let session = null;      // {id,nome,papel}
@@ -720,7 +747,7 @@ function setView(v){
   const allowed = session ? VIEWS[session.papel] : [];
   if(!allowed.includes(v)) v = allowed[0] || "atendimento";
   document.querySelectorAll("nav.tabs button").forEach(b=>b.setAttribute("aria-selected", String(b.dataset.view===v)));
-  ["atendimento","caixa","costureiras","logistica","entregues","servicos","equipe"].forEach(x=>$("#view-"+x).hidden = x!==v);
+  ["atendimento","caixa","costureiras","producao","logistica","entregues","servicos","equipe"].forEach(x=>$("#view-"+x).hidden = x!==v);
   const tb=document.querySelector(`nav.tabs button[data-view="${v}"]`); if(tb&&tb.scrollIntoView) try{ tb.scrollIntoView({block:"nearest",inline:"center"}); }catch(e){}
   $("#totalbar").hidden = v!=="atendimento";
   ls.set("ce-view",v); window.scrollTo(0,0);
@@ -1247,6 +1274,35 @@ let entT=null;
 $("#ent-busca").addEventListener("input",e=>{ clearTimeout(entT); entT=setTimeout(()=>{ entBusca=e.target.value; if(entBusca.trim()&&entPer!=="tudo"){ entPer="tudo"; $("#ent-periodo").querySelectorAll("[data-per]").forEach(x=>x.setAttribute("aria-pressed",String(x.dataset.per==="tudo"))); } renderEntregues(); },200); });
 $("#ent-cost").addEventListener("change",e=>{ entCost=e.target.value; renderEntregues(); });
 
+/* ---------- costureiras (administração) ---------- */
+let prPer="mes";
+function doneAt(o){ const h=(o.historico||[]).filter(x=>x.status==="pronto" && !x.acao).pop(); return h ? h.em : (o.entregueEm || o.pegoEm || o.criadoEm || 0); }
+function renderProducao(){
+  const body=$("#pr-body"); if(!body) return;
+  const now=new Date(); const today=new Date(now.getFullYear(),now.getMonth(),now.getDate()).getTime();
+  const from = prPer==="hoje"?today : prPer==="7"?today-6*864e5 : prPer==="mes"?new Date(now.getFullYear(),now.getMonth(),1).getTime() : 0;
+  const perTxt={hoje:"hoje","7":"nos últimos 7 dias",mes:"neste mês",tudo:"no total"}[prPer];
+  const nomes=[...new Set([...team.filter(m=>m.papel==="costureira").map(m=>m.nome), ...orders.filter(o=>o.costureira).map(o=>o.costureira)])]
+    .sort((a,b)=>String(a).localeCompare(String(b),"pt-BR"));
+  const fila=orders.filter(o=>o.status==="recebido");
+  const fazendoTot=orders.filter(o=>o.status==="em_costura").length;
+  const resumo=`<div class="hist-sum">
+    <div class="stat"><span class="n">${fila.length}</span><span class="t">Esperando costureira</span></div>
+    <div class="stat"><span class="n">${fazendoTot}</span><span class="t">Sendo feitos agora</span></div>
+    <div class="stat"><span class="n">${orders.filter(o=>o.costureira&&(o.status==="pronto"||o.status==="entregue")&&doneAt(o)>=from).length}</span><span class="t">Feitos ${perTxt}</span></div></div>`;
+  if(!nomes.length){ body.innerHTML=resumo+`<div class="empty">Cadastre as costureiras na aba Equipe para acompanhar o trabalho delas aqui.</div>`; return; }
+  const item=o=>`<button class="cs-item" data-open="${esc(o.codigo)}"><b>${esc(U((o.cliente||{}).nome||"Cliente"))}</b><span>${esc(o.codigo)}${o.entrega?" · "+fmtDay(o.entrega).slice(0,5):""}</span></button>`;
+  body.innerHTML=resumo+`<div class="cs-grid">${nomes.map(n=>{
+    const fazendo=orders.filter(o=>o.status==="em_costura" && o.costureira===n).sort((a,b)=>(a.entrega||"9")<(b.entrega||"9")?-1:1);
+    const feitos=orders.filter(o=>o.costureira===n && (o.status==="pronto"||o.status==="entregue") && doneAt(o)>=from);
+    return `<div class="cs"><div class="cs-hd"><span class="av">${esc(initials(n))}</span><b>${esc(n)}</b></div>
+      <div class="cs-nums"><div><span class="n done">${feitos.length}</span><span class="t">Pedidos feitos ${perTxt}</span></div><div><span class="n doing">${fazendo.length}</span><span class="t">Fazendo agora</span></div></div>
+      ${fazendo.length?`<div class="cs-list"><span class="label">Está fazendo os pedidos de</span>${fazendo.map(item).join("")}</div>`:`<p class="hint">Sem pedido em costura agora.</p>`}
+    </div>`; }).join("")}</div>`;
+}
+$("#pr-periodo").addEventListener("click",e=>{ const b=e.target.closest("[data-per]"); if(!b) return; prPer=b.dataset.per;
+  $("#pr-periodo").querySelectorAll("[data-per]").forEach(x=>x.setAttribute("aria-pressed",String(x===b))); renderProducao(); });
+
 function renderLogi(){
   if(!$("#lg-tiles")) return;
   const prod=orders.filter(o=>o.status==="recebido"||o.status==="em_costura")
@@ -1462,8 +1518,8 @@ function renderSheet(o){
   const c=o.cliente||{}; const restante=restOf(o);
   const papel = session ? session.papel : "";
   const verValores = papel!=="costureira";
-  const may = {recebido:["costureira","admin"], em_costura:["costureira","admin"], pronto:["atendente","admin"], entregue:[]};
-  const mayBack = {em_costura:["costureira","admin"], pronto:["costureira","admin"], entregue:["atendente","admin"]};
+  const may = {recebido:["costureira"], em_costura:["costureira"], pronto:["atendente","admin"], entregue:[]};
+  const mayBack = {em_costura:["costureira"], pronto:["costureira"], entregue:["atendente","admin"]};
   const canNext = (may[o.status]||[]).includes(papel);
   const canBack = (mayBack[o.status]||[]).includes(papel);
   const waitMsg = {recebido:"Aguardando uma costureira pegar o pedido.", em_costura:"Em costura com "+esc(o.costureira||"a costureira")+".", pronto:"Pronto. A atendente entrega à cliente.", entregue:"Pedido entregue."}[o.status]||"";
@@ -1501,7 +1557,7 @@ function renderSheet(o){
     </div>`:""}
     ${o.audio?`<div class="panel"><span class="label">Áudio da atendente</span><div id="sh-audio" class="busy muted"><span class="spin"></span>Carregando áudio…</div></div>`:""}
     ${(o.fotos||[]).length?`<div class="panel"><span class="label">Fotos da peça</span><div class="thumbs" id="sh-photos">${o.fotos.map(()=>`<div class="thumb"></div>`).join("")}</div></div>`:""}
-    ${o.status!=="entregue" && ["costureira","admin"].includes(papel)?`<div class="panel"><span class="label">Local da peça</span><div class="locbox"><input type="text" id="sh-local" value="${esc(o.local||"")}" placeholder="Ex.: Arara 2, Caixa 5" list="locais" aria-label="Local da peça"><button class="btn" id="sh-local-save">Salvar</button></div></div>`:(o.local?`<div class="panel"><span class="label">Local da peça</span><b>${esc(o.local)}</b></div>`:"")}
+    ${o.status!=="entregue" && papel==="costureira"?`<div class="panel"><span class="label">Local da peça</span><div class="locbox"><input type="text" id="sh-local" value="${esc(o.local||"")}" placeholder="Ex.: Arara 2, Caixa 5" list="locais" aria-label="Local da peça"><button class="btn" id="sh-local-save">Salvar</button></div></div>`:(o.local?`<div class="panel"><span class="label">Local da peça</span><b>${esc(o.local)}</b></div>`:"")}
     ${o.costureira?`<div class="panel"><span class="label">Pego pela costureira</span><div class="proof"><div class="thumb" id="sh-take">${o.fotoCostureira?"":'<span class="muted" style="font-size:12px;padding:8px;display:block">sem foto</span>'}</div><div><b>${esc(o.costureira)}</b><span class="muted">${o.pegoEm?fmtDate(o.pegoEm):""}</span></div></div></div>`:""}
     <div class="panel"><span class="label">Andamento</span>
       <div class="hist">${(o.historico||[]).map(h=>`<span>${fmtDate(h.em)} · <b>${h.acao?esc(h.acao):STATUS[h.status]}</b>${h.por?" · "+esc(h.por):""}</span>`).join("")}</div>
@@ -1521,7 +1577,7 @@ function renderSheet(o){
   $("#sh-close").onclick=closeSheet;
   if($("#qr")) try{ new QRCode($("#qr"),{text:qrText(o.codigo),width:264,height:264,colorDark:"#111111",colorLight:"#ffffff",correctLevel:QRCode.CorrectLevel.Q}); }catch(e){ $("#qr").textContent=""; }
   $("#sheet").querySelectorAll("[data-st]").forEach(b=>b.onclick=()=>changeStatus(o.codigo,b.dataset.st,b));
-  if(o.status==="recebido") wireTake(o);
+  if(o.status==="recebido" && $("#tk-go")) wireTake(o);
   const db_=$("#del-ord"); if(db_) db_.onclick=()=>deleteOrder(o,db_);
   const ed_=$("#edit-ord"); if(ed_) ed_.onclick=()=>renderEdit(o);
   const rt_=$("#ret-open"); if(rt_) rt_.onclick=()=>renderRetorno(o);
@@ -1810,7 +1866,7 @@ function startSession(s){
   document.querySelectorAll("nav.tabs button").forEach(b=>b.hidden=!VIEWS[s.papel].includes(b.dataset.view));
   $("nav.tabs").hidden = VIEWS[s.papel].length<2;
   setView(hashCode && VIEWS[s.papel].includes("costureiras") ? "costureiras" : ls.get("ce-view",VIEWS[s.papel][0]));
-  renderRecent(); renderQueue(); renderLogi(); renderEntregues(); renderCaixa();
+  renderRecent(); renderQueue(); renderLogi(); renderEntregues(); renderCaixa(); renderProducao();
   if(hashCode && ordersLoaded && !hashOpened){ hashOpened=true; openOrder(hashCode); }
 }
 function logout(){
@@ -1962,7 +2018,7 @@ document.addEventListener("input",e=>{
 const U=t=>String(t??"").toLocaleUpperCase("pt-BR");
 
 /* ---------- inicialização ---------- */
-renderPick(); renderPhotos(); renderAudio(); renderRecent(); renderQueue(); renderLogi(); renderEntregues(); renderCaixa(); renderSvcEdit();
+renderPick(); renderPhotos(); renderAudio(); renderRecent(); renderQueue(); renderLogi(); renderEntregues(); renderCaixa(); renderProducao(); renderSvcEdit();
 const hashCode = extractCode(decodeURIComponent(location.hash||""));
 let ordersLoaded=false, hashOpened=false;
 const offT=setTimeout(()=>{ if(!db) $("#offline").hidden=false; },4000);
@@ -2021,7 +2077,7 @@ function startData(){
     if(session){ const m=team.find(x=>x.id===session.id); if(!m) logout(); else if(m.papel!==session.papel||m.nome!==session.nome) startSession({id:m.id,nome:m.nome,papel:m.papel}); }
     else if(!session && saved){ const m=team.find(x=>x.id===saved); if(m) startSession({id:m.id,nome:m.nome,papel:m.papel});  }
     if(!session) renderLogin();
-    renderTeam(); renderLogi();
+    renderTeam(); renderLogi(); renderProducao();
   }, e=>console.error(e));
   db.collection("clientes").onSnapshot(s=>{ clientes.clear(); s.docs.forEach(d=>clientes.set(d.id,d.data())); if(telKey($("#c-tel").value)) checkCliente(); }, e=>console.warn(e));
   db.collection("servicos").orderBy("nome").onSnapshot(s=>{
@@ -2032,7 +2088,7 @@ function startData(){
   let first=true;
   db.collection("pedidos").orderBy("criadoEm","desc").limit(1000).onSnapshot(s=>{
     orders=s.docs.map(d=>d.data());
-    renderRecent(); renderQueue(); renderLogi(); renderEntregues(); renderCaixa();
+    renderRecent(); renderQueue(); renderLogi(); renderEntregues(); renderCaixa(); renderProducao();
     if(openCode){ const o=orders.find(x=>x.codigo===openCode); if(o && !editing && (o.historico||[]).length!==sheetKey) renderSheet(o); }
     if(first){ first=false; ordersLoaded=true; if(hashCode && session && !hashOpened){ hashOpened=true; openOrder(hashCode); } }
   }, e=>console.error(e));
