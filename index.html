@@ -229,11 +229,11 @@ audio{width:100%;max-width:100%}
 .sumbox{display:flex;flex-direction:column;gap:4px;background:var(--sunken);border-radius:10px;padding:10px 12px;font-variant-numeric:tabular-nums}
 .sumbox:empty{display:none}
 .sumbox div{display:flex;justify-content:space-between;gap:8px;font-size:14px}
-.sumbox .disc{color:var(--st-pro);font-weight:700}
+.sumbox .disc{color:var(--danger);font-weight:800}
 .sumbox .tot{font-weight:800;font-size:16px;border-top:1px solid var(--line);padding-top:6px;margin-top:2px}
 .sumbox .err{color:var(--danger);font-weight:700;font-size:13px}
 .totalbar .was{font-size:12px;color:var(--muted);text-decoration:line-through;font-variant-numeric:tabular-nums}
-.items tr.disc td{color:var(--st-pro);font-weight:700}
+.items tr.disc td{color:var(--danger);font-weight:800}
 .danger-zone{display:flex;flex-direction:column;gap:8px}
 .btn.del{color:var(--danger);border-color:color-mix(in srgb,var(--danger) 45%,var(--line))}
 .btn.del.armed{background:var(--danger);color:#ffffff;border-color:var(--danger)}
@@ -347,6 +347,14 @@ input[type="text"]:not(#app-link):not(#m-pin):not(#lg-pin):not([inputmode="numer
 .cs-item b{text-transform:uppercase;min-width:0;overflow:hidden;text-overflow:ellipsis;white-space:nowrap}
 .cs-item span{font-size:12.5px;color:var(--muted);font-family:var(--f-mono)}
 .cs-grid{display:grid;grid-template-columns:repeat(auto-fill,minmax(260px,1fr));gap:10px}
+.flabel{font-size:13px;font-weight:600;color:var(--muted)}
+.paywhen{display:grid;grid-template-columns:1fr 1fr;gap:8px}
+.paywhen button{min-height:48px;border:1.5px solid var(--line);background:var(--sunken);border-radius:10px;font-weight:800;cursor:pointer;color:var(--muted);padding:8px}
+.paywhen button[aria-pressed="true"]{border-color:var(--accent);background:var(--accent-soft);color:var(--accent)}
+.desc-field label{color:var(--danger)!important;font-weight:800}
+.desc-field input{border-color:color-mix(in srgb,var(--danger) 55%,var(--line))!important;color:var(--danger)}
+.desc-field .seg{border-color:color-mix(in srgb,var(--danger) 55%,var(--line))}
+.desc-field .seg button[aria-pressed="true"]{background:var(--danger);color:#ffffff}
 .camhelp{font-size:14px}
 .camhelp summary{cursor:pointer;font-weight:700;padding:4px 0}
 .camhelp p{margin:6px 0 10px}
@@ -487,12 +495,18 @@ input[type="text"]:not(#app-link):not(#m-pin):not(#lg-pin):not([inputmode="numer
 
       <div class="panel">
         <span class="label">Pagamento</span>
-        <div class="grid2">
-          <div class="field"><label for="c-pag">Forma de pagamento</label>
-            <select id="c-pag"><option>Pix</option><option>Dinheiro</option><option>Cartão de débito</option><option>Cartão de crédito</option><option>Pagar na retirada</option></select></div>
-          <div class="field"><label for="c-entrada">Valor de entrada (R$)</label><input type="number" id="c-entrada" min="0" step="0.01" inputmode="decimal" placeholder="0,00"></div>
+        <div class="field"><span class="flabel">Quando a cliente vai pagar?</span>
+          <div class="paywhen" role="group" aria-label="Quando a cliente vai pagar">
+            <button type="button" id="pm-ato" aria-pressed="false">Pagar no ato do pedido</button>
+            <button type="button" id="pm-ret" aria-pressed="true">Pagar na retirada</button>
+          </div>
         </div>
-        <div class="field"><label for="c-desc">Desconto</label>
+        <div class="grid2">
+          <div class="field" id="f-entrada"><label for="c-entrada">Sinal agora (opcional, R$)</label><input type="number" id="c-entrada" min="0" step="0.01" inputmode="decimal" placeholder="0,00"></div>
+          <div class="field" id="f-pag"><label for="c-pag" id="c-pag-lbl">Forma de pagamento</label>
+            <select id="c-pag"><option>Pix</option><option>Dinheiro</option><option>Cartão de débito</option><option>Cartão de crédito</option></select></div>
+        </div>
+        <div class="field desc-field"><label for="c-desc">Desconto</label>
           <div class="desc-row">
             <div class="seg" role="group" aria-label="Tipo de desconto"><button type="button" id="dt-valor" aria-pressed="true">R$</button><button type="button" id="dt-pct" aria-pressed="false">%</button></div>
             <input type="number" id="c-desc" min="0" step="0.01" inputmode="decimal" placeholder="0,00">
@@ -832,6 +846,8 @@ function calcDesconto(sub){
   if(raw>sub) return {desc:0, raw, err:"O desconto é maior que o valor dos serviços."};
   return {desc:round2(raw), raw, err:""};
 }
+let pagarEm="retirada";
+function setPagarEm(v){ pagarEm=v; $("#pm-ato").setAttribute("aria-pressed",String(v==="ato")); $("#pm-ret").setAttribute("aria-pressed",String(v==="retirada")); updateTotal(); }
 function updateTotal(){
   const it=cartItems(); const sub=round2(it.reduce((a,b)=>a+b.preco*b.qtd,0)); const n=it.reduce((a,b)=>a+b.qtd,0);
   const d=calcDesconto(sub); const tot=round2(sub-d.desc);
@@ -839,18 +855,28 @@ function updateTotal(){
   const was=$("#total-was"); was.hidden=!d.desc; was.textContent=d.desc?money(sub):"";
   $("#cart-count").textContent = n? `${n} selecionado${n>1?"s":""}` : "";
   const box=$("#sumbox");
+  const sinal = pagarEm==="ato" ? 0 : Math.max(0,Number($("#c-entrada").value)||0);
+  $("#f-entrada").hidden = pagarEm==="ato";
+  $("#f-pag").hidden = pagarEm!=="ato" && !sinal;
+  $("#c-pag-lbl").textContent = pagarEm==="ato" ? "Forma de pagamento" : "Forma de pagamento do sinal";
   if(!sub && !d.raw){ box.innerHTML=""; return; }
   const lbl = descTipo==="pct" && d.raw ? `Desconto (${String(d.raw).replace(".",",")}%)` : "Desconto";
   box.innerHTML=`<div><span>Serviços</span><span>${money(sub)}</span></div>
     ${d.desc?`<div class="disc"><span>${lbl}</span><span>− ${money(d.desc)}</span></div>`:""}
     <div class="tot"><span>Total</span><span>${money(tot)}</span></div>
-    ${d.err?`<div class="err">${d.err}</div>`:""}`;
+    ${pagarEm==="ato" ? `<div><span>Pago no ato (${esc($("#c-pag").value)})</span><span>${money(tot)}</span></div>`
+      : `${sinal?`<div><span>Sinal (${esc($("#c-pag").value)})</span><span>${money(sinal)}</span></div>`:""}<div><span><b>A pagar na retirada</b></span><span><b>${money(Math.max(0,round2(tot-sinal)))}</b></span></div>`}
+    ${d.err?`<div class="err">${d.err}</div>`:""}${pagarEm!=="ato"&&sinal>tot+0.001?`<div class="err">O sinal é maior que o total do pedido.</div>`:""}`;
 }
 function setDescTipo(t){ descTipo=t; $("#dt-valor").setAttribute("aria-pressed",String(t==="valor")); $("#dt-pct").setAttribute("aria-pressed",String(t==="pct"));
   $("#c-desc").placeholder = t==="pct" ? "0 %" : "0,00"; $("#c-desc").step = t==="pct" ? "1" : "0.01"; updateTotal(); }
 $("#dt-valor").addEventListener("click",()=>setDescTipo("valor"));
 $("#dt-pct").addEventListener("click",()=>setDescTipo("pct"));
 $("#c-desc").addEventListener("input",updateTotal);
+$("#c-entrada").addEventListener("input",updateTotal);
+$("#c-pag").addEventListener("change",updateTotal);
+$("#pm-ato").addEventListener("click",()=>setPagarEm("ato"));
+$("#pm-ret").addEventListener("click",()=>setPagarEm("retirada"));
 
 /* ---------- atendimento: fotos ---------- */
 function renderPhotos(){
@@ -889,7 +915,7 @@ async function finalizar(){
   if(!itens.length){toast("Selecione pelo menos um serviço."); return;}
   if(!db){toast("Ainda conectando ao ateliê. Tente em instantes."); return;}
   { const sub=round2(itens.reduce((a,b)=>a+b.preco*b.qtd,0)); const dc=calcDesconto(sub); if(dc.err){ toast(dc.err); $("#c-desc").focus(); return; }
-    const ent=Number($("#c-entrada").value)||0; if(ent>round2(sub-dc.desc)+0.001){ toast("A entrada é maior que o total do pedido."); $("#c-entrada").focus(); return; } }
+    const ent=pagarEm==="ato"?0:(Number($("#c-entrada").value)||0); if(ent>round2(sub-dc.desc)+0.001){ toast("O sinal é maior que o total do pedido."); $("#c-entrada").focus(); return; } }
   saving=true; const btn=$("#finalizar"); btn.disabled=true;
   const setBusy=t=>btn.innerHTML=`<span class="busy"><span class="spin"></span>${t}</span>`;
   try{
@@ -903,7 +929,8 @@ async function finalizar(){
     const total=round2(subtotal-dc.desc);
     const pedido={codigo:code, cliente:{nome:U(nome), telefone:$("#c-tel").value.trim()},
       itens, subtotal, desconto:dc.desc, descontoTipo:descTipo, descontoInformado:dc.raw, total,
-      entrada:Math.min(total,Math.max(0,Number($("#c-entrada").value)||0)), pagamento:$("#c-pag").value,
+      pagarEm, entrada: pagarEm==="ato" ? total : Math.min(total,Math.max(0,Number($("#c-entrada").value)||0)),
+      pagamento: (pagarEm==="ato" || (Number($("#c-entrada").value)||0)>0) ? $("#c-pag").value : "Pagar na retirada",
       entrega:$("#c-entrega").value||"", obs:U($("#c-obs").value.trim()), fotos:fotoIds, audio:audioId,
       atendente:atend, costureira:"", status:"recebido", criadoEm:now,
       historico:[{status:"recebido", por:atend||"Atendimento", em:now}]};
@@ -915,6 +942,7 @@ async function finalizar(){
   finally{ saving=false; btn.disabled=false; btn.textContent="Finalizar pedido"; }
 }
 function resetForm(){
+  pagarEm="retirada"; $("#pm-ato").setAttribute("aria-pressed","false"); $("#pm-ret").setAttribute("aria-pressed","true"); $("#c-pag").value="Pix";
   autoNome=""; $("#c-found").hidden=true;
   extras=[]; $("#av-nome").value=""; $("#av-preco").value=""; renderExtras();
   ["#c-nome","#c-tel","#c-entrega","#c-obs","#c-entrada","#c-desc","#svc-busca"].forEach(s=>$(s).value=""); descTipo="valor"; setDescTipo("valor");
@@ -1004,10 +1032,14 @@ function layoutNota(doc,o,fmt,logo,qr){
   hr(false); y+=thermal?5:7;
   const restante=restOf(o);
   if(descOf(o)){ font(fs.b,"normal",ink); T("Subtotal",M,y); T(money(subOf(o)),R,y,{align:"right"}); y+=thermal?4:5.5;
-    font(fs.b,"bold",[24,121,78]); T(descLabel(o),M,y); T("- "+money(descOf(o)),R,y,{align:"right"}); y+=thermal?5:7; }
+    font(fs.b,"bold",[192,38,38]); T(descLabel(o),M,y); T("- "+money(descOf(o)),R,y,{align:"right"}); y+=thermal?5:7; }
   font(fs.big,"bold",plum); T("TOTAL",M,y); T(money(o.total),R,y,{align:"right"}); y+=thermal?5:7;
-  font(fs.b,"normal",ink); T("Entrada ("+(o.pagamento||"")+")",M,y); T(money(o.entrada),R,y,{align:"right"}); y+=thermal?4:5.5;
-  font(fs.b,"bold",ink); T("A receber na retirada",M,y); T(money(restante),R,y,{align:"right"}); y+=thermal?5:8;
+  if(pagoNoAto(o)){ font(fs.b,"normal",ink); T("Pago no ato ("+(o.pagamento||"")+")",M,y); T(money(o.entrada),R,y,{align:"right"}); y+=thermal?5:8; }
+  else {
+    if(Number(o.entrada)){ font(fs.b,"normal",ink); T("Sinal ("+(o.pagamento||"")+")",M,y); T(money(o.entrada),R,y,{align:"right"}); y+=thermal?4:5.5; }
+    if(o.status==="entregue" && o.valorRetirada){ font(fs.b,"normal",ink); T("Pago na retirada ("+(o.pagamentoRetirada||"")+")",M,y); T(money(o.valorRetirada),R,y,{align:"right"}); y+=thermal?5:8; }
+    else if(restante>0.001){ font(fs.b,"bold",ink); T("A pagar na retirada",M,y); T(money(restante),R,y,{align:"right"}); y+=thermal?5:8; }
+  }
   if(o.obs){ font(fs.s,"bold",teal); T("OBSERVAÇÕES",M,y); y+=thermal?3.8:5; font(fs.b,"normal",ink); const lines=doc.splitTextToSize(U(o.obs),CW); T(lines,M,y); y+=lh(fs.b)*1.35*lines.length+(thermal?3:5); }
   hr(true); y+=thermal?4:7;
   // QR
@@ -1064,9 +1096,12 @@ function waNotaText(o){
   L.push("");
   if(descOf(o)){ L.push(`Subtotal: ${money(subOf(o))}`); L.push(`${descLabel(o)}: - ${money(descOf(o))}`); }
   L.push(`*Total: ${money(totOf(o))}*`);
-  if(Number(o.entrada)) L.push(`Entrada (${o.pagamento}): ${money(o.entrada)}`);
-  if(o.status==="entregue") L.push("Situação: quitado");
-  else L.push(`A pagar na retirada: ${money(restOf(o))}`);
+  if(pagoNoAto(o)) L.push(`Pago no ato (${o.pagamento}): ${money(o.entrada)}`);
+  else {
+    if(Number(o.entrada)) L.push(`Sinal (${o.pagamento}): ${money(o.entrada)}`);
+    if(o.status==="entregue") L.push("Situação: quitado");
+    else if(restOf(o)>0.001) L.push(`A pagar na retirada: ${money(restOf(o))}`);
+  }
   if(o.entrega) L.push(`Entrega prevista: ${fmtDay(o.entrega)}`);
   if(o.obs){ L.push(""); L.push(`Observações: ${U(o.obs)}`); }
   L.push(""); L.push(`Para retirar a peça, apresente o código *${o.codigo}*.`);
@@ -1185,6 +1220,7 @@ const subOf=o=>Number(o.subtotal ?? o.total)||0;
 const descOf=o=>Number(o.desconto)||0;
 const totOf=o=>Number(o.total)||0;
 const restOf=o=>Math.max(0,round2(totOf(o)-(Number(o.entrada)||0)));
+function pagoNoAto(o){ return o.pagarEm==="ato" || (!o.pagarEm && o.pagamento!=="Pagar na retirada" && restOf(o)<=0.001 && Number(o.entrada)>0); }
 function descLabel(o){ return o.descontoTipo==="pct" && o.descontoInformado ? `Desconto (${String(o.descontoInformado).replace(".",",")}%)` : "Desconto"; }
 
 /* ---------- caixa do dia ---------- */
@@ -1430,8 +1466,10 @@ function notaHTML(o,{precos=true,qr=true}={}){
         ${precos?`<tfoot>
           ${descOf(o)?`<tr><td colspan="3">Subtotal</td><td class="n">${money(subOf(o))}</td></tr><tr class="disc"><td colspan="3">${descLabel(o)}</td><td class="n">− ${money(descOf(o))}</td></tr>`:""}
           <tr><td colspan="3">Total</td><td class="n big">${money(o.total)}</td></tr>
-          <tr><td colspan="3" class="muted" style="font-weight:500">Entrada (${esc(o.pagamento)})</td><td class="n" style="font-weight:500">${money(o.entrada)}</td></tr>
-          ${o.status==="entregue"&&o.valorRetirada?`<tr><td colspan="3" class="muted" style="font-weight:500">Pago na retirada (${esc(o.pagamentoRetirada||"")})</td><td class="n" style="font-weight:500">${money(o.valorRetirada)}</td></tr><tr><td colspan="3">Situação</td><td class="n">Quitado</td></tr>`:`<tr><td colspan="3">A receber na retirada</td><td class="n">${money(restante)}</td></tr>`}
+          ${pagoNoAto(o) ? `<tr><td colspan="3" class="muted" style="font-weight:500">Pago no ato (${esc(o.pagamento)})</td><td class="n" style="font-weight:500">${money(o.entrada)}</td></tr>`
+            : `${Number(o.entrada)?`<tr><td colspan="3" class="muted" style="font-weight:500">Sinal (${esc(o.pagamento)})</td><td class="n" style="font-weight:500">${money(o.entrada)}</td></tr>`:""}
+               ${o.status==="entregue"&&o.valorRetirada?`<tr><td colspan="3" class="muted" style="font-weight:500">Pago na retirada (${esc(o.pagamentoRetirada||"")})</td><td class="n" style="font-weight:500">${money(o.valorRetirada)}</td></tr><tr><td colspan="3">Situação</td><td class="n">Quitado</td></tr>`
+                 : restante>0.001?`<tr><td colspan="3">A pagar na retirada</td><td class="n">${money(restante)}</td></tr>`:""}`}
         </tfoot>`:""}
       </table></div>
       ${o.obs?`<div><div class="label" style="margin-bottom:6px">Observações</div><div class="obs">${esc(o.obs)}</div></div>`:""}
@@ -1459,7 +1497,7 @@ function renderEdit(o){
       <div class="av-row"><input type="text" id="ed-av-nome" placeholder="SERVIÇO FORA DA TABELA" aria-label="Serviço fora da tabela"><input type="number" id="ed-av-preco" min="0" step="0.01" inputmode="decimal" placeholder="R$ 0,00" aria-label="Valor"><button class="btn" id="ed-av-add" type="button">Adicionar</button></div>
     </div>
     <div class="panel"><span class="label">Pagamento</span>
-      <div class="field"><label for="ed-desc">Desconto</label>
+      <div class="field desc-field"><label for="ed-desc">Desconto</label>
         <div class="desc-row"><div class="seg" role="group" aria-label="Tipo de desconto"><button type="button" id="ed-dt-valor">R$</button><button type="button" id="ed-dt-pct">%</button></div>
         <input type="number" id="ed-desc" min="0" step="0.01" inputmode="decimal" value="${e.desc||""}" placeholder="0"></div></div>
       <div class="grid2">
@@ -1525,6 +1563,7 @@ function renderEdit(o){
     const patch={ cliente:{...(cur.cliente||{}), nome, telefone:$("#ed-tel").value.trim()}, entrega:$("#ed-entrega").value||"",
       itens:e.itens.map(i=>({nome:i.nome, preco:i.preco, qtd:i.qtd})), subtotal:r.sub, desconto:r.desc, descontoTipo:e.tipo, descontoInformado:r.raw,
       total:r.tot, entrada:round2(r.ent), pagamento:$("#ed-pag").value, obs:U($("#ed-obs").value.trim()),
+      pagarEm: ($("#ed-pag").value!=="Pagar na retirada" && r.ent>=r.tot-0.001 && r.tot>0) ? "ato" : "retirada",
       editadoEm:now, editadoPor:session?session.nome:"",
       historico:[...(cur.historico||[]),{status:cur.status, acao:"Pedido editado", por:session?session.nome:"", em:now}] };
     if(cur.status==="entregue"){ patch.valorRetirada=Math.max(0,round2(r.tot-r.ent)); }
