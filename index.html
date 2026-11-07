@@ -1408,6 +1408,10 @@ function renderEdit(o){
       <div class="sumbox" id="ed-sum"></div>
     </div>
     <div class="panel"><span class="label">Observações</span><textarea id="ed-obs">${esc(U(o.obs||""))}</textarea></div>
+    ${o.status==="entregue" && !o.retornoDe ? `<div class="panel ret-box"><span class="label">Retorno</span>
+      <p class="hint">A cliente voltou para refazer algum ajuste? Este pedido fica guardado e um pedido de retorno vai para a fila das costureiras.</p>
+      <button class="btn" type="button" id="ed-retorno">Este pedido vai ter retorno</button></div>`
+      : o.status!=="entregue" && !o.retornoDe ? `<div class="panel"><span class="label">Retorno</span><p class="hint">O retorno fica disponível depois que o pedido for marcado como entregue.</p></div>` : ""}
     <div class="edit-bar"><button class="btn ghost" id="ed-cancel">Cancelar</button><button class="btn primary" id="ed-save">Salvar alterações</button></div>`;
   $("#overlay").scrollTop=0;
   const calc=()=>{
@@ -1451,6 +1455,7 @@ function renderEdit(o){
   ["#ed-desc","#ed-entrada"].forEach(q=>$(q).addEventListener("input",sum));
   const sair=()=>{ editing=null; const cur=orders.find(x=>x.codigo===o.codigo)||o; renderSheet(cur); $("#overlay").scrollTop=0; };
   $("#ed-cancel").onclick=sair; $("#ed-cancel-top").onclick=sair;
+  const er=$("#ed-retorno"); if(er) er.onclick=()=>{ editing=null; renderRetorno(orders.find(x=>x.codigo===o.codigo)||o); };
   $("#ed-save").onclick=async()=>{
     const r=calc(); if(r.err){ toast(r.err); return; }
     const nome=U($("#ed-nome").value.trim()); if(!nome){ toast("Informe o nome da cliente."); $("#ed-nome").focus(); return; }
@@ -1523,7 +1528,10 @@ function renderSheet(o){
   const canNext = (may[o.status]||[]).includes(papel);
   const canBack = (mayBack[o.status]||[]).includes(papel);
   const waitMsg = {recebido:"Aguardando uma costureira pegar o pedido.", em_costura:"Em costura com "+esc(o.costureira||"a costureira")+".", pronto:"Pronto. A atendente entrega à cliente.", entregue:"Pedido entregue."}[o.status]||"";
-  const nextBtn = !canNext ? `<p class="hint">${waitMsg}</p>` : {
+  const payBox = restante>0?`<div class="paybox"><div class="field"><label for="pg-rest">Cliente pagou ${money(restante)} com</label>
+      <select id="pg-rest"><option>Pix</option><option>Dinheiro</option><option>Cartão de débito</option><option>Cartão de crédito</option></select></div></div>`:"";
+  const nextBtn = (papel==="admin" && o.status!=="entregue") ? `${o.status!=="pronto"?`<p class="hint">${waitMsg}</p>`:""}${payBox}<button class="btn primary" data-st="entregue">Marcar como entregue</button>`
+    : !canNext ? `<p class="hint">${waitMsg}</p>` : {
     recebido:`<div class="take"><span class="label">Pegar este pedido</span>
       <p style="margin:0">Costureira: <b>${esc(session.nome)}</b></p>
       <div class="field"><label for="tk-local">Onde a peça vai ficar (opcional)</label><input type="text" id="tk-local" placeholder="Ex.: Arara 2, Caixa 5, Bancada da Lúcia" list="locais"></div>
@@ -1960,6 +1968,8 @@ $("#install-login").addEventListener("click",doInstall);
 $("#install-x").addEventListener("click",()=>{ try{ localStorage.setItem("ce-install-x",String(Date.now())); }catch(e){} $("#install-bar").hidden=true; });
 if("serviceWorker" in navigator && window.isSecureContext){
   window.addEventListener("load",()=>{ navigator.serviceWorker.register("sw.js").catch(e=>console.warn("SW",e)); });
+  let swReload=false; const hadCtrl=!!navigator.serviceWorker.controller;
+  navigator.serviceWorker.addEventListener("controllerchange",()=>{ if(!hadCtrl || swReload) return; swReload=true; if($("#overlay").hidden && !saving) location.reload(); });
 }
 $("#dev-out").addEventListener("click",async()=>{
   const b=$("#dev-out");
