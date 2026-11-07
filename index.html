@@ -1109,11 +1109,26 @@ function waNotaText(o){
   return L.join("\n");
 }
 function waProntoText(o){
-  const c=o.cliente||{}; const nome=String(c.nome||"").trim().split(/\s+/)[0]||"";
-  const r=restOf(o);
-  return [`Olá${nome?", "+nome:""}! Aqui é da *Costura Expressa*.`,"",`Sua peça do pedido *${o.codigo}* está pronta para retirada.`,
-    r>0?`Valor a pagar na retirada: ${money(r)}`:"O pedido já está pago.","",
-    "Galeria Jaqueira Park Center, R. do Futuro, 913, Graças, Recife/PE"].join("\n");
+  const c=o.cliente||{}; const nome=U(String(c.nome||"").trim());
+  return [
+    `Olá${nome?", *"+nome+"*":""}!`,
+    "",
+    "Somos da @Costuraexpressa_,",
+    "estamos passando para avisar que sua roupa está pronta!👏🏻🪡🧵",
+    "",
+    `Pedido: *${o.codigo}*`,
+    "",
+    "*IMPORTANTE*",
+    "Ao buscar suas peças em nosso atelier, caso seja necessário alguma alteração, o prazo de retorno para os serviços prestados é de *7 dias corridos*.",
+    "",
+    "⏰Segue nossos horários:",
+    "",
+    "Segunda: 09h às 18h",
+    "Terça à Sexta: 08h às 18h",
+    "Sábado: 08h às 17h",
+    "",
+    "Agradecemos a preferência!📌✂️"
+  ].join("\n");
 }
 function wireWhats(o){
   const a=$("#wa-nota"), ap=$("#wa-pronto"), inp=$("#wa-tel");
