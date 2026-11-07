@@ -328,6 +328,11 @@ input[type="text"]:not(#app-link):not(#m-pin):not(#lg-pin):not([inputmode="numer
 .found.new{background:var(--sunken);color:var(--muted);font-weight:500}
 .found b{text-transform:uppercase}
 .found .btn{min-height:34px;padding:4px 12px;font-size:13px}
+.tag-ret{font-size:10.5px;font-weight:800;letter-spacing:.06em;color:#ffffff;background:var(--accent);border-radius:6px;padding:2px 6px}
+.link-btn{border:0;background:none;color:var(--accent);font-weight:800;font-family:var(--f-mono);text-decoration:underline;cursor:pointer;padding:2px}
+.ret-items{display:flex;flex-direction:column;gap:6px}
+.ret-items label{display:flex;gap:10px;align-items:center;padding:10px;border:1px solid var(--line);border-radius:10px;background:var(--surface);font-weight:700;text-transform:uppercase;cursor:pointer}
+.ret-items input{width:20px;height:20px;accent-color:var(--accent)}
 .camhelp{font-size:14px}
 .camhelp summary{cursor:pointer;font-weight:700;padding:4px 0}
 .camhelp p{margin:6px 0 10px}
@@ -871,7 +876,7 @@ function ordCard(o){
   const qt=(o.itens||[]).reduce((a,b)=>a+b.qtd,0);
   const icons=`${(o.fotos||[]).length?'<svg aria-label="tem foto"><use href="#i-img"/></svg>':""}${o.audio?'<svg aria-label="tem áudio"><use href="#i-mic"/></svg>':""}`;
   return `<button class="ord" data-open="${esc(o.codigo)}"><span class="stripe ${o.status}"></span>
-    <span class="mid"><span class="row" style="gap:8px"><span class="code">${esc(o.codigo)}</span><span class="ic">${icons}</span></span>
+    <span class="mid"><span class="row" style="gap:8px"><span class="code">${esc(o.codigo)}</span>${o.retornoDe?`<span class="tag-ret">RETORNO</span>`:""}<span class="ic">${icons}</span></span>
     <span class="who">${esc(o.cliente?.nome)}</span>
     <span class="sub">${qt} serviço${qt>1?"s":""} · ${lateTxt(o)}${o.costureira?" · "+esc(o.costureira):""}</span>${o.local?`<span><span class="loc">Local: ${esc(o.local)}</span></span>`:""}</span>
     <span class="pill st-${o.status}">${STATUS[o.status]||o.status}</span></button>`;
@@ -1294,6 +1299,8 @@ function notaHTML(o,{precos=true,qr=true}={}){
         <div class="meta">Nº<b>${esc(o.codigo)}</b>${fmtDate(o.criadoEm)}</div>
       </div>
       <dl class="kv">
+        ${o.retornoDe?`<dt>Retorno do</dt><dd>Pedido ${esc(o.retornoDe)}</dd>`:""}
+        ${(o.retornos||[]).length?`<dt>Retornos</dt><dd>${o.retornos.map(esc).join(", ")}</dd>`:""}
         <dt>Cliente</dt><dd>${esc(c.nome)}</dd>
         ${c.telefone?`<dt>Telefone</dt><dd>${esc(c.telefone)}</dd>`:""}
         <dt>Entrega</dt><dd>${fmtDay(o.entrega)}</dd>
@@ -1405,6 +1412,51 @@ function renderEdit(o){
   };
   paint();
 }
+function renderRetorno(o){
+  editing=o.codigo;
+  const c=o.cliente||{};
+  $("#sheet").innerHTML=`
+    <div class="sheet-top"><span class="pill st-entregue">Retorno de ${esc(o.codigo)}</span><button class="btn" id="rt-cancel-top">Cancelar</button></div>
+    <div class="panel"><span class="label">Cliente</span><b style="text-transform:uppercase">${esc(c.nome||"")}</b>${c.telefone?`<span class="muted">${esc(c.telefone)}</span>`:""}</div>
+    <div class="panel"><span class="label">O que precisa refazer</span>
+      <div class="ret-items">${(o.itens||[]).map((i,k)=>`<label><input type="checkbox" data-ri="${k}" checked> ${esc(U(i.nome))}${i.qtd>1?` (${i.qtd}×)`:""}</label>`).join("")}</div>
+      <div class="field"><label for="rt-motivo">Motivo do retorno</label><textarea id="rt-motivo" placeholder="EX.: BARRA FICOU CURTA, APERTAR MAIS A CINTURA"></textarea></div>
+    </div>
+    <div class="panel"><span class="label">Entrega e valor</span>
+      <div class="grid2">
+        <div class="field"><label for="rt-entrega">Nova entrega prevista</label><input type="date" id="rt-entrega"></div>
+        <div class="field"><label for="rt-valor">Cobrar pelo retorno (R$)</label><input type="number" id="rt-valor" min="0" step="0.01" inputmode="decimal" placeholder="0,00 (sem custo)"></div>
+      </div>
+    </div>
+    <div class="edit-bar"><button class="btn ghost" id="rt-cancel">Cancelar</button><button class="btn primary" id="rt-save">Abrir retorno</button></div>`;
+  $("#overlay").scrollTop=0;
+  const sair=()=>{ editing=null; renderSheet(orders.find(x=>x.codigo===o.codigo)||o); $("#overlay").scrollTop=0; };
+  $("#rt-cancel").onclick=sair; $("#rt-cancel-top").onclick=sair;
+  $("#rt-save").onclick=async()=>{
+    const sel=[...document.querySelectorAll("[data-ri]")].filter(x=>x.checked).map(x=>(o.itens||[])[+x.dataset.ri]);
+    const motivo=U($("#rt-motivo").value.trim());
+    if(!sel.length){ toast("Marque o que precisa refazer."); return; }
+    if(!motivo){ toast("Descreva o motivo do retorno."); $("#rt-motivo").focus(); return; }
+    const valor=round2(Math.max(0,Number($("#rt-valor").value)||0));
+    const btn=$("#rt-save"); btn.disabled=true; btn.textContent="Abrindo…";
+    const code=newCode(); const now=Date.now(); const por=session?session.nome:"";
+    const itens=sel.map(i=>({nome:U(i.nome), preco:0, qtd:i.qtd}));
+    if(valor) itens.push({nome:"AJUSTE NO RETORNO", preco:valor, qtd:1});
+    const novo={codigo:code, retornoDe:o.codigo, cliente:{nome:U(c.nome||""), telefone:c.telefone||""}, itens,
+      subtotal:valor, desconto:0, descontoTipo:"valor", descontoInformado:0, total:valor, entrada:0, pagamento:"Pagar na retirada",
+      entrega:$("#rt-entrega").value||"", obs:`RETORNO DO PEDIDO ${o.codigo}: ${motivo}`, fotos:[], audio:null,
+      atendente:por, costureira:"", status:"recebido", criadoEm:now,
+      historico:[{status:"recebido", acao:`Retorno do pedido ${o.codigo}`, por, em:now}]};
+    try{
+      await db.doc(`pedidos/${code}`).set(novo);
+      const cur=orders.find(x=>x.codigo===o.codigo)||o;
+      await db.doc(`pedidos/${o.codigo}`).update({retornos:[...(cur.retornos||[]), code],
+        historico:[...(cur.historico||[]),{status:cur.status, acao:`Retorno aberto: ${code}`, por, em:now}]});
+      editing=null; toast(`Retorno ${code} aberto. Ele já está na fila das costureiras.`);
+      renderSheet(novo); openCode=code; $("#overlay").scrollTop=0;
+    }catch(err){ writeErr(err); btn.disabled=false; btn.textContent="Abrir retorno"; }
+  };
+}
 function renderSheet(o){
   sheetKey=(o.historico||[]).length;
   const c=o.cliente||{}; const restante=restOf(o);
@@ -1455,6 +1507,11 @@ function renderSheet(o){
       <div class="hist">${(o.historico||[]).map(h=>`<span>${fmtDate(h.em)} · <b>${h.acao?esc(h.acao):STATUS[h.status]}</b>${h.por?" · "+esc(h.por):""}</span>`).join("")}</div>
       <div class="actions">${nextBtn}${back&&canBack?`<button class="btn ghost" data-st="${back}">Voltar para “${STATUS[back]}”</button>`:""}</div>
     </div>
+    ${papel==="admin" && o.status==="entregue" && !o.retornoDe?`<div class="panel ret-box"><span class="label">Retorno da cliente</span>
+      <p class="hint">Use quando a cliente voltar para refazer algum ajuste. Este pedido continua guardado como está, e um pedido de retorno ligado a ele vai para a fila das costureiras.</p>
+      ${(o.retornos||[]).length?`<p class="hint">Retornos já abertos: ${o.retornos.map(r=>`<button class="link-btn" data-open="${esc(r)}">${esc(r)}</button>`).join(" ")}</p>`:""}
+      <button class="btn" id="ret-open">Registrar retorno</button></div>`:""}
+    ${o.retornoDe?`<div class="panel"><span class="label">Pedido original</span><button class="btn ghost" data-open="${esc(o.retornoDe)}">Abrir pedido ${esc(o.retornoDe)}</button></div>`:""}
     ${papel==="admin"?`<div class="panel"><span class="label">Editar pedido</span>
       <p class="hint">Altere cliente, serviços, valores, desconto, entrada, entrega e observações.</p>
       <button class="btn" id="edit-ord">Editar pedido</button></div>`:""}
@@ -1467,6 +1524,7 @@ function renderSheet(o){
   if(o.status==="recebido") wireTake(o);
   const db_=$("#del-ord"); if(db_) db_.onclick=()=>deleteOrder(o,db_);
   const ed_=$("#edit-ord"); if(ed_) ed_.onclick=()=>renderEdit(o);
+  const rt_=$("#ret-open"); if(rt_) rt_.onclick=()=>renderRetorno(o);
   $("#sheet").querySelectorAll("[data-print]").forEach(b=>b.onclick=()=>printNota(o.codigo,b.dataset.print,b));
   if(verValores){
   $("#print-img").onclick=()=>notaImage(o.codigo,$("#print-img"));
