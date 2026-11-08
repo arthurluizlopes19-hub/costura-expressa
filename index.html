@@ -389,6 +389,11 @@ input[type="text"]:not(#app-link):not(#m-pin):not(#lg-pin):not([inputmode="numer
 .mtile .badge{min-width:26px;height:26px;padding:0 8px;border-radius:13px;background:var(--accent);color:var(--accent-ink);font-weight:800;font-size:13px;display:grid;place-items:center;font-variant-numeric:tabular-nums}
 .mtile .badge.warn{background:var(--danger);color:#ffffff}
 .mtile .chev{color:var(--muted);font-size:22px;line-height:1;grid-column:4}
+.stat-btn{text-align:left;cursor:pointer;font:inherit;color:inherit;position:relative}
+.stat-btn:hover{border-color:var(--band)}
+.stat-btn[aria-pressed="true"]{border-color:var(--accent);box-shadow:inset 0 0 0 1px var(--accent)}
+.stat-btn .go{font-size:12px;font-weight:800;color:var(--band);margin-top:2px}
+#dd-filtro{scroll-margin-top:170px}
 .camhelp{font-size:14px}
 .camhelp summary{cursor:pointer;font-weight:700;padding:4px 0}
 .camhelp p{margin:6px 0 10px}
@@ -1575,6 +1580,7 @@ function ddCard(o){
     ${comEntrega(o)&&o.endereco?`<span class="sub" style="white-space:normal">${esc(o.endereco)}</span>`:""}</span>
     <span class="val">${r>0.001?`<span class="muted" style="font-size:11px;display:block;text-align:right">a receber</span>${money(r)}`:`<span class="muted" style="font-size:11px">pago</span>`}</span></button>`;
 }
+let ddFiltro=null;
 function renderDoDia(){
   const body=$("#dd-body"); if(!body) return;
   const inp=$("#dd-dia"); if(!inp.value) inp.value=isoDay(new Date());
@@ -1591,18 +1597,26 @@ function renderDoDia(){
   body.innerHTML=`
     <div class="cx-big"><span class="t">${dia===hoje?"Para entregar hoje":"Para entregar em"}</span><span class="n">${doDia.length} pedido${doDia.length===1?"":"s"}</span><span class="s">${esc(dl)}</span></div>
     <div class="hist-sum">
-      <div class="stat"><span class="n">${ent.length}</span><span class="t">Fazer entrega</span></div>
-      <div class="stat"><span class="n">${ret.length}</span><span class="t">Cliente vem buscar</span></div>
-      <div class="stat"><span class="n" style="${naoProntos?"color:var(--danger)":""}">${naoProntos}</span><span class="t">Ainda não prontos</span></div>
+      <button class="stat stat-btn" data-dd="entrega" aria-pressed="${ddFiltro==="entrega"}"><span class="n">${ent.length}</span><span class="t">Fazer entrega</span><span class="go">Ver ›</span></button>
+      <button class="stat stat-btn" data-dd="retirada" aria-pressed="${ddFiltro==="retirada"}"><span class="n">${ret.length}</span><span class="t">Cliente vem buscar</span><span class="go">Ver ›</span></button>
+      <button class="stat stat-btn" data-dd="naopronto" aria-pressed="${ddFiltro==="naopronto"}"><span class="n" style="${naoProntos?"color:var(--danger)":""}">${naoProntos}</span><span class="t">Ainda não prontos</span><span class="go">Ver ›</span></button>
     </div>
+    ${ddFiltro?(()=>{ const m={entrega:["Fazer entrega no endereço",ent,"Nenhuma entrega marcada para este dia."], retirada:["Cliente vem buscar no ateliê",ret,"Nenhuma retirada marcada para este dia."], naopronto:["Ainda não prontos",doDia.filter(o=>o.status!=="pronto"),"Todos os pedidos do dia já estão prontos."]}[ddFiltro];
+      return `<div class="panel" id="dd-filtro"><div class="row" style="justify-content:space-between"><span class="label">${m[0]} (${m[1].length})</span><button class="chip" id="dd-todos">Mostrar todos</button></div>${m[1].length?`<div class="orders">${m[1].map(ddCard).join("")}</div>`:`<p class="hint">${m[2]}</p>`}</div>`; })():`
     ${atrasados.length?`<div class="panel" style="border-color:var(--danger)"><span class="label" style="color:var(--danger)">Atrasados (${atrasados.length})</span><p class="hint">Pedidos com data anterior que ainda não foram entregues.</p><div class="orders">${atrasados.map(ddCard).join("")}</div></div>`:""}
     ${grupo("Fazer entrega no endereço",ent,"Nenhuma entrega marcada para este dia.")}
     ${grupo("Cliente vem buscar no ateliê",ret,"Nenhuma retirada marcada para este dia.")}
+    `}
     ${doDia.length?`<p class="hint">A receber nestes pedidos: <b>${money(receber)}</b>.</p>`:""}
     ${jaEntregues.length?`<div class="panel"><span class="label">Já entregues neste dia (${jaEntregues.length})</span><div class="orders">${jaEntregues.map(ddCard).join("")}</div></div>`:""}`;
 }
 const ddShift=d=>{ const inp=$("#dd-dia"); if(!inp.value) inp.value=isoDay(new Date()); const t=new Date(inp.value+"T12:00:00"); t.setDate(t.getDate()+d); inp.value=isoDay(t); renderDoDia(); };
 $("#dd-dia").addEventListener("change",renderDoDia);
+$("#dd-body").addEventListener("click",e=>{
+  const b=e.target.closest("[data-dd]");
+  if(b){ ddFiltro = ddFiltro===b.dataset.dd ? null : b.dataset.dd; renderDoDia(); const f=$("#dd-filtro"); if(f) f.scrollIntoView({behavior:"smooth",block:"start"}); return; }
+  if(e.target.closest("#dd-todos")){ ddFiltro=null; renderDoDia(); }
+});
 $("#dd-prev").addEventListener("click",()=>ddShift(-1));
 $("#dd-next").addEventListener("click",()=>ddShift(1));
 $("#dd-hoje").addEventListener("click",()=>{ $("#dd-dia").value=isoDay(new Date()); renderDoDia(); });
