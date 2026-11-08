@@ -373,18 +373,20 @@ input[type="text"]:not(#app-link):not(#m-pin):not(#lg-pin):not([inputmode="numer
 .pagebar .back{background:rgba(255,255,255,.16);border:1px solid rgba(255,255,255,.35);color:inherit;border-radius:10px;padding:8px 12px;font-weight:800;cursor:pointer;min-height:40px;font-family:var(--f-display);font-size:15px}
 .pagebar #page-title{font-family:var(--f-display);font-weight:700;font-size:18px;min-width:0;overflow:hidden;text-overflow:ellipsis;white-space:nowrap}
 .menu-hello h2{text-transform:none}
-.menu-grid{display:grid;grid-template-columns:repeat(auto-fill,minmax(150px,1fr));gap:12px}
-.mtile{position:relative;display:flex;flex-direction:column;align-items:flex-start;gap:8px;text-align:left;background:var(--surface);border:1px solid var(--line);border-radius:16px;padding:16px;cursor:pointer;min-height:132px;box-shadow:0 1px 0 rgba(0,0,0,.03)}
-.mtile:hover{border-color:var(--band)}
-.mtile:active{transform:scale(.98)}
-.mtile .ic{width:44px;height:44px;border-radius:12px;background:color-mix(in srgb,var(--band) 14%,transparent);color:var(--band);display:grid;place-items:center}
-.mtile .ic svg{width:24px;height:24px}
+.menu-grid{display:flex;flex-direction:column;background:var(--surface);border:1px solid var(--line);border-radius:14px;overflow:hidden}
+.mtile{position:relative;display:grid;grid-template-columns:auto 1fr auto auto;align-items:center;gap:12px;text-align:left;background:transparent;border:0;border-top:1px solid var(--line);padding:12px 14px;cursor:pointer;min-height:64px;width:100%;color:inherit}
+.mtile:first-child{border-top:0}
+.mtile:hover{background:var(--sunken)}
+.mtile:active{background:color-mix(in srgb,var(--band) 10%,transparent)}
+.mtile .ic{width:40px;height:40px;border-radius:11px;background:color-mix(in srgb,var(--band) 14%,transparent);color:var(--band);display:grid;place-items:center}
+.mtile .ic svg{width:22px;height:22px}
 .mtile.main .ic{background:var(--accent);color:var(--accent-ink)}
-.mtile b{font-family:var(--f-display);font-size:17px;line-height:1.15}
+.mtile .tx{display:flex;flex-direction:column;min-width:0}
+.mtile b{font-family:var(--f-display);font-size:16.5px;line-height:1.2}
 .mtile small{color:var(--muted);font-size:12.5px;line-height:1.3}
-.mtile .badge{position:absolute;top:12px;right:12px;min-width:26px;height:26px;padding:0 8px;border-radius:13px;background:var(--accent);color:var(--accent-ink);font-weight:800;font-size:13px;display:grid;place-items:center;font-variant-numeric:tabular-nums}
+.mtile .badge{min-width:26px;height:26px;padding:0 8px;border-radius:13px;background:var(--accent);color:var(--accent-ink);font-weight:800;font-size:13px;display:grid;place-items:center;font-variant-numeric:tabular-nums}
 .mtile .badge.warn{background:var(--danger);color:#ffffff}
-@media (max-width:360px){.menu-grid{grid-template-columns:1fr 1fr}.mtile{min-height:120px;padding:12px}}
+.mtile .chev{color:var(--muted);font-size:22px;line-height:1;grid-column:4}
 .camhelp{font-size:14px}
 .camhelp summary{cursor:pointer;font-weight:700;padding:4px 0}
 .camhelp p{margin:6px 0 10px}
@@ -865,7 +867,7 @@ function renderMenu(){
   $("#menu-hello").textContent=`Olá, ${cap(String(session.nome||"").toLocaleLowerCase("pt-BR").split(" ")[0])}!`;
   const bd=menuBadges();
   g.innerHTML=VIEWS[session.papel].map(v=>{ const f=VIEW_INFO[v]; if(!f) return ""; const x=bd[v];
-    return `<button class="mtile${v==="atendimento"||(v==="costureiras"&&session.papel==="costureira")?" main":""}" data-go="${v}"><span class="ic">${f.i}</span><b>${f.t}</b><small>${f.d}</small>${x&&(x[0]||x[1])?`<span class="badge${x[1]?" warn":""}">${x[0]}${x[1]?"!":""}</span>`:""}</button>`; }).join("");
+    return `<button class="mtile${v==="atendimento"||(v==="costureiras"&&session.papel==="costureira")?" main":""}" data-go="${v}"><span class="ic">${f.i}</span><span class="tx"><b>${f.t}</b><small>${f.d}</small></span>${x&&(x[0]||x[1])?`<span class="badge${x[1]?" warn":""}">${x[0]}${x[1]?"!":""}</span>`:"<span></span>"}<span class="chev" aria-hidden="true">›</span></button>`; }).join("");
 }
 $("#menu-grid").addEventListener("click",e=>{ const b=e.target.closest("[data-go]"); if(b) setView(b.dataset.go); });
 function setView(v,fromHistory){
