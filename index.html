@@ -437,6 +437,7 @@ input[type="text"]:not(#app-link):not(#m-pin):not(#lg-pin):not([inputmode="numer
     <nav class="tabs" role="tablist">
       <button id="tab-atendimento" role="tab" data-view="atendimento" aria-selected="true">Atendimento</button>
       <button id="tab-pedidos" role="tab" data-view="pedidos" aria-selected="false">Pedidos</button>
+      <button id="tab-dodia" role="tab" data-view="dodia" aria-selected="false">Entregar no dia</button>
       <button id="tab-costureiras" role="tab" data-view="costureiras" aria-selected="false">Fila de costura</button>
       <button id="tab-producao" role="tab" data-view="producao" aria-selected="false">Costureiras</button>
       <button id="tab-servicos" role="tab" data-view="servicos" aria-selected="false">Serviços</button>
@@ -564,6 +565,17 @@ input[type="text"]:not(#app-link):not(#m-pin):not(#lg-pin):not([inputmode="numer
       <h2 class="sec">Fila do ateliê</h2>
       <div class="chips" id="filters"></div>
       <div class="orders" id="queue"></div>
+    </section>
+
+    <!-- ENTREGAR NO DIA -->
+    <section class="view" id="view-dodia" hidden>
+      <div class="cx-head"><h2 class="sec" style="flex:1 1 100%">Entregar no dia</h2>
+        <button class="btn" id="dd-prev" aria-label="Dia anterior">‹</button>
+        <div class="field"><label for="dd-dia">Dia</label><input type="date" id="dd-dia"></div>
+        <button class="btn" id="dd-next" aria-label="Próximo dia">›</button>
+        <button class="btn" id="dd-hoje">Hoje</button>
+      </div>
+      <div id="dd-body"></div>
     </section>
 
     <!-- PEDIDOS: pesquisa -->
@@ -753,7 +765,7 @@ let saving = false;
 let sheetKey = -1;
 let takePhoto = null; // {blob,url}
 const ROLES = {gerencia:"Gerência", admin:"Administração", atendente:"Atendente", costureira:"Costureira"};
-const VIEWS = {gerencia:["atendimento","pedidos","caixa","faturamento","producao","entregues","servicos","equipe"], admin:["atendimento","pedidos","caixa","producao","entregues","servicos","equipe"], atendente:["atendimento","pedidos","caixa","entregues"], costureira:["costureiras","logistica","entregues"]};
+const VIEWS = {gerencia:["atendimento","pedidos","dodia","caixa","faturamento","producao","entregues","servicos","equipe"], admin:["atendimento","pedidos","dodia","caixa","producao","entregues","servicos","equipe"], atendente:["atendimento","pedidos","dodia","caixa","entregues"], costureira:["costureiras","logistica","entregues"]};
 let team = [];
 let teamLoaded = false;
 let session = null;      // {id,nome,papel}
@@ -818,7 +830,7 @@ function setView(v){
   const allowed = session ? VIEWS[session.papel] : [];
   if(!allowed.includes(v)) v = allowed[0] || "atendimento";
   document.querySelectorAll("nav.tabs button").forEach(b=>b.setAttribute("aria-selected", String(b.dataset.view===v)));
-  ["atendimento","pedidos","caixa","faturamento","costureiras","producao","logistica","entregues","servicos","equipe"].forEach(x=>$("#view-"+x).hidden = x!==v);
+  ["atendimento","pedidos","dodia","caixa","faturamento","costureiras","producao","logistica","entregues","servicos","equipe"].forEach(x=>$("#view-"+x).hidden = x!==v);
   const tb=document.querySelector(`nav.tabs button[data-view="${v}"]`); if(tb&&tb.scrollIntoView) try{ tb.scrollIntoView({block:"nearest",inline:"center"}); }catch(e){}
   $("#totalbar").hidden = v!=="atendimento";
   ls.set("ce-view",v); window.scrollTo(0,0);
@@ -1445,6 +1457,48 @@ $("#ent-periodo").addEventListener("click",e=>{ const b=e.target.closest("[data-
 let entT=null;
 $("#ent-busca").addEventListener("input",e=>{ clearTimeout(entT); entT=setTimeout(()=>{ entBusca=e.target.value; if(entBusca.trim()&&entPer!=="tudo"){ entPer="tudo"; $("#ent-periodo").querySelectorAll("[data-per]").forEach(x=>x.setAttribute("aria-pressed",String(x.dataset.per==="tudo"))); } renderEntregues(); },200); });
 $("#ent-cost").addEventListener("change",e=>{ entCost=e.target.value; renderEntregues(); });
+
+/* ---------- entregar no dia ---------- */
+function ddCard(o){
+  const qt=(o.itens||[]).reduce((a,b)=>a+(b.qtd||0),0); const r=restOf(o);
+  return `<button class="ord" data-open="${esc(o.codigo)}"><span class="stripe ${o.status}"></span>
+    <span class="mid"><span class="row" style="gap:8px"><span class="code">${esc(o.codigo)}</span>${o.retornoDe?`<span class="tag-ret">RETORNO</span>`:""}${comEntrega(o)?`<span class="tag-ent">ENTREGA</span>`:""}<span class="pill st-${o.status}" style="font-size:10px;padding:2px 7px">${STATUS[o.status]}</span></span>
+    <span class="who">${esc(U((o.cliente||{}).nome||""))}</span>
+    <span class="sub">${qt} serviço${qt>1?"s":""}${(o.cliente||{}).telefone?" · "+esc(o.cliente.telefone):""}${o.costureira?" · "+esc(o.costureira):""}</span>
+    ${comEntrega(o)&&o.endereco?`<span class="sub" style="white-space:normal">${esc(o.endereco)}</span>`:""}</span>
+    <span class="val">${r>0.001?`<span class="muted" style="font-size:11px;display:block;text-align:right">a receber</span>${money(r)}`:`<span class="muted" style="font-size:11px">pago</span>`}</span></button>`;
+}
+function renderDoDia(){
+  const body=$("#dd-body"); if(!body) return;
+  const inp=$("#dd-dia"); if(!inp.value) inp.value=isoDay(new Date());
+  const dia=inp.value; const hoje=isoDay(new Date());
+  const abertos=orders.filter(o=>o.status!=="entregue");
+  const doDia=abertos.filter(o=>o.entrega===dia).sort((a,b)=>(a.status==="pronto"?0:1)-(b.status==="pronto"?0:1));
+  const atrasados = dia===hoje ? abertos.filter(o=>o.entrega && o.entrega<dia).sort((a,b)=>a.entrega<b.entrega?-1:1) : [];
+  const jaEntregues=orders.filter(o=>o.status==="entregue" && isoDay(new Date(deliveredAt(o)))===dia);
+  const ent=doDia.filter(comEntrega), ret=doDia.filter(o=>!comEntrega(o));
+  const naoProntos=doDia.filter(o=>o.status!=="pronto").length;
+  const receber=round2(doDia.reduce((a,o)=>a+restOf(o),0));
+  const dl=cap(new Date(dia+"T12:00:00").toLocaleDateString("pt-BR",{weekday:"long",day:"2-digit",month:"long"}));
+  const grupo=(t,l,vazio)=>`<div class="panel"><span class="label">${t} (${l.length})</span>${l.length?`<div class="orders">${l.map(ddCard).join("")}</div>`:`<p class="hint">${vazio}</p>`}</div>`;
+  body.innerHTML=`
+    <div class="cx-big"><span class="t">${dia===hoje?"Para entregar hoje":"Para entregar em"}</span><span class="n">${doDia.length} pedido${doDia.length===1?"":"s"}</span><span class="s">${esc(dl)}</span></div>
+    <div class="hist-sum">
+      <div class="stat"><span class="n">${ent.length}</span><span class="t">Fazer entrega</span></div>
+      <div class="stat"><span class="n">${ret.length}</span><span class="t">Cliente vem buscar</span></div>
+      <div class="stat"><span class="n" style="${naoProntos?"color:var(--danger)":""}">${naoProntos}</span><span class="t">Ainda não prontos</span></div>
+    </div>
+    ${atrasados.length?`<div class="panel" style="border-color:var(--danger)"><span class="label" style="color:var(--danger)">Atrasados (${atrasados.length})</span><p class="hint">Pedidos com data anterior que ainda não foram entregues.</p><div class="orders">${atrasados.map(ddCard).join("")}</div></div>`:""}
+    ${grupo("Fazer entrega no endereço",ent,"Nenhuma entrega marcada para este dia.")}
+    ${grupo("Cliente vem buscar no ateliê",ret,"Nenhuma retirada marcada para este dia.")}
+    ${doDia.length?`<p class="hint">A receber nestes pedidos: <b>${money(receber)}</b>.</p>`:""}
+    ${jaEntregues.length?`<div class="panel"><span class="label">Já entregues neste dia (${jaEntregues.length})</span><div class="orders">${jaEntregues.map(ddCard).join("")}</div></div>`:""}`;
+}
+const ddShift=d=>{ const inp=$("#dd-dia"); if(!inp.value) inp.value=isoDay(new Date()); const t=new Date(inp.value+"T12:00:00"); t.setDate(t.getDate()+d); inp.value=isoDay(t); renderDoDia(); };
+$("#dd-dia").addEventListener("change",renderDoDia);
+$("#dd-prev").addEventListener("click",()=>ddShift(-1));
+$("#dd-next").addEventListener("click",()=>ddShift(1));
+$("#dd-hoje").addEventListener("click",()=>{ $("#dd-dia").value=isoDay(new Date()); renderDoDia(); });
 
 /* ---------- pedidos: pesquisa ---------- */
 let pdSt="todos", pdPer="tudo", pdLimit=60;
@@ -2095,7 +2149,7 @@ function startSession(s){
   document.querySelectorAll("nav.tabs button").forEach(b=>b.hidden=!VIEWS[s.papel].includes(b.dataset.view));
   $("nav.tabs").hidden = VIEWS[s.papel].length<2;
   setView(hashCode && VIEWS[s.papel].includes("costureiras") ? "costureiras" : ls.get("ce-view",VIEWS[s.papel][0]));
-  renderRecent(); renderQueue(); renderLogi(); renderEntregues(); renderCaixa(); renderProducao(); renderPedidos(); renderFaturamento();
+  renderRecent(); renderQueue(); renderLogi(); renderEntregues(); renderCaixa(); renderProducao(); renderPedidos(); renderFaturamento(); renderDoDia();
   if(hashCode && ordersLoaded && !hashOpened){ hashOpened=true; openOrder(hashCode); }
 }
 function logout(){
@@ -2263,7 +2317,7 @@ document.addEventListener("input",e=>{
 const U=t=>String(t??"").toLocaleUpperCase("pt-BR");
 
 /* ---------- inicialização ---------- */
-renderPick(); renderPhotos(); renderAudio(); renderRecent(); renderQueue(); renderLogi(); renderEntregues(); renderCaixa(); renderProducao(); renderPedidos(); renderFaturamento(); renderSvcEdit();
+renderPick(); renderPhotos(); renderAudio(); renderRecent(); renderQueue(); renderLogi(); renderEntregues(); renderCaixa(); renderProducao(); renderPedidos(); renderFaturamento(); renderDoDia(); renderSvcEdit();
 const hashCode = extractCode(decodeURIComponent(location.hash||""));
 let ordersLoaded=false, hashOpened=false;
 const offT=setTimeout(()=>{ if(!db) $("#offline").hidden=false; },4000);
@@ -2333,7 +2387,7 @@ function startData(){
   let first=true;
   db.collection("pedidos").orderBy("criadoEm","desc").limit(1000).onSnapshot(s=>{
     orders=s.docs.map(d=>d.data());
-    renderRecent(); renderQueue(); renderLogi(); renderEntregues(); renderCaixa(); renderProducao(); renderPedidos(); renderFaturamento();
+    renderRecent(); renderQueue(); renderLogi(); renderEntregues(); renderCaixa(); renderProducao(); renderPedidos(); renderFaturamento(); renderDoDia();
     if(openCode){ const o=orders.find(x=>x.codigo===openCode); if(o && !editing && (o.historico||[]).length!==sheetKey) renderSheet(o); }
     if(first){ first=false; ordersLoaded=true; if(hashCode && session && !hashOpened){ hashOpened=true; openOrder(hashCode); } }
   }, e=>console.error(e));
