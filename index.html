@@ -369,6 +369,22 @@ input[type="text"]:not(#app-link):not(#m-pin):not(#lg-pin):not([inputmode="numer
 .hb .tr i{display:block;height:100%;background:var(--accent);border-radius:7px}
 .hb.cur .tr i{background:var(--band)}
 .hb b{font-family:var(--f-mono);font-size:12.5px}
+.pagebar{display:flex;align-items:center;gap:12px;padding-block:0 10px}
+.pagebar .back{background:rgba(255,255,255,.16);border:1px solid rgba(255,255,255,.35);color:inherit;border-radius:10px;padding:8px 12px;font-weight:800;cursor:pointer;min-height:40px;font-family:var(--f-display);font-size:15px}
+.pagebar #page-title{font-family:var(--f-display);font-weight:700;font-size:18px;min-width:0;overflow:hidden;text-overflow:ellipsis;white-space:nowrap}
+.menu-hello h2{text-transform:none}
+.menu-grid{display:grid;grid-template-columns:repeat(auto-fill,minmax(150px,1fr));gap:12px}
+.mtile{position:relative;display:flex;flex-direction:column;align-items:flex-start;gap:8px;text-align:left;background:var(--surface);border:1px solid var(--line);border-radius:16px;padding:16px;cursor:pointer;min-height:132px;box-shadow:0 1px 0 rgba(0,0,0,.03)}
+.mtile:hover{border-color:var(--band)}
+.mtile:active{transform:scale(.98)}
+.mtile .ic{width:44px;height:44px;border-radius:12px;background:color-mix(in srgb,var(--band) 14%,transparent);color:var(--band);display:grid;place-items:center}
+.mtile .ic svg{width:24px;height:24px}
+.mtile.main .ic{background:var(--accent);color:var(--accent-ink)}
+.mtile b{font-family:var(--f-display);font-size:17px;line-height:1.15}
+.mtile small{color:var(--muted);font-size:12.5px;line-height:1.3}
+.mtile .badge{position:absolute;top:12px;right:12px;min-width:26px;height:26px;padding:0 8px;border-radius:13px;background:var(--accent);color:var(--accent-ink);font-weight:800;font-size:13px;display:grid;place-items:center;font-variant-numeric:tabular-nums}
+.mtile .badge.warn{background:var(--danger);color:#ffffff}
+@media (max-width:360px){.menu-grid{grid-template-columns:1fr 1fr}.mtile{min-height:120px;padding:12px}}
 .camhelp{font-size:14px}
 .camhelp summary{cursor:pointer;font-weight:700;padding:4px 0}
 .camhelp p{margin:6px 0 10px}
@@ -434,19 +450,7 @@ input[type="text"]:not(#app-link):not(#m-pin):not(#lg-pin):not([inputmode="numer
       <h1><span class="logo" role="img" aria-label="Costura Expressa"></span></h1>
       <div class="who" id="who" hidden><div class="nm"><b id="who-name"></b><span id="who-role"></span></div><button id="logout">Sair</button></div>
     </div>
-    <nav class="tabs" role="tablist">
-      <button id="tab-atendimento" role="tab" data-view="atendimento" aria-selected="true">Atendimento</button>
-      <button id="tab-pedidos" role="tab" data-view="pedidos" aria-selected="false">Pedidos</button>
-      <button id="tab-dodia" role="tab" data-view="dodia" aria-selected="false">Entregar no dia</button>
-      <button id="tab-costureiras" role="tab" data-view="costureiras" aria-selected="false">Fila de costura</button>
-      <button id="tab-producao" role="tab" data-view="producao" aria-selected="false">Costureiras</button>
-      <button id="tab-servicos" role="tab" data-view="servicos" aria-selected="false">Serviços</button>
-      <button id="tab-logistica" role="tab" data-view="logistica" aria-selected="false">Logística</button>
-      <button id="tab-caixa" role="tab" data-view="caixa" aria-selected="false">Caixa do dia</button>
-      <button id="tab-faturamento" role="tab" data-view="faturamento" aria-selected="false">Faturamento</button>
-      <button id="tab-entregues" role="tab" data-view="entregues" aria-selected="false">Entregues</button>
-      <button id="tab-equipe" role="tab" data-view="equipe" aria-selected="false">Equipe</button>
-    </nav>
+    <div class="pagebar" id="pagebar" hidden><button class="back" id="go-menu" aria-label="Voltar para o início">‹ Início</button><span id="page-title"></span></div>
   </div>
   <div class="tape"></div>
 </header>
@@ -456,7 +460,13 @@ input[type="text"]:not(#app-link):not(#m-pin):not(#lg-pin):not([inputmode="numer
     <div id="offline" class="banner" hidden>Conectando ao ateliê… Se esta mensagem não sumir, abra o app pelo link do Claude com sua conta.</div>
 
     <!-- ATENDIMENTO -->
-    <section class="view" id="view-atendimento">
+    <!-- INÍCIO: menu de páginas -->
+    <section class="view" id="view-menu" hidden>
+      <div class="menu-hello"><h2 class="sec" id="menu-hello">Olá!</h2><p class="hint">Escolha para onde você quer ir.</p></div>
+      <div class="menu-grid" id="menu-grid"></div>
+    </section>
+
+    <section class="view" id="view-atendimento" hidden>
       <h2 class="sec">Novo pedido</h2>
 
       <div class="panel">
@@ -826,16 +836,56 @@ function compressImage(file, max=1400, q=.72){
 }
 
 /* ---------- abas ---------- */
-function setView(v){
-  const allowed = session ? VIEWS[session.papel] : [];
-  if(!allowed.includes(v)) v = allowed[0] || "atendimento";
-  document.querySelectorAll("nav.tabs button").forEach(b=>b.setAttribute("aria-selected", String(b.dataset.view===v)));
-  ["atendimento","pedidos","dodia","caixa","faturamento","costureiras","producao","logistica","entregues","servicos","equipe"].forEach(x=>$("#view-"+x).hidden = x!==v);
-  const tb=document.querySelector(`nav.tabs button[data-view="${v}"]`); if(tb&&tb.scrollIntoView) try{ tb.scrollIntoView({block:"nearest",inline:"center"}); }catch(e){}
-  $("#totalbar").hidden = v!=="atendimento";
-  ls.set("ce-view",v); window.scrollTo(0,0);
+const ALL_VIEWS=["menu","atendimento","pedidos","dodia","caixa","faturamento","costureiras","producao","logistica","entregues","servicos","equipe"];
+const IC=(d)=>`<svg viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2" stroke-linecap="round" stroke-linejoin="round" aria-hidden="true">${d}</svg>`;
+const VIEW_INFO={
+  atendimento:{t:"Atendimento", d:"Fazer um novo pedido", i:IC('<path d="M12 5v14M5 12h14"/>')},
+  pedidos:{t:"Pedidos", d:"Encontrar e pesquisar pedidos", i:IC('<circle cx="11" cy="11" r="7"/><path d="m20 20-3.5-3.5"/>')},
+  dodia:{t:"Entregar no dia", d:"O que sai hoje", i:IC('<rect x="3" y="4" width="18" height="17" rx="2"/><path d="M8 2v4M16 2v4M3 10h18"/>')},
+  caixa:{t:"Caixa do dia", d:"Quanto entrou hoje", i:IC('<rect x="2" y="6" width="20" height="12" rx="2"/><circle cx="12" cy="12" r="2.5"/>')},
+  faturamento:{t:"Faturamento", d:"Quanto entrou no mês", i:IC('<path d="M4 20V10M10 20V4M16 20v-7M22 20H2"/>')},
+  costureiras:{t:"Fila de costura", d:"Pegar e terminar pedidos", i:IC('<path d="M6 3v6a6 6 0 0 0 12 0V3"/><path d="M4 21h16"/>')},
+  producao:{t:"Costureiras", d:"Quem está fazendo o quê", i:IC('<circle cx="9" cy="8" r="3.5"/><path d="M2 21a7 7 0 0 1 14 0"/><path d="M17 4a3.5 3.5 0 0 1 0 7M22 21a7 7 0 0 0-4-6.3"/>')},
+  logistica:{t:"Logística", d:"Prazos e locais das peças", i:IC('<path d="M3 7h11v10H3zM14 10h4l3 3v4h-7"/><circle cx="7" cy="18" r="2"/><circle cx="17" cy="18" r="2"/>')},
+  entregues:{t:"Entregues", d:"Histórico de pedidos entregues", i:IC('<path d="M20 6 9 17l-5-5"/>')},
+  servicos:{t:"Serviços", d:"Tabela de serviços e preços", i:IC('<path d="M8 6h13M8 12h13M8 18h13M3 6h.01M3 12h.01M3 18h.01"/>')},
+  equipe:{t:"Equipe", d:"Acessos e senhas", i:IC('<circle cx="12" cy="8" r="4"/><path d="M4 21a8 8 0 0 1 16 0"/>')}
+};
+let curView="menu";
+function menuBadges(){
+  const hoje=isoDay(new Date()); const b={};
+  const ab=orders.filter(o=>o.status!=="entregue");
+  b.dodia=[ab.filter(o=>o.entrega===hoje).length, ab.some(o=>o.entrega && o.entrega<hoje)];
+  b.costureiras=[orders.filter(o=>o.status==="recebido").length,false];
+  b.producao=[orders.filter(o=>o.status==="em_costura").length,false];
+  return b;
 }
-document.querySelectorAll("nav.tabs button").forEach(b=>b.addEventListener("click",()=>setView(b.dataset.view)));
+function renderMenu(){
+  const g=$("#menu-grid"); if(!g || !session) return;
+  $("#menu-hello").textContent=`Olá, ${cap(String(session.nome||"").toLocaleLowerCase("pt-BR").split(" ")[0])}!`;
+  const bd=menuBadges();
+  g.innerHTML=VIEWS[session.papel].map(v=>{ const f=VIEW_INFO[v]; if(!f) return ""; const x=bd[v];
+    return `<button class="mtile${v==="atendimento"||(v==="costureiras"&&session.papel==="costureira")?" main":""}" data-go="${v}"><span class="ic">${f.i}</span><b>${f.t}</b><small>${f.d}</small>${x&&(x[0]||x[1])?`<span class="badge${x[1]?" warn":""}">${x[0]}${x[1]?"!":""}</span>`:""}</button>`; }).join("");
+}
+$("#menu-grid").addEventListener("click",e=>{ const b=e.target.closest("[data-go]"); if(b) setView(b.dataset.go); });
+function setView(v,fromHistory){
+  const allowed = session ? ["menu",...VIEWS[session.papel]] : [];
+  if(!allowed.includes(v)) v = "menu";
+  ALL_VIEWS.forEach(x=>{ const el=$("#view-"+x); if(el) el.hidden = x!==v; });
+  $("#totalbar").hidden = v!=="atendimento";
+  $("#pagebar").hidden = v==="menu";
+  $("#page-title").textContent = v==="menu" ? "" : (VIEW_INFO[v]||{}).t||"";
+  if(v==="menu") renderMenu();
+  if(!fromHistory && v!=="menu" && curView==="menu"){ try{ history.pushState({ce:v},""); }catch(e){} }
+  curView=v; window.scrollTo(0,0);
+}
+$("#go-menu").addEventListener("click",()=>{ if(history.state&&history.state.ce){ history.back(); } else setView("menu"); });
+window.addEventListener("popstate",()=>{
+  if(!$("#scanner").hidden){ closeScanner(); return; }
+  if(!$("#imgview").hidden){ $("#imgview").hidden=true; return; }
+  if(!$("#overlay").hidden){ closeSheet(); return; }
+  if(session && curView!=="menu") setView("menu",true);
+});
 
 /* ---------- atendimento: serviços ---------- */
 function renderPick(){
@@ -2146,10 +2196,9 @@ function startSession(s){
   $("#login").hidden=true; $("#who").hidden=false;
   $("#who-name").textContent=s.nome; $("#who-role").textContent=ROLES[s.papel];
   $("#c-atend").value=s.nome; $("#cost-nome").value=s.nome;
-  document.querySelectorAll("nav.tabs button").forEach(b=>b.hidden=!VIEWS[s.papel].includes(b.dataset.view));
-  $("nav.tabs").hidden = VIEWS[s.papel].length<2;
-  setView(hashCode && VIEWS[s.papel].includes("costureiras") ? "costureiras" : ls.get("ce-view",VIEWS[s.papel][0]));
-  renderRecent(); renderQueue(); renderLogi(); renderEntregues(); renderCaixa(); renderProducao(); renderPedidos(); renderFaturamento(); renderDoDia();
+
+  setView("menu",true);
+  renderRecent(); renderQueue(); renderLogi(); renderEntregues(); renderCaixa(); renderProducao(); renderPedidos(); renderFaturamento(); renderDoDia(); if(curView==="menu") renderMenu();
   if(hashCode && ordersLoaded && !hashOpened){ hashOpened=true; openOrder(hashCode); }
 }
 function logout(){
@@ -2317,7 +2366,7 @@ document.addEventListener("input",e=>{
 const U=t=>String(t??"").toLocaleUpperCase("pt-BR");
 
 /* ---------- inicialização ---------- */
-renderPick(); renderPhotos(); renderAudio(); renderRecent(); renderQueue(); renderLogi(); renderEntregues(); renderCaixa(); renderProducao(); renderPedidos(); renderFaturamento(); renderDoDia(); renderSvcEdit();
+renderPick(); renderPhotos(); renderAudio(); renderRecent(); renderQueue(); renderLogi(); renderEntregues(); renderCaixa(); renderProducao(); renderPedidos(); renderFaturamento(); renderDoDia(); if(curView==="menu") renderMenu(); renderSvcEdit();
 const hashCode = extractCode(decodeURIComponent(location.hash||""));
 let ordersLoaded=false, hashOpened=false;
 const offT=setTimeout(()=>{ if(!db) $("#offline").hidden=false; },4000);
@@ -2387,7 +2436,7 @@ function startData(){
   let first=true;
   db.collection("pedidos").orderBy("criadoEm","desc").limit(1000).onSnapshot(s=>{
     orders=s.docs.map(d=>d.data());
-    renderRecent(); renderQueue(); renderLogi(); renderEntregues(); renderCaixa(); renderProducao(); renderPedidos(); renderFaturamento(); renderDoDia();
+    renderRecent(); renderQueue(); renderLogi(); renderEntregues(); renderCaixa(); renderProducao(); renderPedidos(); renderFaturamento(); renderDoDia(); if(curView==="menu") renderMenu();
     if(openCode){ const o=orders.find(x=>x.codigo===openCode); if(o && !editing && (o.historico||[]).length!==sheetKey) renderSheet(o); }
     if(first){ first=false; ordersLoaded=true; if(hashCode && session && !hashOpened){ hashOpened=true; openOrder(hashCode); } }
   }, e=>console.error(e));
