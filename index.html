@@ -355,6 +355,7 @@ input[type="text"]:not(#app-link):not(#m-pin):not(#lg-pin):not([inputmode="numer
 .desc-field input{border-color:color-mix(in srgb,var(--danger) 55%,var(--line))!important;color:var(--danger)}
 .desc-field .seg{border-color:color-mix(in srgb,var(--danger) 55%,var(--line))}
 .desc-field .seg button[aria-pressed="true"]{background:var(--danger);color:#ffffff}
+.tag-ent{font-size:10.5px;font-weight:800;letter-spacing:.06em;color:#ffffff;background:var(--band);border-radius:6px;padding:2px 6px}
 .camhelp{font-size:14px}
 .camhelp summary{cursor:pointer;font-weight:700;padding:4px 0}
 .camhelp p{margin:6px 0 10px}
@@ -452,6 +453,13 @@ input[type="text"]:not(#app-link):not(#m-pin):not(#lg-pin):not([inputmode="numer
           <div class="field"><label for="c-entrega">Entrega prevista</label><input type="date" id="c-entrega"></div>
           <div class="field"><label for="c-atend">Atendente</label><input type="text" id="c-atend" readonly tabindex="-1"></div>
         </div>
+        <div class="field"><span class="flabel">Precisa fazer entrega?</span>
+          <div class="paywhen" role="group" aria-label="Precisa fazer entrega">
+            <button type="button" id="et-ret" aria-pressed="true">Não, a cliente vem buscar</button>
+            <button type="button" id="et-ent" aria-pressed="false">Sim, fazer entrega</button>
+          </div>
+        </div>
+        <div class="field" id="f-end" hidden><label for="c-end">Endereço de entrega</label><textarea id="c-end" rows="2" placeholder="RUA, NÚMERO, BAIRRO, PONTO DE REFERÊNCIA"></textarea></div>
       </div>
 
       <div class="panel">
@@ -555,6 +563,7 @@ input[type="text"]:not(#app-link):not(#m-pin):not(#lg-pin):not([inputmode="numer
         <button class="chip" data-st="pronto" aria-pressed="false">Prontos<span class="n"></span></button>
         <button class="chip" data-st="entregue" aria-pressed="false">Entregues<span class="n"></span></button>
         <button class="chip" data-st="retorno" aria-pressed="false">Retornos<span class="n"></span></button>
+        <button class="chip" data-st="entrega" aria-pressed="false">Com entrega<span class="n"></span></button>
       </div>
       <div class="chips" id="pd-periodo">
         <button class="chip" data-per="tudo" aria-pressed="true">Qualquer data</button>
@@ -916,6 +925,7 @@ async function finalizar(){
   if(!db){toast("Ainda conectando ao ateliê. Tente em instantes."); return;}
   { const sub=round2(itens.reduce((a,b)=>a+b.preco*b.qtd,0)); const dc=calcDesconto(sub); if(dc.err){ toast(dc.err); $("#c-desc").focus(); return; }
     const ent=pagarEm==="ato"?0:(Number($("#c-entrada").value)||0); if(ent>round2(sub-dc.desc)+0.001){ toast("O sinal é maior que o total do pedido."); $("#c-entrada").focus(); return; } }
+  if(entregaTipo==="entrega" && !$("#c-end").value.trim()){ toast("Informe o endereço de entrega."); $("#c-end").focus(); return; }
   saving=true; const btn=$("#finalizar"); btn.disabled=true;
   const setBusy=t=>btn.innerHTML=`<span class="busy"><span class="spin"></span>${t}</span>`;
   try{
@@ -931,17 +941,19 @@ async function finalizar(){
       itens, subtotal, desconto:dc.desc, descontoTipo:descTipo, descontoInformado:dc.raw, total,
       pagarEm, entrada: pagarEm==="ato" ? total : Math.min(total,Math.max(0,Number($("#c-entrada").value)||0)),
       pagamento: (pagarEm==="ato" || (Number($("#c-entrada").value)||0)>0) ? $("#c-pag").value : "Pagar na retirada",
-      entrega:$("#c-entrega").value||"", obs:U($("#c-obs").value.trim()), fotos:fotoIds, audio:audioId,
+      entrega:$("#c-entrega").value||"", entregaTipo, endereco: entregaTipo==="entrega"?U($("#c-end").value.trim()):"",
+      obs:U($("#c-obs").value.trim()), fotos:fotoIds, audio:audioId,
       atendente:atend, costureira:"", status:"recebido", criadoEm:now,
       historico:[{status:"recebido", por:atend||"Atendimento", em:now}]};
     await db.doc(`pedidos/${code}`).set(pedido);
-    saveCliente(pedido.cliente.nome, pedido.cliente.telefone);
+    saveCliente(pedido.cliente.nome, pedido.cliente.telefone, pedido.endereco);
     resetForm(); await openOrder(code, pedido); toast("Pedido "+code+" finalizado. Envie o pedido pelo WhatsApp.");
     setTimeout(()=>{ const w=$("#sheet .wa-box"); if(w) w.scrollIntoView({behavior:"smooth",block:"center"}); },500);
   }catch(e){ writeErr(e); }
   finally{ saving=false; btn.disabled=false; btn.textContent="Finalizar pedido"; }
 }
 function resetForm(){
+  $("#c-end").value=""; setEntrega("retirada");
   pagarEm="retirada"; $("#pm-ato").setAttribute("aria-pressed","false"); $("#pm-ret").setAttribute("aria-pressed","true"); $("#c-pag").value="Pix";
   autoNome=""; $("#c-found").hidden=true;
   extras=[]; $("#av-nome").value=""; $("#av-preco").value=""; renderExtras();
@@ -955,7 +967,7 @@ function ordCard(o){
   const qt=(o.itens||[]).reduce((a,b)=>a+b.qtd,0);
   const icons=`${(o.fotos||[]).length?'<svg aria-label="tem foto"><use href="#i-img"/></svg>':""}${o.audio?'<svg aria-label="tem áudio"><use href="#i-mic"/></svg>':""}`;
   return `<button class="ord" data-open="${esc(o.codigo)}"><span class="stripe ${o.status}"></span>
-    <span class="mid"><span class="row" style="gap:8px"><span class="code">${esc(o.codigo)}</span>${o.retornoDe?`<span class="tag-ret">RETORNO</span>`:""}<span class="ic">${icons}</span></span>
+    <span class="mid"><span class="row" style="gap:8px"><span class="code">${esc(o.codigo)}</span>${o.retornoDe?`<span class="tag-ret">RETORNO</span>`:""}${comEntrega(o)?`<span class="tag-ent">ENTREGA</span>`:""}<span class="ic">${icons}</span></span>
     <span class="who">${esc(o.cliente?.nome)}</span>
     <span class="sub">${qt} serviço${qt>1?"s":""} · ${lateTxt(o)}${o.costureira?" · "+esc(o.costureira):""}</span>${o.local?`<span><span class="loc">Local: ${esc(o.local)}</span></span>`:""}</span>
     <span class="pill st-${o.status}">${STATUS[o.status]||o.status}</span></button>`;
@@ -1016,7 +1028,7 @@ function layoutNota(doc,o,fmt,logo,qr){
   y+=thermal?5:8;
   // dados
   const c=o.cliente||{};
-  const kv=[["Cliente",c.nome],["Telefone",c.telefone],["Entrega prevista",o.entrega?fmtDay(o.entrega):""],["Atendente",o.atendente],["Costureira",o.costureira],["Local da peça",o.local]].filter(r=>r[1]).map(([k,v])=>[k,U(v)]);
+  const kv=[["Cliente",c.nome],["Telefone",c.telefone],[comEntrega(o)?"Data da entrega":"Retirada prevista",o.entrega?fmtDay(o.entrega):""],["Entrega",comEntrega(o)?"FAZER ENTREGA":"CLIENTE RETIRA NO ATELIÊ"],["Endereço",comEntrega(o)?o.endereco:""],["Atendente",o.atendente],["Costureira",o.costureira],["Local da peça",o.local]].filter(r=>r[1]).map(([k,v])=>[k,U(v)]);
   const kx=M+(thermal?26:36);
   kv.forEach(([k,v])=>{ font(fs.b,"normal",grey); T(k,M,y); font(fs.b,"bold",ink); const lines=doc.splitTextToSize(String(v),R-kx); T(lines,kx,y); y+=lh(fs.b)*1.35*lines.length+ (thermal?.6:1.2); });
   y+=thermal?2:4;
@@ -1038,7 +1050,7 @@ function layoutNota(doc,o,fmt,logo,qr){
   else {
     if(Number(o.entrada)){ font(fs.b,"normal",ink); T("Sinal ("+(o.pagamento||"")+")",M,y); T(money(o.entrada),R,y,{align:"right"}); y+=thermal?4:5.5; }
     if(o.status==="entregue" && o.valorRetirada){ font(fs.b,"normal",ink); T("Pago na retirada ("+(o.pagamentoRetirada||"")+")",M,y); T(money(o.valorRetirada),R,y,{align:"right"}); y+=thermal?5:8; }
-    else if(restante>0.001){ font(fs.b,"bold",ink); T("A pagar na retirada",M,y); T(money(restante),R,y,{align:"right"}); y+=thermal?5:8; }
+    else if(restante>0.001){ font(fs.b,"bold",ink); T("A pagar "+ondePaga(o),M,y); T(money(restante),R,y,{align:"right"}); y+=thermal?5:8; }
   }
   if(o.obs){ font(fs.s,"bold",teal); T("OBSERVAÇÕES",M,y); y+=thermal?3.8:5; font(fs.b,"normal",ink); const lines=doc.splitTextToSize(U(o.obs),CW); T(lines,M,y); y+=lh(fs.b)*1.35*lines.length+(thermal?3:5); }
   hr(true); y+=thermal?4:7;
@@ -1100,9 +1112,10 @@ function waNotaText(o){
   else {
     if(Number(o.entrada)) L.push(`Sinal (${o.pagamento}): ${money(o.entrada)}`);
     if(o.status==="entregue") L.push("Situação: quitado");
-    else if(restOf(o)>0.001) L.push(`A pagar na retirada: ${money(restOf(o))}`);
+    else if(restOf(o)>0.001) L.push(`A pagar ${ondePaga(o)}: ${money(restOf(o))}`);
   }
-  if(o.entrega) L.push(`Entrega prevista: ${fmtDay(o.entrega)}`);
+  if(comEntrega(o)){ L.push(`Entrega no endereço${o.entrega?" em "+fmtDay(o.entrega):""}: ${U(o.endereco||"")}`); }
+  else if(o.entrega) L.push(`Retirada prevista: ${fmtDay(o.entrega)}`);
   if(o.obs){ L.push(""); L.push(`Observações: ${U(o.obs)}`); }
   L.push(""); L.push(`Para retirar a peça, apresente o código *${o.codigo}*.`);
   L.push(""); L.push("Galeria Jaqueira Park Center, R. do Futuro, 913, Graças, Recife/PE"); L.push("WhatsApp (81) 99616-0055");
@@ -1359,19 +1372,19 @@ function renderPedidos(){
   let base=orders.filter(o=>(o.criadoEm||0)>=from);
   if(q) base=base.filter(o=>{ const c=o.cliente||{};
     return norm(c.nome).includes(q) || norm(o.codigo).includes(q) || norm(o.obs).includes(q)
-      || (o.itens||[]).some(i=>norm(i.nome).includes(q)) || norm(o.costureira).includes(q)
+      || (o.itens||[]).some(i=>norm(i.nome).includes(q)) || norm(o.costureira).includes(q) || norm(o.endereco).includes(q)
       || (qd.length>=3 && String(c.telefone||"").replace(/\D/g,"").includes(qd)); });
   const cnt={todos:base.length, recebido:0, em_costura:0, pronto:0, entregue:0, retorno:0};
-  base.forEach(o=>{ cnt[o.status]=(cnt[o.status]||0)+1; if(o.retornoDe) cnt.retorno++; });
+  cnt.entrega=0; base.forEach(o=>{ cnt[o.status]=(cnt[o.status]||0)+1; if(o.retornoDe) cnt.retorno++; if(comEntrega(o)) cnt.entrega++; });
   $("#pd-status").querySelectorAll("[data-st]").forEach(b=>{ b.querySelector(".n").textContent=cnt[b.dataset.st]||0; });
-  let list = pdSt==="todos"?base : pdSt==="retorno"?base.filter(o=>o.retornoDe) : base.filter(o=>o.status===pdSt);
+  let list = pdSt==="todos"?base : pdSt==="retorno"?base.filter(o=>o.retornoDe) : pdSt==="entrega"?base.filter(comEntrega) : base.filter(o=>o.status===pdSt);
   list=[...list].sort((a,b)=>(b.criadoEm||0)-(a.criadoEm||0));
   $("#pd-count").textContent = list.length ? `${list.length} pedido${list.length>1?"s":""} encontrado${list.length>1?"s":""}${list.length>pdLimit?`, mostrando os ${pdLimit} mais recentes`:""}.` : "";
   const verVal = session && session.papel!=="costureira";
   box.innerHTML = list.length ? list.slice(0,pdLimit).map(o=>{
     const qt=(o.itens||[]).reduce((a,b)=>a+(b.qtd||0),0);
     return `<button class="ord" data-open="${esc(o.codigo)}"><span class="stripe ${o.status}"></span>
-      <span class="mid"><span class="row" style="gap:8px"><span class="code">${esc(o.codigo)}</span>${o.retornoDe?`<span class="tag-ret">RETORNO</span>`:""}<span class="pill st-${o.status}" style="font-size:10px;padding:2px 7px">${STATUS[o.status]||o.status}</span></span>
+      <span class="mid"><span class="row" style="gap:8px"><span class="code">${esc(o.codigo)}</span>${o.retornoDe?`<span class="tag-ret">RETORNO</span>`:""}${comEntrega(o)?`<span class="tag-ent">ENTREGA</span>`:""}<span class="pill st-${o.status}" style="font-size:10px;padding:2px 7px">${STATUS[o.status]||o.status}</span></span>
       <span class="who">${esc(U((o.cliente||{}).nome||""))}</span>
       <span class="sub">${fmtDate(o.criadoEm).slice(0,10)} · ${qt} serviço${qt>1?"s":""}${(o.cliente||{}).telefone?" · "+esc(o.cliente.telefone):""}${o.costureira?" · "+esc(o.costureira):""}</span></span>
       ${verVal?`<span class="val">${money(o.total)}</span>`:""}</button>`; }).join("")
@@ -1471,7 +1484,9 @@ function notaHTML(o,{precos=true,qr=true}={}){
         ${(o.retornos||[]).length?`<dt>Retornos</dt><dd>${o.retornos.map(esc).join(", ")}</dd>`:""}
         <dt>Cliente</dt><dd>${esc(c.nome)}</dd>
         ${c.telefone?`<dt>Telefone</dt><dd>${esc(c.telefone)}</dd>`:""}
-        <dt>Entrega</dt><dd>${fmtDay(o.entrega)}</dd>
+        <dt>${comEntrega(o)?"Data da entrega":"Retirada prevista"}</dt><dd>${fmtDay(o.entrega)}</dd>
+        <dt>Entrega</dt><dd>${comEntrega(o)?"FAZER ENTREGA":"CLIENTE RETIRA NO ATELIÊ"}</dd>
+        ${comEntrega(o)&&o.endereco?`<dt>Endereço</dt><dd>${esc(o.endereco)}</dd>`:""}
         ${o.atendente?`<dt>Atendente</dt><dd>${esc(o.atendente)}</dd>`:""}
         ${o.costureira?`<dt>Costureira</dt><dd>${esc(o.costureira)}</dd>`:""}
       </dl>
@@ -1484,7 +1499,7 @@ function notaHTML(o,{precos=true,qr=true}={}){
           ${pagoNoAto(o) ? `<tr><td colspan="3" class="muted" style="font-weight:500">Pago no ato (${esc(o.pagamento)})</td><td class="n" style="font-weight:500">${money(o.entrada)}</td></tr>`
             : `${Number(o.entrada)?`<tr><td colspan="3" class="muted" style="font-weight:500">Sinal (${esc(o.pagamento)})</td><td class="n" style="font-weight:500">${money(o.entrada)}</td></tr>`:""}
                ${o.status==="entregue"&&o.valorRetirada?`<tr><td colspan="3" class="muted" style="font-weight:500">Pago na retirada (${esc(o.pagamentoRetirada||"")})</td><td class="n" style="font-weight:500">${money(o.valorRetirada)}</td></tr><tr><td colspan="3">Situação</td><td class="n">Quitado</td></tr>`
-                 : restante>0.001?`<tr><td colspan="3">A pagar na retirada</td><td class="n">${money(restante)}</td></tr>`:""}`}
+                 : restante>0.001?`<tr><td colspan="3">A pagar ${ondePaga(o)}</td><td class="n">${money(restante)}</td></tr>`:""}`}
         </tfoot>`:""}
       </table></div>
       ${o.obs?`<div><div class="label" style="margin-bottom:6px">Observações</div><div class="obs">${esc(o.obs)}</div></div>`:""}
@@ -1504,7 +1519,10 @@ function renderEdit(o){
     <div class="panel"><span class="label">Cliente</span>
       <div class="field"><label for="ed-nome">Nome</label><input type="text" id="ed-nome" value="${esc(U(c.nome))}"></div>
       <div class="field"><label for="ed-tel">Telefone / WhatsApp</label><input type="tel" id="ed-tel" value="${esc(c.telefone||"")}"></div>
-      <div class="field"><label for="ed-entrega">Entrega prevista</label><input type="date" id="ed-entrega" value="${esc(o.entrega||"")}"></div>
+      <div class="field"><label for="ed-entrega">Data prevista</label><input type="date" id="ed-entrega" value="${esc(o.entrega||"")}"></div>
+      <div class="field"><span class="flabel">Precisa fazer entrega?</span>
+        <div class="paywhen" role="group"><button type="button" id="ed-et-ret" aria-pressed="${!comEntrega(o)}">Não, a cliente vem buscar</button><button type="button" id="ed-et-ent" aria-pressed="${comEntrega(o)}">Sim, fazer entrega</button></div></div>
+      <div class="field" id="ed-f-end" ${comEntrega(o)?"":"hidden"}><label for="ed-end">Endereço de entrega</label><textarea id="ed-end" rows="2">${esc(U(o.endereco||""))}</textarea></div>
     </div>
     <div class="panel"><span class="label">Serviços</span>
       <div class="edit-items" id="ed-items"></div>
@@ -1569,20 +1587,24 @@ function renderEdit(o){
   ["#ed-desc","#ed-entrada"].forEach(q=>$(q).addEventListener("input",sum));
   const sair=()=>{ editing=null; const cur=orders.find(x=>x.codigo===o.codigo)||o; renderSheet(cur); $("#overlay").scrollTop=0; };
   $("#ed-cancel").onclick=sair; $("#ed-cancel-top").onclick=sair;
+  let edEt=comEntrega(o)?"entrega":"retirada";
+  const setEdEt=v=>{ edEt=v; $("#ed-et-ret").setAttribute("aria-pressed",String(v==="retirada")); $("#ed-et-ent").setAttribute("aria-pressed",String(v==="entrega")); $("#ed-f-end").hidden=v!=="entrega"; };
+  $("#ed-et-ret").onclick=()=>setEdEt("retirada"); $("#ed-et-ent").onclick=()=>setEdEt("entrega");
   const er=$("#ed-retorno"); if(er) er.onclick=()=>{ editing=null; renderRetorno(orders.find(x=>x.codigo===o.codigo)||o); };
   $("#ed-save").onclick=async()=>{
     const r=calc(); if(r.err){ toast(r.err); return; }
     const nome=U($("#ed-nome").value.trim()); if(!nome){ toast("Informe o nome da cliente."); $("#ed-nome").focus(); return; }
+    if(edEt==="entrega" && !$("#ed-end").value.trim()){ toast("Informe o endereço de entrega."); $("#ed-end").focus(); return; }
     const btn=$("#ed-save"); btn.disabled=true; btn.textContent="Salvando…";
     const cur=orders.find(x=>x.codigo===o.codigo)||o; const now=Date.now();
-    const patch={ cliente:{...(cur.cliente||{}), nome, telefone:$("#ed-tel").value.trim()}, entrega:$("#ed-entrega").value||"",
+    const patch={ cliente:{...(cur.cliente||{}), nome, telefone:$("#ed-tel").value.trim()}, entrega:$("#ed-entrega").value||"", entregaTipo:edEt, endereco: edEt==="entrega"?U($("#ed-end").value.trim()):"",
       itens:e.itens.map(i=>({nome:i.nome, preco:i.preco, qtd:i.qtd})), subtotal:r.sub, desconto:r.desc, descontoTipo:e.tipo, descontoInformado:r.raw,
       total:r.tot, entrada:round2(r.ent), pagamento:$("#ed-pag").value, obs:U($("#ed-obs").value.trim()),
       pagarEm: ($("#ed-pag").value!=="Pagar na retirada" && r.ent>=r.tot-0.001 && r.tot>0) ? "ato" : "retirada",
       editadoEm:now, editadoPor:session?session.nome:"",
       historico:[...(cur.historico||[]),{status:cur.status, acao:"Pedido editado", por:session?session.nome:"", em:now}] };
     if(cur.status==="entregue"){ patch.valorRetirada=Math.max(0,round2(r.tot-r.ent)); }
-    try{ await db.doc(`pedidos/${o.codigo}`).update(patch); editing=null; toast(`Pedido ${o.codigo} atualizado.`); saveCliente(patch.cliente.nome, patch.cliente.telefone);
+    try{ await db.doc(`pedidos/${o.codigo}`).update(patch); editing=null; toast(`Pedido ${o.codigo} atualizado.`); saveCliente(patch.cliente.nome, patch.cliente.telefone, patch.endereco);
       renderSheet({...cur, ...patch}); $("#overlay").scrollTop=0; }
     catch(err){ writeErr(err); btn.disabled=false; btn.textContent="Salvar alterações"; }
   };
@@ -1620,7 +1642,7 @@ function renderRetorno(o){
     if(valor) itens.push({nome:"AJUSTE NO RETORNO", preco:valor, qtd:1});
     const novo={codigo:code, retornoDe:o.codigo, cliente:{nome:U(c.nome||""), telefone:c.telefone||""}, itens,
       subtotal:valor, desconto:0, descontoTipo:"valor", descontoInformado:0, total:valor, entrada:0, pagamento:"Pagar na retirada",
-      entrega:$("#rt-entrega").value||"", obs:`RETORNO DO PEDIDO ${o.codigo}: ${motivo}`, fotos:[], audio:null,
+      entrega:$("#rt-entrega").value||"", entregaTipo:o.entregaTipo||"retirada", endereco:o.endereco||"", obs:`RETORNO DO PEDIDO ${o.codigo}: ${motivo}`, fotos:[], audio:null,
       atendente:por, costureira:"", status:"recebido", criadoEm:now,
       historico:[{status:"recebido", acao:`Retorno do pedido ${o.codigo}`, por, em:now}]};
     try{
@@ -2093,6 +2115,17 @@ $("#dev-out").addEventListener("click",async()=>{
   location.reload();
 });
 
+/* ---------- entrega ---------- */
+let entregaTipo="retirada";
+function setEntrega(v){ entregaTipo=v; $("#et-ret").setAttribute("aria-pressed",String(v==="retirada")); $("#et-ent").setAttribute("aria-pressed",String(v==="entrega"));
+  $("#f-end").hidden = v!=="entrega";
+  if(v==="entrega" && !$("#c-end").value.trim()){ const c=clientes.get(telKey($("#c-tel").value)); if(c&&c.endereco) $("#c-end").value=U(c.endereco); }
+  if(v==="entrega") setTimeout(()=>$("#c-end").focus(),50); }
+$("#et-ret").addEventListener("click",()=>setEntrega("retirada"));
+$("#et-ent").addEventListener("click",()=>setEntrega("entrega"));
+const comEntrega=o=>o.entregaTipo==="entrega";
+const ondePaga=o=>comEntrega(o)?"na entrega":"na retirada";
+
 /* ---------- clientes: encontrar pelo telefone ---------- */
 const clientes=new Map(); // chave: número completo (55+DDD+número)
 let autoNome="";
@@ -2112,6 +2145,8 @@ function checkCliente(){
   box.hidden=false; box.className="found";
   const info=c.pedidos?` · ${c.pedidos} pedido${c.pedidos>1?"s":""}${c.ultimo?", o último em "+fmtDate(c.ultimo.criadoEm).slice(0,10):""}`:"";
   const vazio=!nomeEl.value.trim() || nomeEl.value===autoNome;
+  const endSalvo=(clientes.get(telKey(tel))||{}).endereco;
+  if(endSalvo && entregaTipo==="entrega" && !$("#c-end").value.trim()) $("#c-end").value=U(endSalvo);
   if(vazio){ nomeEl.value=c.nome; autoNome=c.nome; box.innerHTML=`Cliente encontrada: <b>${esc(c.nome)}</b>${info}`; }
   else if(U(nomeEl.value.trim())!==c.nome){ box.innerHTML=`Este telefone é de <b>${esc(c.nome)}</b>${info}. <button class="btn" type="button" id="c-usar">Usar este nome</button>`;
     $("#c-usar").onclick=()=>{ nomeEl.value=c.nome; autoNome=c.nome; checkCliente(); }; }
@@ -2119,9 +2154,10 @@ function checkCliente(){
 }
 $("#c-tel").addEventListener("input",checkCliente);
 $("#c-nome").addEventListener("input",()=>{ if($("#c-nome").value!==autoNome) autoNome=""; });
-async function saveCliente(nome,tel){
+async function saveCliente(nome,tel,endereco){
   const k=telKey(tel); if(!k||!nome||!db) return;
-  try{ await db.doc(`clientes/${k}`).set({nome:U(nome), telefone:String(tel).trim(), atualizadoEm:Date.now()}); }catch(e){ console.warn(e); }
+  const ant=clientes.get(k)||{};
+  try{ await db.doc(`clientes/${k}`).set({nome:U(nome), telefone:String(tel).trim(), endereco:U(endereco||ant.endereco||""), atualizadoEm:Date.now()}); }catch(e){ console.warn(e); }
 }
 
 /* ---------- tudo em maiúsculo ---------- */
