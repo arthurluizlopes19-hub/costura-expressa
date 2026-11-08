@@ -628,10 +628,27 @@ input[type="text"]:not(#app-link):not(#m-pin):not(#lg-pin):not([inputmode="numer
 
     <!-- FATURAMENTO (gerência) -->
     <section class="view" id="view-faturamento" hidden>
-      <div class="cx-head"><h2 class="sec" style="flex:1 1 100%">Faturamento do mês</h2>
+      <h2 class="sec">Faturamento</h2>
+      <div class="paywhen" role="group" aria-label="Tipo de visualização">
+        <button type="button" id="ft-m-mes" aria-pressed="true">Por mês</button>
+        <button type="button" id="ft-m-per" aria-pressed="false">Por período</button>
+      </div>
+      <div class="cx-head" id="ft-box-mes">
         <button class="btn" id="ft-prev" aria-label="Mês anterior">‹</button>
         <div class="field"><label for="ft-mes">Mês</label><input type="month" id="ft-mes"></div>
         <button class="btn" id="ft-next" aria-label="Próximo mês">›</button>
+      </div>
+      <div class="panel" id="ft-box-per" hidden>
+        <div class="grid2">
+          <div class="field"><label for="ft-de">De</label><input type="date" id="ft-de"></div>
+          <div class="field"><label for="ft-ate">Até</label><input type="date" id="ft-ate"></div>
+        </div>
+        <div class="chips" id="ft-atalhos">
+          <button class="chip" data-r="7">Últimos 7 dias</button>
+          <button class="chip" data-r="15">Últimos 15 dias</button>
+          <button class="chip" data-r="30">Últimos 30 dias</button>
+          <button class="chip" data-r="ano">Este ano</button>
+        </div>
       </div>
       <div id="ft-body"></div>
     </section>
@@ -1404,46 +1421,82 @@ function resumoPeriodo(a,b){
 function mesRange(ym){ const [y,m]=ym.split("-").map(Number); return [new Date(y,m-1,1).getTime(), new Date(y,m,1).getTime()]; }
 function mesNome(ym){ const [y,m]=ym.split("-").map(Number); return cap(new Date(y,m-1,15).toLocaleDateString("pt-BR",{month:"long",year:"numeric"})); }
 function mesShift(ym,d){ const [y,m]=ym.split("-").map(Number); const t=new Date(y,m-1+d,1); return t.getFullYear()+"-"+String(t.getMonth()+1).padStart(2,"0"); }
+let ftModo="mes";
+function fmtD(t){ return new Date(t).toLocaleDateString("pt-BR"); }
 function renderFaturamento(){
   const body=$("#ft-body"); if(!body) return;
-  const inp=$("#ft-mes"); if(!inp.value){ const n=new Date(); inp.value=n.getFullYear()+"-"+String(n.getMonth()+1).padStart(2,"0"); }
-  const ym=inp.value; const [a,b]=mesRange(ym); const r=resumoPeriodo(a,b);
-  const pr=resumoPeriodo(...mesRange(mesShift(ym,-1)));
+  let a,b,titulo,prevA,prevB,prevNome,ym=null;
+  if(ftModo==="mes"){
+    const inp=$("#ft-mes"); if(!inp.value){ const n=new Date(); inp.value=n.getFullYear()+"-"+String(n.getMonth()+1).padStart(2,"0"); }
+    ym=inp.value; [a,b]=mesRange(ym); titulo="Entrou em "+mesNome(ym).toLowerCase();
+    [prevA,prevB]=mesRange(mesShift(ym,-1)); prevNome=mesNome(mesShift(ym,-1)).toLowerCase();
+  } else {
+    const de=$("#ft-de"), ate=$("#ft-ate");
+    if(!de.value||!ate.value){ const t=new Date(); ate.value=ate.value||isoDay(t); const d=new Date(t); d.setDate(d.getDate()-29); de.value=de.value||isoDay(d); }
+    if(de.value>ate.value){ body.innerHTML=`<div class="empty">A data inicial (De) precisa ser antes da data final (Até).</div>`; return; }
+    a=new Date(de.value+"T00:00:00").getTime(); b=new Date(ate.value+"T00:00:00").getTime()+864e5;
+    titulo=`Entrou de ${fmtD(a)} até ${fmtD(b-864e5)}`;
+    prevB=a; prevA=a-(b-a); prevNome=`${fmtD(prevA)} a ${fmtD(prevB-864e5)}`;
+  }
+  const r=resumoPeriodo(a,b); const pr=resumoPeriodo(prevA,prevB);
+  const dias=Math.round((b-a)/864e5);
   const dif = pr.recebido ? Math.round((r.recebido-pr.recebido)/pr.recebido*100) : null;
-  const cmp = dif==null ? "Sem movimento no mês anterior para comparar." : `${dif>=0?"▲":"▼"} ${Math.abs(dif)}% em relação a ${mesNome(mesShift(ym,-1)).toLowerCase()} (${money(pr.recebido)})`;
-  // por dia
-  const dias=Math.round((b-a)/864e5); const porDia=[];
-  for(let i=0;i<dias;i++){ porDia.push(resumoPeriodo(a+i*864e5, a+(i+1)*864e5).recebido); }
-  const maxD=Math.max(1,...porDia);
-  const bars=porDia.map((v,i)=>`<span class="b${v?"":" zero"}" style="height:${Math.round(v/maxD*100)}%" title="Dia ${i+1}: ${money(v)}"></span>`).join("");
-  const xs=porDia.map((v,i)=>`<span>${(i===0||(i+1)%5===0)?i+1:""}</span>`).join("");
-  // últimos 6 meses
-  const meses=[]; for(let k=5;k>=0;k--){ const m=mesShift(ym,-k); meses.push([m, resumoPeriodo(...mesRange(m)).recebido]); }
-  const maxM=Math.max(1,...meses.map(x=>x[1]));
-  const hbars=meses.map(([m,v])=>`<div class="hb${m===ym?" cur":""}"><span>${esc(cap(new Date(m+"-15T12:00:00").toLocaleDateString("pt-BR",{month:"short"})).replace(".",""))}/${m.slice(2,4)}</span><span class="tr"><i style="width:${Math.round(v/maxM*100)}%"></i></span><b>${money(v)}</b></div>`).join("");
+  const cmp = dif==null ? "Sem movimento no período anterior para comparar." : `${dif>=0?"▲":"▼"} ${Math.abs(dif)}% em relação a ${prevNome} (${money(pr.recebido)})`;
+  // gráfico: por dia até 62 dias; por mês acima disso
+  let bars="", xs="", rot="Entradas por dia";
+  if(dias<=62){
+    const porDia=[]; for(let i=0;i<dias;i++) porDia.push(resumoPeriodo(a+i*864e5, a+(i+1)*864e5).recebido);
+    const maxD=Math.max(1,...porDia);
+    bars=porDia.map((v,i)=>`<span class="b${v?"":" zero"}" style="height:${Math.round(v/maxD*100)}%" title="${fmtD(a+i*864e5)}: ${money(v)}"></span>`).join("");
+    const passo = dias<=10?1 : dias<=31?5 : 10;
+    xs=porDia.map((v,i)=>{ const d=new Date(a+i*864e5); return `<span>${(i===0||i===dias-1||(i%passo===0))?d.getDate()+(ym?"":"/"+(d.getMonth()+1)):""}</span>`; }).join("");
+  } else {
+    rot="Entradas por mês";
+    const ini=new Date(a); let cur=ini.getFullYear()+"-"+String(ini.getMonth()+1).padStart(2,"0"); const fimYm=(()=>{ const f=new Date(b-1); return f.getFullYear()+"-"+String(f.getMonth()+1).padStart(2,"0"); })();
+    const ms=[]; while(cur<=fimYm && ms.length<36){ const [ma,mb]=mesRange(cur); ms.push([cur, resumoPeriodo(Math.max(a,ma),Math.min(b,mb)).recebido]); cur=mesShift(cur,1); }
+    const maxM=Math.max(1,...ms.map(x=>x[1]));
+    bars=ms.map(([m,v])=>`<span class="b${v?"":" zero"}" style="height:${Math.round(v/maxM*100)}%" title="${esc(mesNome(m))}: ${money(v)}"></span>`).join("");
+    xs=ms.map(([m])=>`<span>${m.slice(5)}/${m.slice(2,4)}</span>`).join("");
+  }
   const formaRows=Object.entries(r.formas).sort((x,y)=>y[1]-x[1]).map(([f,v])=>`<tr><td>${esc(f)}</td><td class="n">${money(v)}</td></tr>`).join("");
   const ticket = r.feitos.length ? round2(r.vendido/r.feitos.length) : 0;
+  let seis="";
+  if(ftModo==="mes"){
+    const meses=[]; for(let k=5;k>=0;k--){ const m=mesShift(ym,-k); meses.push([m, resumoPeriodo(...mesRange(m)).recebido]); }
+    const maxM=Math.max(1,...meses.map(x=>x[1]));
+    seis=`<div class="panel"><span class="label">Últimos 6 meses (o que entrou)</span><div class="hbars">${meses.map(([m,v])=>`<div class="hb${m===ym?" cur":""}"><span>${esc(cap(new Date(m+"-15T12:00:00").toLocaleDateString("pt-BR",{month:"short"})).replace(".",""))}/${m.slice(2,4)}</span><span class="tr"><i style="width:${Math.round(v/maxM*100)}%"></i></span><b>${money(v)}</b></div>`).join("")}</div></div>`;
+  }
+  const perTxt = ftModo==="mes" ? "no mês" : "no período";
   body.innerHTML=`
-    <div class="cx-big"><span class="t">Entrou em ${esc(mesNome(ym).toLowerCase())}</span><span class="n">${money(r.recebido)}</span><span class="ft-cmp">${esc(cmp)}</span></div>
+    <div class="cx-big"><span class="t">${esc(titulo)}</span><span class="n">${money(r.recebido)}</span><span class="ft-cmp">${esc(cmp)}</span></div>
     <div class="hist-sum">
-      <div class="stat"><span class="n">${money(r.vendido)}</span><span class="t">Vendido no mês</span></div>
+      <div class="stat"><span class="n">${money(r.vendido)}</span><span class="t">Vendido ${perTxt}</span></div>
       <div class="stat"><span class="n">${r.feitos.length}</span><span class="t">Pedidos feitos</span></div>
       <div class="stat"><span class="n">${money(ticket)}</span><span class="t">Valor médio por pedido</span></div>
     </div>
-    <div class="panel"><span class="label">Entradas por dia</span><div class="bars" role="img" aria-label="Valor recebido por dia do mês">${bars}</div><div class="bars-x">${xs}</div></div>
+    ${ftModo==="per"?`<p class="hint">${dias} dia${dias>1?"s":""} · média de ${money(round2(r.recebido/Math.max(1,dias)))} por dia.</p>`:""}
+    <div class="panel"><span class="label">${rot}</span><div class="bars" role="img" aria-label="${rot}">${bars}</div><div class="bars-x">${xs}</div></div>
     <div class="panel"><span class="label">Recebido por forma de pagamento</span>
-      ${formaRows?`<table class="cx-table">${formaRows}<tr class="tot"><td>Total que entrou</td><td class="n">${money(r.recebido)}</td></tr></table>`:`<p class="hint">Nenhum pagamento registrado neste mês.</p>`}</div>
-    <div class="panel"><span class="label">Vendas do mês</span>
+      ${formaRows?`<table class="cx-table">${formaRows}<tr class="tot"><td>Total que entrou</td><td class="n">${money(r.recebido)}</td></tr></table>`:`<p class="hint">Nenhum pagamento registrado ${perTxt}.</p>`}</div>
+    <div class="panel"><span class="label">Vendas ${perTxt}</span>
       <table class="cx-table">
         <tr><td>Valor dos serviços</td><td class="n">${money(r.bruto)}</td></tr>
-        <tr class="minus" style="color:var(--danger)"><td style="color:var(--danger)">Descontos dados</td><td class="n" style="color:var(--danger)">− ${money(r.desc)}</td></tr>
+        <tr class="minus"><td style="color:var(--danger)">Descontos dados</td><td class="n" style="color:var(--danger)">− ${money(r.desc)}</td></tr>
         <tr class="tot"><td>Total vendido</td><td class="n">${money(r.vendido)}</td></tr>
-        <tr><td>Pedidos entregues no mês</td><td class="n">${r.entregues.length}</td></tr>
-        <tr><td>Ainda a receber dos pedidos do mês</td><td class="n">${money(r.aReceber)}</td></tr>
+        <tr><td>Pedidos entregues ${perTxt}</td><td class="n">${r.entregues.length}</td></tr>
+        <tr><td>Ainda a receber dos pedidos ${perTxt==="no mês"?"do mês":"do período"}</td><td class="n">${money(r.aReceber)}</td></tr>
       </table></div>
-    <div class="panel"><span class="label">Últimos 6 meses (o que entrou)</span><div class="hbars">${hbars}</div></div>
+    ${seis}
     <p class="hint">“Entrou” soma os pagamentos feitos no ato e os sinais (no dia do pedido) e os pagamentos na retirada ou na entrega (no dia em que o pedido foi entregue).</p>`;
 }
+function setFtModo(m){ ftModo=m; $("#ft-m-mes").setAttribute("aria-pressed",String(m==="mes")); $("#ft-m-per").setAttribute("aria-pressed",String(m==="per"));
+  $("#ft-box-mes").hidden=m!=="mes"; $("#ft-box-per").hidden=m!=="per"; renderFaturamento(); }
+$("#ft-m-mes").addEventListener("click",()=>setFtModo("mes"));
+$("#ft-m-per").addEventListener("click",()=>setFtModo("per"));
+$("#ft-de").addEventListener("change",renderFaturamento);
+$("#ft-ate").addEventListener("change",renderFaturamento);
+$("#ft-atalhos").addEventListener("click",e=>{ const c=e.target.closest("[data-r]"); if(!c) return; const t=new Date(); $("#ft-ate").value=isoDay(t);
+  const d=new Date(t); if(c.dataset.r==="ano"){ d.setMonth(0,1); } else d.setDate(d.getDate()-(Number(c.dataset.r)-1)); $("#ft-de").value=isoDay(d); renderFaturamento(); });
 $("#ft-mes").addEventListener("change",renderFaturamento);
 $("#ft-prev").addEventListener("click",()=>{ if(!$("#ft-mes").value) renderFaturamento(); $("#ft-mes").value=mesShift($("#ft-mes").value,-1); renderFaturamento(); });
 $("#ft-next").addEventListener("click",()=>{ if(!$("#ft-mes").value) renderFaturamento(); $("#ft-mes").value=mesShift($("#ft-mes").value,1); renderFaturamento(); });
