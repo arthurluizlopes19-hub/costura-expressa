@@ -101,6 +101,7 @@ header.top .logo{width:104px}
 .mem-row .pinbox{grid-column:1/-1;display:flex;gap:8px}
 .mem-row .pinbox input{font-family:var(--f-mono);letter-spacing:.3em}
 .pill.r-admin{background:var(--accent-soft);color:var(--accent)}
+.pill.r-gerencia{background:var(--accent);color:var(--accent-ink)}
 .pill.r-atendente{background:var(--st-rec-bg);color:var(--st-rec)}
 .pill.r-costureira{background:var(--st-cos-bg);color:var(--st-cos)}
 .tape{height:12px;background-color:var(--band-deep);background-image:linear-gradient(90deg,rgba(255,255,255,.85) 55%,transparent 55%);background-size:12px 2px;background-repeat:repeat-x;background-position:0 50%}
@@ -356,6 +357,18 @@ input[type="text"]:not(#app-link):not(#m-pin):not(#lg-pin):not([inputmode="numer
 .desc-field .seg{border-color:color-mix(in srgb,var(--danger) 55%,var(--line))}
 .desc-field .seg button[aria-pressed="true"]{background:var(--danger);color:#ffffff}
 .tag-ent{font-size:10.5px;font-weight:800;letter-spacing:.06em;color:#ffffff;background:var(--band);border-radius:6px;padding:2px 6px}
+.ft-cmp{font-size:13px;font-weight:700;opacity:.95}
+.bars{display:flex;align-items:flex-end;gap:3px;height:140px;padding-top:6px;border-bottom:1px solid var(--line)}
+.bars .b{flex:1;min-width:0;background:var(--band);border-radius:3px 3px 0 0;position:relative}
+.bars .b.zero{background:var(--line);height:2px!important}
+.bars-x{display:flex;gap:3px;font-size:10px;color:var(--muted);font-family:var(--f-mono)}
+.bars-x span{flex:1;text-align:center;min-width:0;overflow:visible;white-space:nowrap}
+.hbars{display:flex;flex-direction:column;gap:6px}
+.hb{display:grid;grid-template-columns:76px 1fr auto;gap:8px;align-items:center;font-size:13px;font-variant-numeric:tabular-nums}
+.hb .tr{height:14px;background:var(--sunken);border-radius:7px;overflow:hidden}
+.hb .tr i{display:block;height:100%;background:var(--accent);border-radius:7px}
+.hb.cur .tr i{background:var(--band)}
+.hb b{font-family:var(--f-mono);font-size:12.5px}
 .camhelp{font-size:14px}
 .camhelp summary{cursor:pointer;font-weight:700;padding:4px 0}
 .camhelp p{margin:6px 0 10px}
@@ -429,6 +442,7 @@ input[type="text"]:not(#app-link):not(#m-pin):not(#lg-pin):not([inputmode="numer
       <button id="tab-servicos" role="tab" data-view="servicos" aria-selected="false">Serviços</button>
       <button id="tab-logistica" role="tab" data-view="logistica" aria-selected="false">Logística</button>
       <button id="tab-caixa" role="tab" data-view="caixa" aria-selected="false">Caixa do dia</button>
+      <button id="tab-faturamento" role="tab" data-view="faturamento" aria-selected="false">Faturamento</button>
       <button id="tab-entregues" role="tab" data-view="entregues" aria-selected="false">Entregues</button>
       <button id="tab-equipe" role="tab" data-view="equipe" aria-selected="false">Equipe</button>
     </nav>
@@ -588,6 +602,16 @@ input[type="text"]:not(#app-link):not(#m-pin):not(#lg-pin):not([inputmode="numer
       <div id="pr-body"></div>
     </section>
 
+    <!-- FATURAMENTO (gerência) -->
+    <section class="view" id="view-faturamento" hidden>
+      <div class="cx-head"><h2 class="sec" style="flex:1 1 100%">Faturamento do mês</h2>
+        <button class="btn" id="ft-prev" aria-label="Mês anterior">‹</button>
+        <div class="field"><label for="ft-mes">Mês</label><input type="month" id="ft-mes"></div>
+        <button class="btn" id="ft-next" aria-label="Próximo mês">›</button>
+      </div>
+      <div id="ft-body"></div>
+    </section>
+
     <!-- CAIXA DO DIA -->
     <section class="view" id="view-caixa" hidden>
       <div class="cx-head"><h2 class="sec" style="flex:1 1 100%">Caixa do dia</h2>
@@ -631,7 +655,7 @@ input[type="text"]:not(#app-link):not(#m-pin):not(#lg-pin):not([inputmode="numer
         <div class="grid2">
           <div class="field"><label for="m-nome">Nome</label><input type="text" id="m-nome" placeholder="Ex.: Lúcia"></div>
           <div class="field"><label for="m-papel">Função</label>
-            <select id="m-papel"><option value="costureira">Costureira</option><option value="atendente">Atendente</option><option value="admin">Administração</option></select></div>
+            <select id="m-papel"><option value="costureira">Costureira</option><option value="atendente">Atendente</option><option value="admin">Administração</option><option value="gerencia">Gerência</option></select></div>
         </div>
         <div class="field"><label for="m-pin">Senha de 4 a 6 números</label><input type="text" id="m-pin" inputmode="numeric" maxlength="6" autocomplete="off" placeholder="••••"></div>
         <button class="btn primary" id="m-add">Criar acesso</button>
@@ -640,7 +664,7 @@ input[type="text"]:not(#app-link):not(#m-pin):not(#lg-pin):not([inputmode="numer
       <div class="panel"><span class="label">Este aparelho</span>
         <p class="hint">Desconecte quando o celular ou computador não for mais usado no ateliê. Para entrar de novo, vai pedir o e-mail e a senha do ateliê.</p>
         <button class="btn del" id="dev-out">Desconectar este aparelho</button></div>
-      <p class="hint">Atendente vê só o atendimento e entrega os pedidos prontos. Costureira vê só a fila e pega os pedidos. Administração vê tudo, inclusive serviços e equipe.</p>
+      <p class="hint">Gerência tem tudo da administração e ainda vê o faturamento por mês. Atendente vê só o atendimento e entrega os pedidos prontos. Costureira vê só a fila e pega os pedidos. Administração vê tudo, inclusive serviços e equipe.</p>
     </section>
 
     <!-- SERVIÇOS -->
@@ -728,8 +752,8 @@ let openCode = null;
 let saving = false;
 let sheetKey = -1;
 let takePhoto = null; // {blob,url}
-const ROLES = {admin:"Administração", atendente:"Atendente", costureira:"Costureira"};
-const VIEWS = {admin:["atendimento","pedidos","caixa","producao","entregues","servicos","equipe"], atendente:["atendimento","pedidos","caixa","entregues"], costureira:["costureiras","logistica","entregues"]};
+const ROLES = {gerencia:"Gerência", admin:"Administração", atendente:"Atendente", costureira:"Costureira"};
+const VIEWS = {gerencia:["atendimento","pedidos","caixa","faturamento","producao","entregues","servicos","equipe"], admin:["atendimento","pedidos","caixa","producao","entregues","servicos","equipe"], atendente:["atendimento","pedidos","caixa","entregues"], costureira:["costureiras","logistica","entregues"]};
 let team = [];
 let teamLoaded = false;
 let session = null;      // {id,nome,papel}
@@ -794,7 +818,7 @@ function setView(v){
   const allowed = session ? VIEWS[session.papel] : [];
   if(!allowed.includes(v)) v = allowed[0] || "atendimento";
   document.querySelectorAll("nav.tabs button").forEach(b=>b.setAttribute("aria-selected", String(b.dataset.view===v)));
-  ["atendimento","pedidos","caixa","costureiras","producao","logistica","entregues","servicos","equipe"].forEach(x=>$("#view-"+x).hidden = x!==v);
+  ["atendimento","pedidos","caixa","faturamento","costureiras","producao","logistica","entregues","servicos","equipe"].forEach(x=>$("#view-"+x).hidden = x!==v);
   const tb=document.querySelector(`nav.tabs button[data-view="${v}"]`); if(tb&&tb.scrollIntoView) try{ tb.scrollIntoView({block:"nearest",inline:"center"}); }catch(e){}
   $("#totalbar").hidden = v!=="atendimento";
   ls.set("ce-view",v); window.scrollTo(0,0);
@@ -1300,6 +1324,66 @@ function renderCaixa(){
 $("#cx-dia").addEventListener("change",renderCaixa);
 $("#cx-hoje").addEventListener("click",()=>{ $("#cx-dia").value=isoDay(new Date()); renderCaixa(); });
 
+/* ---------- faturamento mensal (gerência) ---------- */
+function resumoPeriodo(a,b){
+  const inR=t=>t>=a&&t<b;
+  const feitos=orders.filter(o=>inR(o.criadoEm||0));
+  const entregues=orders.filter(o=>o.status==="entregue"&&inR(deliveredAt(o)));
+  const formas={}; const add=(f,v)=>{ if(!v) return; f=f||"Não informado"; formas[f]=round2((formas[f]||0)+v); };
+  feitos.forEach(o=>{ if(o.pagamento!=="Pagar na retirada") add(o.pagamento,Number(o.entrada)||0); });
+  entregues.forEach(o=>{ const v=o.valorRetirada!=null?Number(o.valorRetirada)||0:restOf(o); add(o.pagamentoRetirada,v); });
+  const recebido=round2(Object.values(formas).reduce((x,v)=>x+v,0));
+  return { feitos, entregues, formas, recebido,
+    bruto:round2(feitos.reduce((x,o)=>x+subOf(o),0)), desc:round2(feitos.reduce((x,o)=>x+descOf(o),0)),
+    vendido:round2(feitos.reduce((x,o)=>x+totOf(o),0)), aReceber:round2(feitos.filter(o=>o.status!=="entregue").reduce((x,o)=>x+restOf(o),0)) };
+}
+function mesRange(ym){ const [y,m]=ym.split("-").map(Number); return [new Date(y,m-1,1).getTime(), new Date(y,m,1).getTime()]; }
+function mesNome(ym){ const [y,m]=ym.split("-").map(Number); return cap(new Date(y,m-1,15).toLocaleDateString("pt-BR",{month:"long",year:"numeric"})); }
+function mesShift(ym,d){ const [y,m]=ym.split("-").map(Number); const t=new Date(y,m-1+d,1); return t.getFullYear()+"-"+String(t.getMonth()+1).padStart(2,"0"); }
+function renderFaturamento(){
+  const body=$("#ft-body"); if(!body) return;
+  const inp=$("#ft-mes"); if(!inp.value){ const n=new Date(); inp.value=n.getFullYear()+"-"+String(n.getMonth()+1).padStart(2,"0"); }
+  const ym=inp.value; const [a,b]=mesRange(ym); const r=resumoPeriodo(a,b);
+  const pr=resumoPeriodo(...mesRange(mesShift(ym,-1)));
+  const dif = pr.recebido ? Math.round((r.recebido-pr.recebido)/pr.recebido*100) : null;
+  const cmp = dif==null ? "Sem movimento no mês anterior para comparar." : `${dif>=0?"▲":"▼"} ${Math.abs(dif)}% em relação a ${mesNome(mesShift(ym,-1)).toLowerCase()} (${money(pr.recebido)})`;
+  // por dia
+  const dias=Math.round((b-a)/864e5); const porDia=[];
+  for(let i=0;i<dias;i++){ porDia.push(resumoPeriodo(a+i*864e5, a+(i+1)*864e5).recebido); }
+  const maxD=Math.max(1,...porDia);
+  const bars=porDia.map((v,i)=>`<span class="b${v?"":" zero"}" style="height:${Math.round(v/maxD*100)}%" title="Dia ${i+1}: ${money(v)}"></span>`).join("");
+  const xs=porDia.map((v,i)=>`<span>${(i===0||(i+1)%5===0)?i+1:""}</span>`).join("");
+  // últimos 6 meses
+  const meses=[]; for(let k=5;k>=0;k--){ const m=mesShift(ym,-k); meses.push([m, resumoPeriodo(...mesRange(m)).recebido]); }
+  const maxM=Math.max(1,...meses.map(x=>x[1]));
+  const hbars=meses.map(([m,v])=>`<div class="hb${m===ym?" cur":""}"><span>${esc(cap(new Date(m+"-15T12:00:00").toLocaleDateString("pt-BR",{month:"short"})).replace(".",""))}/${m.slice(2,4)}</span><span class="tr"><i style="width:${Math.round(v/maxM*100)}%"></i></span><b>${money(v)}</b></div>`).join("");
+  const formaRows=Object.entries(r.formas).sort((x,y)=>y[1]-x[1]).map(([f,v])=>`<tr><td>${esc(f)}</td><td class="n">${money(v)}</td></tr>`).join("");
+  const ticket = r.feitos.length ? round2(r.vendido/r.feitos.length) : 0;
+  body.innerHTML=`
+    <div class="cx-big"><span class="t">Entrou em ${esc(mesNome(ym).toLowerCase())}</span><span class="n">${money(r.recebido)}</span><span class="ft-cmp">${esc(cmp)}</span></div>
+    <div class="hist-sum">
+      <div class="stat"><span class="n">${money(r.vendido)}</span><span class="t">Vendido no mês</span></div>
+      <div class="stat"><span class="n">${r.feitos.length}</span><span class="t">Pedidos feitos</span></div>
+      <div class="stat"><span class="n">${money(ticket)}</span><span class="t">Valor médio por pedido</span></div>
+    </div>
+    <div class="panel"><span class="label">Entradas por dia</span><div class="bars" role="img" aria-label="Valor recebido por dia do mês">${bars}</div><div class="bars-x">${xs}</div></div>
+    <div class="panel"><span class="label">Recebido por forma de pagamento</span>
+      ${formaRows?`<table class="cx-table">${formaRows}<tr class="tot"><td>Total que entrou</td><td class="n">${money(r.recebido)}</td></tr></table>`:`<p class="hint">Nenhum pagamento registrado neste mês.</p>`}</div>
+    <div class="panel"><span class="label">Vendas do mês</span>
+      <table class="cx-table">
+        <tr><td>Valor dos serviços</td><td class="n">${money(r.bruto)}</td></tr>
+        <tr class="minus" style="color:var(--danger)"><td style="color:var(--danger)">Descontos dados</td><td class="n" style="color:var(--danger)">− ${money(r.desc)}</td></tr>
+        <tr class="tot"><td>Total vendido</td><td class="n">${money(r.vendido)}</td></tr>
+        <tr><td>Pedidos entregues no mês</td><td class="n">${r.entregues.length}</td></tr>
+        <tr><td>Ainda a receber dos pedidos do mês</td><td class="n">${money(r.aReceber)}</td></tr>
+      </table></div>
+    <div class="panel"><span class="label">Últimos 6 meses (o que entrou)</span><div class="hbars">${hbars}</div></div>
+    <p class="hint">“Entrou” soma os pagamentos feitos no ato e os sinais (no dia do pedido) e os pagamentos na retirada ou na entrega (no dia em que o pedido foi entregue).</p>`;
+}
+$("#ft-mes").addEventListener("change",renderFaturamento);
+$("#ft-prev").addEventListener("click",()=>{ if(!$("#ft-mes").value) renderFaturamento(); $("#ft-mes").value=mesShift($("#ft-mes").value,-1); renderFaturamento(); });
+$("#ft-next").addEventListener("click",()=>{ if(!$("#ft-mes").value) renderFaturamento(); $("#ft-mes").value=mesShift($("#ft-mes").value,1); renderFaturamento(); });
+
 /* ---------- entregues (histórico) ---------- */
 let entPer="mes", entBusca="", entCost="";
 function deliveredAt(o){
@@ -1658,7 +1742,7 @@ function renderRetorno(o){
 function renderSheet(o){
   sheetKey=(o.historico||[]).length;
   const c=o.cliente||{}; const restante=restOf(o);
-  const papel = session ? session.papel : "";
+  const papel = session ? (session.papel==="gerencia"?"admin":session.papel) : "";
   const verValores = papel!=="costureira";
   const may = {recebido:["costureira"], em_costura:["costureira"], pronto:["atendente","admin"], entregue:[]};
   const mayBack = {em_costura:["costureira"], pronto:["costureira"], entregue:["atendente","admin"]};
@@ -1768,7 +1852,7 @@ function wireTake(o){
     }catch(err){ writeErr(err); btn.disabled=false; btn.textContent="Confirmar e começar a costura"; }
   };
 }
-function canDelete(o){ const p=session?session.papel:""; return p==="admin" || (p==="atendente" && o.status!=="entregue"); }
+function canDelete(o){ const p=session?session.papel:""; return p==="admin" || p==="gerencia" || (p==="atendente" && o.status!=="entregue"); }
 async function deleteOrder(o,btn){
   if(!btn.classList.contains("armed")){
     btn.classList.add("armed"); btn.textContent="Toque de novo para confirmar a exclusão";
@@ -1982,7 +2066,7 @@ function renderLogin(){
   }
   if(!loginPick){
     const grp=(p,t)=>{const m=team.filter(x=>x.papel===p); return m.length?`<div class="grp"><span class="label">${t}</span>${m.map(x=>`<button class="member" data-pick="${x.id}"><span class="av">${esc(initials(x.nome))}</span><span><b>${esc(x.nome)}</b><small>${ROLES[x.papel]}</small></span></button>`).join("")}</div>`:"";};
-    el.innerHTML=`<div class="grp" style="gap:18px"><h2>Quem está entrando?</h2>${grp("admin","Administração")}${grp("atendente","Atendimento")}${grp("costureira","Costureiras")}${ownerLink}</div>`;
+    el.innerHTML=`<div class="grp" style="gap:18px"><h2>Quem está entrando?</h2>${grp("gerencia","Gerência")}${grp("admin","Administração")}${grp("atendente","Atendimento")}${grp("costureira","Costureiras")}${ownerLink}</div>`;
     el.querySelectorAll("[data-pick]").forEach(b=>b.onclick=()=>{loginPick=team.find(x=>x.id===b.dataset.pick); loginErr=""; renderLogin();});
   } else {
     el.innerHTML=`<div class="grp" style="gap:14px">
@@ -2011,7 +2095,7 @@ function startSession(s){
   document.querySelectorAll("nav.tabs button").forEach(b=>b.hidden=!VIEWS[s.papel].includes(b.dataset.view));
   $("nav.tabs").hidden = VIEWS[s.papel].length<2;
   setView(hashCode && VIEWS[s.papel].includes("costureiras") ? "costureiras" : ls.get("ce-view",VIEWS[s.papel][0]));
-  renderRecent(); renderQueue(); renderLogi(); renderEntregues(); renderCaixa(); renderProducao(); renderPedidos();
+  renderRecent(); renderQueue(); renderLogi(); renderEntregues(); renderCaixa(); renderProducao(); renderPedidos(); renderFaturamento();
   if(hashCode && ordersLoaded && !hashOpened){ hashOpened=true; openOrder(hashCode); }
 }
 function logout(){
@@ -2024,7 +2108,7 @@ $("#logout").addEventListener("click",logout);
 function renderTeam(){
   const el=$("#team-list"); if(!el) return;
   if(!team.length){ el.innerHTML=`<div class="empty">Nenhum acesso criado.</div>`; return; }
-  const order={admin:0,atendente:1,costureira:2};
+  const order={gerencia:0,admin:1,atendente:2,costureira:3};
   const list=[...team].sort((a,b)=>(order[a.papel]-order[b.papel])||String(a.nome).localeCompare(b.nome,"pt-BR"));
   el.innerHTML=`<div class="svc-list">${list.map(m=>`<div class="mem-row">
     <div style="min-width:0"><div class="nm">${esc(m.nome)}${session&&session.id===m.id?' <span class="muted" style="font-weight:400">(você)</span>':""}</div><span class="pill r-${m.papel}">${ROLES[m.papel]}</span></div>
@@ -2039,7 +2123,7 @@ $("#team-list").addEventListener("click",async e=>{
     if(!validPin(pin)){toast("A senha precisa ter de 4 a 6 números."); return;}
     try{ const salt=randSalt(); await db.doc(`equipe/${id}`).update({salt,pinHash:await hashPin(salt,pin)}); pinEdit=null; renderTeam(); toast("Senha alterada."); }catch(err){ writeErr(err); } }
   if(d){ const id=d.dataset.mdel; const m=team.find(x=>x.id===id);
-    if(m && m.papel==="admin" && team.filter(x=>x.papel==="admin").length<2){ toast("Mantenha pelo menos um acesso de administração."); return; }
+    if(m && (m.papel==="admin"||m.papel==="gerencia") && team.filter(x=>x.papel==="admin"||x.papel==="gerencia").length<2){ toast("Mantenha pelo menos um acesso de administração ou gerência."); return; }
     if(pendingMemDel!==id){ pendingMemDel=id; renderTeam(); setTimeout(()=>{ if(pendingMemDel===id){pendingMemDel=null; renderTeam();} },4000); return; }
     pendingMemDel=null; try{ await db.doc(`equipe/${id}`).delete(); toast("Acesso removido."); }catch(err){ writeErr(err); } }
 });
@@ -2179,7 +2263,7 @@ document.addEventListener("input",e=>{
 const U=t=>String(t??"").toLocaleUpperCase("pt-BR");
 
 /* ---------- inicialização ---------- */
-renderPick(); renderPhotos(); renderAudio(); renderRecent(); renderQueue(); renderLogi(); renderEntregues(); renderCaixa(); renderProducao(); renderPedidos(); renderSvcEdit();
+renderPick(); renderPhotos(); renderAudio(); renderRecent(); renderQueue(); renderLogi(); renderEntregues(); renderCaixa(); renderProducao(); renderPedidos(); renderFaturamento(); renderSvcEdit();
 const hashCode = extractCode(decodeURIComponent(location.hash||""));
 let ordersLoaded=false, hashOpened=false;
 const offT=setTimeout(()=>{ if(!db) $("#offline").hidden=false; },4000);
@@ -2249,7 +2333,7 @@ function startData(){
   let first=true;
   db.collection("pedidos").orderBy("criadoEm","desc").limit(1000).onSnapshot(s=>{
     orders=s.docs.map(d=>d.data());
-    renderRecent(); renderQueue(); renderLogi(); renderEntregues(); renderCaixa(); renderProducao(); renderPedidos();
+    renderRecent(); renderQueue(); renderLogi(); renderEntregues(); renderCaixa(); renderProducao(); renderPedidos(); renderFaturamento();
     if(openCode){ const o=orders.find(x=>x.codigo===openCode); if(o && !editing && (o.historico||[]).length!==sheetKey) renderSheet(o); }
     if(first){ first=false; ordersLoaded=true; if(hashCode && session && !hashOpened){ hashOpened=true; openOrder(hashCode); } }
   }, e=>console.error(e));
