@@ -347,7 +347,9 @@ input[type="text"]:not(#app-link):not(#m-pin):not(#lg-pin):not([inputmode="numer
 .cs-item{display:grid;grid-template-columns:1fr auto;gap:8px;align-items:center;text-align:left;border:1px solid var(--line);background:var(--sunken);border-radius:9px;padding:8px 10px;cursor:pointer;width:100%}
 .cs-item b{text-transform:uppercase;min-width:0;overflow:hidden;text-overflow:ellipsis;white-space:nowrap}
 .cs-item span{font-size:12.5px;color:var(--muted);font-family:var(--f-mono)}
-.cs-grid{display:grid;grid-template-columns:repeat(auto-fill,minmax(260px,1fr));gap:10px}
+.cs-grid{display:grid;grid-template-columns:repeat(auto-fill,minmax(260px,1fr));gap:12px}
+#pr-body,#cx-body,#ft-body,#dd-body{display:flex;flex-direction:column;gap:18px}
+.cs-sec{margin-top:6px;padding-top:16px;border-top:1px solid var(--line)}
 .flabel{font-size:13px;font-weight:600;color:var(--muted)}
 .paywhen{display:grid;grid-template-columns:1fr 1fr;gap:8px}
 .paywhen button{min-height:48px;border:1.5px solid var(--line);background:var(--sunken);border-radius:10px;font-weight:800;cursor:pointer;color:var(--muted);padding:8px}
@@ -1660,7 +1662,7 @@ function renderProducao(){
     <div class="stat"><span class="n">${orders.filter(o=>o.costureira&&(o.status==="pronto"||o.status==="entregue")&&doneAt(o)>=from).length}</span><span class="t">Feitos ${perTxt}</span></div></div>`;
   if(!nomes.length){ body.innerHTML=resumo+`<div class="empty">Cadastre as costureiras na aba Equipe para acompanhar o trabalho delas aqui.</div>`; return; }
   const item=o=>`<button class="cs-item" data-open="${esc(o.codigo)}"><b>${esc(U((o.cliente||{}).nome||"Cliente"))}</b><span>${esc(o.codigo)}${o.entrega?" · "+fmtDay(o.entrega).slice(0,5):""}</span></button>`;
-  body.innerHTML=resumo+`<div class="cs-grid">${nomes.map(n=>{
+  body.innerHTML=resumo+`<span class="label cs-sec">Por costureira</span><div class="cs-grid">${nomes.map(n=>{
     const fazendo=orders.filter(o=>o.status==="em_costura" && o.costureira===n).sort((a,b)=>(a.entrega||"9")<(b.entrega||"9")?-1:1);
     const feitos=orders.filter(o=>o.costureira===n && (o.status==="pronto"||o.status==="entregue") && doneAt(o)>=from);
     return `<div class="cs"><div class="cs-hd"><span class="av">${esc(initials(n))}</span><b>${esc(n)}</b></div>
