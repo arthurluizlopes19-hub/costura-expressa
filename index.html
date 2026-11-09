@@ -1364,28 +1364,43 @@ function wireWhats(o){
     .catch(e=>{ console.error(e); pm.textContent="Não consegui gerar a imagem agora. Verifique a internet e abra o pedido de novo."; })
     .finally(()=>{ ib.disabled=false; sb.disabled=false; ib.innerHTML=ibHtml; });
   const legenda=()=>{ const nome=String((o.cliente||{}).nome||"").trim().split(/\s+/)[0]||""; return `Olá${nome?", "+nome:""}! Segue o seu pedido ${o.codigo} da Costura Expressa.`; };
-  ib.onclick=async()=>{
-    const tel = inp ? inp.value : (o.cliente||{}).telefone;
+  const podeArquivo=()=>{ try{ return !!(img && navigator.canShare && navigator.canShare({files:[img]})); }catch(e){ return false; } };
+  const telAtual=()=> inp ? inp.value : (o.cliente||{}).telefone;
+  const nomeCli=String((o.cliente||{}).nome||"").trim()||"a cliente";
+  // jeito 1 (celular): compartilhar a imagem com a mensagem junto
+  const enviarCompartilhando=async()=>{
+    try{ await navigator.share({files:[img], text:legenda()}); mark("whatsEnviadoEm");
+      pm.innerHTML=`Enviado. Se ainda não escolheu, toque em <b>WhatsApp</b> e procure <b>${esc(nomeCli)}</b>${telAtual()?" ("+esc(telAtual())+")":""}.`; return true; }
+    catch(e){ if(e && e.name==="AbortError") return true; console.warn(e); return false; }
+  };
+  // jeito 2: copiar a imagem e abrir a conversa da cliente
+  const enviarCopiando=async()=>{
+    const tel=telAtual();
     if(!waNumber(tel)){ toast("Informe o WhatsApp da cliente."); if(inp) inp.focus(); return; }
-    if(!img){ toast("A imagem ainda está sendo preparada. Tente de novo em instantes."); return; }
     let copiou=false;
-    try{ if(navigator.clipboard && window.ClipboardItem){ await navigator.clipboard.write([new ClipboardItem({"image/png":img})]); copiou=true; } }catch(e){ console.warn(e); }
+    try{ if(navigator.clipboard && window.ClipboardItem){ await navigator.clipboard.write([new ClipboardItem({"image/png": Promise.resolve(img)})]); copiou=true; } }catch(e){ console.warn(e); }
     window.open(waLink(tel,legenda()),"_blank","noopener");
     mark("whatsEnviadoEm");
     pm.innerHTML = copiou
       ? "Imagem copiada. Na conversa que abriu, toque e segure na caixa de mensagem, escolha <b>Colar</b> e envie junto com o texto."
-      : "Este aparelho não deixou copiar a imagem. Use o botão abaixo para enviar a imagem e escolha a conversa da cliente.";
-    sb.hidden = copiou;
+      : "Este aparelho não deixou copiar a imagem. Toque em <b>Compartilhar para o WhatsApp</b> de novo e escolha a conversa da cliente.";
+  };
+  ib.onclick=async()=>{
+    if(!img){ toast("A imagem ainda está sendo preparada. Tente de novo em instantes."); return; }
+    if(podeArquivo()){ if(await enviarCompartilhando()) return; }
+    await enviarCopiando();
   };
   sb.onclick=async()=>{
     if(!img){ toast("A imagem ainda está sendo preparada. Tente de novo em instantes."); return; }
-    if(navigator.canShare && navigator.canShare({files:[img]})){
-      try{ await navigator.share({files:[img], text:legenda()}); mark("whatsEnviadoEm"); pm.textContent=`Pedido enviado em ${fmtDate(Date.now())}.`; }
-      catch(e){ if(!(e&&e.name==="AbortError")) pm.textContent="Não deu para compartilhar. Tente de novo."; }
-      return;
-    }
+    if(podeArquivo()) return enviarCopiando();
     saveFile(img,img.name); pm.textContent="Imagem baixada ("+img.name+"). Anexe na conversa da cliente pelo clipe.";
   };
+  // ajusta textos quando a imagem fica pronta
+  const ajustar=()=>{ if(!img) return;
+    if(podeArquivo()){ sb.hidden=false; sb.textContent="Copiar imagem e abrir a conversa da cliente";
+      pm.innerHTML=`${o.whatsEnviadoEm?`Pedido enviado em ${fmtDate(o.whatsEnviadoEm)}. `:""}Toque em <b>Compartilhar para o WhatsApp</b>, escolha o <b>WhatsApp</b> e depois a conversa de <b>${esc(nomeCli)}</b>. A imagem vai junto com a mensagem.`; }
+    else { sb.hidden=false; sb.textContent="Baixar a imagem do pedido"; } };
+  const espera=setInterval(()=>{ if(img||!document.body.contains(ib)){ clearInterval(espera); ajustar(); } },200);
 }
 async function clienteImagem(o){
   if(!window.html2canvas) throw new Error("html2canvas");
