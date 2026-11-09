@@ -313,7 +313,7 @@ input[type="text"]:not(#app-link):not(#m-pin):not(#lg-pin):not([inputmode="numer
 .svc-search input:focus{outline:none}
 .svc-search:focus-within{outline:2px solid var(--accent);outline-offset:2px}
 .svc-none{padding:14px;text-align:center;color:var(--muted);font-size:14px}
-.avulso{display:flex;flex-direction:column;gap:8px;border-top:1px dashed var(--line);padding-top:12px}
+.avulso{display:flex;flex-direction:column;gap:8px;border:1px dashed var(--line);border-radius:10px;padding:10px 12px;background:var(--sunken)}
 .av-row{display:grid;grid-template-columns:1fr 110px auto;gap:8px}
 @media (max-width:420px){.av-row{grid-template-columns:1fr 1fr}.av-row input:first-child{grid-column:1/-1}}
 .edit-items{display:flex;flex-direction:column;gap:8px}
@@ -516,7 +516,6 @@ input[type="text"]:not(#app-link):not(#m-pin):not(#lg-pin):not([inputmode="numer
       <div class="panel">
         <div class="row" style="justify-content:space-between"><span class="label">Serviços</span><span class="hint" id="cart-count"></span></div>
         <label class="svc-search" for="svc-busca"><svg viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2.2" stroke-linecap="round" aria-hidden="true"><circle cx="11" cy="11" r="7"/><path d="m20 20-3.5-3.5"/></svg><input type="search" id="svc-busca" placeholder="PESQUISAR SERVIÇO" autocomplete="off" aria-label="Pesquisar serviço"></label>
-        <div id="svc-pick"></div>
         <div class="avulso">
           <span class="label">Serviço fora da tabela</span>
           <div class="av-row">
@@ -526,6 +525,7 @@ input[type="text"]:not(#app-link):not(#m-pin):not(#lg-pin):not([inputmode="numer
           </div>
           <div id="av-list"></div>
         </div>
+        <div id="svc-pick"></div>
       </div>
 
       <div class="panel">
