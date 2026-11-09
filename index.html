@@ -394,6 +394,8 @@ input[type="text"]:not(#app-link):not(#m-pin):not(#lg-pin):not([inputmode="numer
 .stat-btn[aria-pressed="true"]{border-color:var(--accent);box-shadow:inset 0 0 0 1px var(--accent)}
 .stat-btn .go{font-size:12px;font-weight:800;color:var(--band);margin-top:2px}
 #dd-filtro{scroll-margin-top:170px}
+.tel-row{display:grid;grid-template-columns:auto 1fr;gap:8px}
+.tel-row select{width:auto;min-width:96px}
 .camhelp{font-size:14px}
 .camhelp summary{cursor:pointer;font-weight:700;padding:4px 0}
 .camhelp p{margin:6px 0 10px}
@@ -480,7 +482,22 @@ input[type="text"]:not(#app-link):not(#m-pin):not(#lg-pin):not([inputmode="numer
 
       <div class="panel">
         <span class="label">Cliente</span>
-        <div class="field"><label for="c-tel">Telefone / WhatsApp</label><input type="tel" id="c-tel" placeholder="(81) 9 9999-9999" autocomplete="off"></div>
+        <div class="field"><label for="c-tel">Telefone / WhatsApp</label>
+          <div class="tel-row">
+            <select id="c-ddi" aria-label="País do telefone">
+              <option value="+55" selected>🇧🇷 +55</option><option value="+351">🇵🇹 +351</option><option value="+1">🇺🇸 +1</option>
+              <option value="+34">🇪🇸 +34</option><option value="+39">🇮🇹 +39</option><option value="+33">🇫🇷 +33</option>
+              <option value="+44">🇬🇧 +44</option><option value="+49">🇩🇪 +49</option><option value="+41">🇨🇭 +41</option>
+              <option value="+353">🇮🇪 +353</option><option value="+31">🇳🇱 +31</option><option value="+32">🇧🇪 +32</option>
+              <option value="+54">🇦🇷 +54</option><option value="+598">🇺🇾 +598</option><option value="+595">🇵🇾 +595</option>
+              <option value="+56">🇨🇱 +56</option><option value="+57">🇨🇴 +57</option><option value="+51">🇵🇪 +51</option>
+              <option value="+52">🇲🇽 +52</option><option value="+244">🇦🇴 +244</option><option value="+258">🇲🇿 +258</option>
+              <option value="+81">🇯🇵 +81</option><option value="+">Outro país</option>
+            </select>
+            <input type="tel" id="c-tel" placeholder="(81) 9 9999-9999" autocomplete="off">
+          </div>
+          <span class="hint" id="c-tel-hint" hidden>Digite o número com o código do país, começando com +.</span>
+        </div>
         <div class="found" id="c-found" hidden></div>
         <div class="field"><label for="c-nome">Nome completo</label><input type="text" id="c-nome" autocomplete="off" placeholder="Ex.: Maria José da Silva"></div>
         <div class="grid2">
@@ -1049,7 +1066,7 @@ async function finalizar(){
     const code=newCode(); const now=Date.now(); const atend=session?session.nome:"";
     const subtotal=round2(itens.reduce((a,b)=>a+b.preco*b.qtd,0)); const dc=calcDesconto(subtotal);
     const total=round2(subtotal-dc.desc);
-    const pedido={codigo:code, cliente:{nome:U(nome), telefone:$("#c-tel").value.trim()},
+    const pedido={codigo:code, cliente:{nome:U(nome), telefone:telCompleto()},
       itens, subtotal, desconto:dc.desc, descontoTipo:descTipo, descontoInformado:dc.raw, total,
       pagarEm, entrada: pagarEm==="ato" ? total : Math.min(total,Math.max(0,Number($("#c-entrada").value)||0)),
       pagamento: (pagarEm==="ato" || (Number($("#c-entrada").value)||0)>0) ? $("#c-pag").value : "Pagar na retirada",
@@ -1069,7 +1086,7 @@ function resetForm(){
   pagarEm="retirada"; $("#pm-ato").setAttribute("aria-pressed","false"); $("#pm-ret").setAttribute("aria-pressed","true"); $("#c-pag").value="Pix";
   autoNome=""; $("#c-found").hidden=true;
   extras=[]; $("#av-nome").value=""; $("#av-preco").value=""; renderExtras();
-  ["#c-nome","#c-tel","#c-entrega","#c-obs","#c-entrada","#c-desc","#svc-busca"].forEach(s=>$(s).value=""); descTipo="valor"; setDescTipo("valor");
+  ["#c-nome","#c-tel","#c-entrega","#c-obs","#c-entrada","#c-desc","#svc-busca"].forEach(s=>$(s).value=""); $("#c-ddi").value="+55"; $("#c-tel").placeholder="(81) 9 9999-9999"; $("#c-tel-hint").hidden=true; descTipo="valor"; setDescTipo("valor");
   cart={}; photos.forEach(p=>URL.revokeObjectURL(p.url)); photos=[]; if(audio) URL.revokeObjectURL(audio.url); audio=null;
   renderPick(); renderPhotos(); renderAudio();
 }
@@ -1202,8 +1219,10 @@ let ivBlob=null, ivCode="";
 /* ---------- WhatsApp ---------- */
 const waIcon='<svg viewBox="0 0 24 24" aria-hidden="true"><path fill="currentColor" d="M12 2a10 10 0 0 0-8.6 15.1L2 22l5-1.3A10 10 0 1 0 12 2Zm0 18.2a8.2 8.2 0 0 1-4.2-1.2l-.3-.2-3 .8.8-2.9-.2-.3A8.2 8.2 0 1 1 12 20.2Zm4.5-6.1c-.2-.1-1.5-.7-1.7-.8s-.4-.1-.6.1l-.8 1c-.1.2-.3.2-.5.1a6.7 6.7 0 0 1-3.3-2.9c-.2-.4.2-.4.7-1.3.1-.2 0-.3 0-.4l-.8-1.8c-.2-.5-.4-.4-.6-.4h-.5a1 1 0 0 0-.7.3 3 3 0 0 0-.9 2.2 5.2 5.2 0 0 0 1.1 2.7 11.8 11.8 0 0 0 4.5 4c1.7.7 2.3.8 3.2.6a2.7 2.7 0 0 0 1.8-1.3 2.2 2.2 0 0 0 .2-1.3c-.1-.1-.3-.2-.5-.3Z"/></svg>';
 function waNumber(tel){
-  let d=String(tel||"").replace(/\D/g,"");
+  const t=String(tel||"").trim();
+  let d=t.replace(/\D/g,"");
   if(!d) return "";
+  if(t.startsWith("+") || t.startsWith("00")){ d=d.replace(/^00/,""); return d.length>=8 && d.length<=15 ? d : ""; }
   d=d.replace(/^0+/,"");
   if(d.startsWith("55") && d.length>=12) return d;
   if(d.length===10 || d.length===11) return "55"+d;
@@ -2375,9 +2394,16 @@ $("#dev-out").addEventListener("click",async()=>{
 
 /* ---------- entrega ---------- */
 let entregaTipo="retirada";
+function telCompleto(){
+  const raw=$("#c-tel").value.trim(); if(!raw) return "";
+  if(raw.startsWith("+")) return raw;
+  const ddi=$("#c-ddi").value;
+  if(ddi==="+55" || ddi==="+") return ddi==="+"?("+"+raw.replace(/^\+/,"")):raw;
+  return ddi+" "+raw;
+}
 function setEntrega(v){ entregaTipo=v; $("#et-ret").setAttribute("aria-pressed",String(v==="retirada")); $("#et-ent").setAttribute("aria-pressed",String(v==="entrega"));
   $("#f-end").hidden = v!=="entrega";
-  if(v==="entrega" && !$("#c-end").value.trim()){ const c=clientes.get(telKey($("#c-tel").value)); if(c&&c.endereco) $("#c-end").value=U(c.endereco); }
+  if(v==="entrega" && !$("#c-end").value.trim()){ const c=clientes.get(telKey(telCompleto())); if(c&&c.endereco) $("#c-end").value=U(c.endereco); }
   if(v==="entrega") setTimeout(()=>$("#c-end").focus(),50); }
 $("#et-ret").addEventListener("click",()=>setEntrega("retirada"));
 $("#et-ent").addEventListener("click",()=>setEntrega("entrega"));
@@ -2396,7 +2422,7 @@ function findCliente(tel){
   return { nome: U(doc&&doc.nome || (ped[0].cliente||{}).nome || ""), pedidos: ped.length, ultimo: ped[0]||null };
 }
 function checkCliente(){
-  const tel=$("#c-tel").value, box=$("#c-found"), nomeEl=$("#c-nome");
+  const tel=telCompleto(), box=$("#c-found"), nomeEl=$("#c-nome");
   if(!telKey(tel)){ box.hidden=true; if(autoNome && nomeEl.value===autoNome){ nomeEl.value=""; } autoNome=""; return; }
   const c=findCliente(tel);
   if(!c||!c.nome){ box.hidden=false; box.className="found new"; box.textContent="Cliente nova: digite o nome abaixo."; if(autoNome && nomeEl.value===autoNome) nomeEl.value=""; autoNome=""; return; }
@@ -2411,6 +2437,9 @@ function checkCliente(){
   else box.innerHTML=`Cliente encontrada: <b>${esc(c.nome)}</b>${info}`;
 }
 $("#c-tel").addEventListener("input",checkCliente);
+$("#c-ddi").addEventListener("change",()=>{ const v=$("#c-ddi").value;
+  $("#c-tel").placeholder = v==="+55" ? "(81) 9 9999-9999" : v==="+" ? "+ código do país e número" : "número com código de área";
+  $("#c-tel-hint").hidden = v!=="+"; checkCliente(); $("#c-tel").focus(); });
 $("#c-nome").addEventListener("input",()=>{ if($("#c-nome").value!==autoNome) autoNome=""; });
 async function saveCliente(nome,tel,endereco){
   const k=telKey(tel); if(!k||!nome||!db) return;
@@ -2498,7 +2527,7 @@ function startData(){
     if(!session) renderLogin();
     renderTeam(); renderLogi(); renderProducao();
   }, e=>console.error(e));
-  db.collection("clientes").onSnapshot(s=>{ clientes.clear(); s.docs.forEach(d=>clientes.set(d.id,d.data())); if(telKey($("#c-tel").value)) checkCliente(); }, e=>console.warn(e));
+  db.collection("clientes").onSnapshot(s=>{ clientes.clear(); s.docs.forEach(d=>clientes.set(d.id,d.data())); if(telKey(telCompleto())) checkCliente(); }, e=>console.warn(e));
   db.collection("servicos").orderBy("nome").onSnapshot(s=>{
     services=s.docs.map(d=>({id:d.id,...d.data()})).sort((a,b)=>String(a.nome).localeCompare(String(b.nome),"pt-BR"));
     Object.keys(cart).forEach(k=>{ if(!services.find(x=>x.id===k)) delete cart[k]; });
