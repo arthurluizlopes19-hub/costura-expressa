@@ -402,6 +402,28 @@ input[type="text"]:not(#app-link):not(#m-pin):not(#lg-pin):not([inputmode="numer
 .pay-tag{font-size:10.5px;font-weight:800;letter-spacing:.06em;color:#3a2f00;background:var(--pay-line);border-radius:6px;padding:2px 6px}
 .items tr.pay td{background:var(--pay-bg);color:var(--pay);font-weight:800}
 .sumbox .pay{background:var(--pay-bg);color:var(--pay);border-radius:8px;padding:6px 8px;margin:2px -8px 0}
+.print-render{position:fixed;left:-10000px;top:0;width:576px;pointer-events:none;background:#ffffff}
+.print-render .nota{outline:none;border-radius:0;padding:18px 20px;gap:14px;color:#000000;background:#ffffff}
+.print-render .nota::after{display:none}
+.print-render .nota-head{flex-direction:column;align-items:center;text-align:center;gap:8px}
+.print-render .nota-head .meta{text-align:center;font-size:20px;color:#000000}
+.print-render .nota-head .meta b{font-size:30px;color:#000000}
+.print-render .logo{width:230px}
+.print-render .addr{font-size:17px;color:#000000}
+.print-render .kv{font-size:22px;color:#000000}
+.print-render .kv dt{color:#333333}
+.print-render .items{font-size:26px}
+.print-render .items th{font-size:17px;color:#000000}
+.print-render .items td{font-weight:800;color:#000000;border-bottom:2px dotted #000000}
+.print-render .obs{font-size:22px;background:#ffffff;border:2px solid #000000;color:#000000}
+.print-render .label{color:#000000;font-size:17px}
+.print-render .qr-area{flex-direction:column;align-items:center;text-align:center;gap:8px;border-top:2px dashed #000000}
+.print-render .qr{padding:0}
+.print-render .qr img,.print-render .qr canvas{width:300px!important;height:300px!important}
+.print-render .qr-area .cd{font-size:34px;color:#000000}
+.print-render .qr-area .hint{font-size:18px;color:#000000}
+.print-render .foot{background:none;color:#000000;font-size:17px;margin:0;padding:6px 0}
+.print-render .foot small{display:none}
 .camhelp{font-size:14px}
 .camhelp summary{cursor:pointer;font-weight:700;padding:4px 0}
 .camhelp p{margin:6px 0 10px}
@@ -439,16 +461,27 @@ input[type="text"]:not(#app-link):not(#m-pin):not(#lg-pin):not([inputmode="numer
 .spin{width:18px;height:18px;border-radius:50%;border:2.5px solid currentColor;border-right-color:transparent;animation:sp .8s linear infinite}
 @keyframes sp{to{transform:rotate(360deg)}}
 @media (prefers-reduced-motion:reduce){.spin{animation-duration:3s}}
+#print-area{display:none}
 @media print{
-  @page{margin:10mm}
-  body *{visibility:hidden!important}
-  #sheet .nota, #sheet .nota *{visibility:visible!important}
-  #overlay{position:static!important;background:none!important;padding:0!important;overflow:visible!important}
-  #sheet .nota{position:absolute;left:0;top:0;width:100%;max-width:150mm;outline:none!important;box-shadow:none!important}
-  #sheet .nota::after{display:none}
-  header.top,.totalbar,.toast,body::before{display:none!important}
-  .foot{-webkit-print-color-adjust:exact;print-color-adjust:exact}
-  .qr{-webkit-print-color-adjust:exact;print-color-adjust:exact}
+  @page{size:80mm auto;margin:2mm}
+  html,body{background:#ffffff!important;padding:0!important;margin:0!important}
+  body > *:not(#print-area){display:none!important}
+  #print-area{display:block!important;width:74mm;margin:0 auto;color:#000000}
+  #print-area .nota{outline:none!important;box-shadow:none!important;padding:2mm 0;gap:3mm;border-radius:0}
+  #print-area .nota::after{display:none}
+  #print-area .nota-head{flex-direction:column;align-items:center;text-align:center;gap:2mm}
+  #print-area .nota-head .meta{text-align:center}
+  #print-area .logo{width:40mm}
+  #print-area .kv{font-size:10pt}
+  #print-area .items{font-size:11pt}
+  #print-area .items td{font-weight:700}
+  #print-area .qr-area{flex-direction:column;text-align:center;gap:2mm}
+  #print-area .qr{padding:0}
+  #print-area .qr img,#print-area .qr canvas{width:42mm!important;height:42mm!important}
+  #print-area .foot{background:none!important;color:#000000!important;margin:0;padding:1mm 0}
+  #print-area .foot small{display:none}
+  #print-area .addr{font-size:8pt}
+  *{-webkit-print-color-adjust:exact;print-color-adjust:exact}
 }
 </style>
 </head>
@@ -1154,7 +1187,7 @@ function layoutNota(doc,o,fmt,logo,qr){
     else { font(fs.s,"normal",grey); const ax=R; T("Galeria Jaqueira Park Center",ax,y+8,{align:"right"}); T("R. do Futuro, 913 · Graças · Recife/PE",ax,y+12.5,{align:"right"}); font(fs.s,"bold",teal); T("WhatsApp (81) 99616-0055",ax,y+17,{align:"right"}); y+=lh_+5; } }
   if(thermal){ font(fs.s,"normal",grey); T("Galeria Jaqueira Park Center",W/2,y,{align:"center"}); y+=3.4; T("R. do Futuro, 913 · Graças · Recife/PE",W/2,y,{align:"center"}); y+=3.4; font(fs.s,"bold",teal); T("WhatsApp (81) 99616-0055",W/2,y,{align:"center"}); y+=4.5; }
   hr(true); y+=thermal?5:7;
-  font(fs.t,"bold",plum); T("NOTA DE SERVIÇO",thermal?W/2:M,y,{align:thermal?"center":"left"});
+  font(fs.t,"bold",plum); T("PEDIDO",thermal?W/2:M,y,{align:thermal?"center":"left"});
   if(!thermal){ font(fs.b,"bold",ink); T("Nº "+o.codigo,R,y,{align:"right"}); }
   y+=thermal?5:6;
   font(fs.s,"normal",grey);
@@ -1167,32 +1200,22 @@ function layoutNota(doc,o,fmt,logo,qr){
   const kx=M+(thermal?26:36);
   kv.forEach(([k,v])=>{ font(fs.b,"normal",grey); T(k,M,y); font(fs.b,"bold",ink); const lines=doc.splitTextToSize(String(v),R-kx); T(lines,kx,y); y+=lh(fs.b)*1.35*lines.length+ (thermal?.6:1.2); });
   y+=thermal?2:4;
-  // itens
-  const cQ=thermal?R-30:R-62, cU=thermal?R-17:R-30;
-  font(fs.s,"bold",teal); T("SERVIÇO",M,y); T("QTD",cQ,y,{align:"right"}); if(!thermal) T("UNIT.",cU,y,{align:"right"}); T("VALOR",R,y,{align:"right"});
+  // itens (sem valores)
+  const cQ=R;
+  font(fs.s,"bold",teal); T("SERVIÇO",M,y); T("QTD",cQ,y,{align:"right"});
   y+=1.8; hr(false); y+=thermal?3.8:5;
   (o.itens||[]).forEach(i=>{
-    const nameW=(thermal?cQ-8:cQ-14)-M; font(fs.b,"normal",ink); const lines=doc.splitTextToSize(U(i.nome),nameW); T(lines,M,y);
-    T(i.qtd+"×",cQ,y,{align:"right"}); if(!thermal) T(money(i.preco),cU,y,{align:"right"}); T(money(i.preco*i.qtd),R,y,{align:"right"});
-    y+=lh(fs.b)*1.35*lines.length+(thermal?1.4:2.4);
+    const nameW=cQ-12-M; font(fs.big-1,"bold",ink); const lines=doc.splitTextToSize(U(i.nome),nameW); T(lines,M,y);
+    T(i.qtd+"×",cQ,y,{align:"right"});
+    y+=lh(fs.big-1)*1.3*lines.length+(thermal?1.6:2.6);
   });
   hr(false); y+=thermal?5:7;
-  const restante=restOf(o);
-  if(descOf(o)){ font(fs.b,"normal",ink); T("Subtotal",M,y); T(money(subOf(o)),R,y,{align:"right"}); y+=thermal?4:5.5;
-    font(fs.b,"bold",[192,38,38]); T(descLabel(o),M,y); T("- "+money(descOf(o)),R,y,{align:"right"}); y+=thermal?5:7; }
-  font(fs.big,"bold",plum); T("TOTAL",M,y); T(money(o.total),R,y,{align:"right"}); y+=thermal?5:7;
-  if(pagoNoAto(o)){ font(fs.b,"normal",ink); T("Pago no ato ("+(o.pagamento||"")+")",M,y); T(money(o.entrada),R,y,{align:"right"}); y+=thermal?5:8; }
-  else {
-    if(Number(o.entrada)){ font(fs.b,"normal",ink); T("Sinal ("+(o.pagamento||"")+")",M,y); T(money(o.entrada),R,y,{align:"right"}); y+=thermal?4:5.5; }
-    if(o.status==="entregue" && o.valorRetirada){ font(fs.b,"normal",ink); T("Pago na retirada ("+(o.pagamentoRetirada||"")+")",M,y); T(money(o.valorRetirada),R,y,{align:"right"}); y+=thermal?5:8; }
-    else if(restante>0.001){ doc.setFillColor(255,236,153); doc.rect(M-1,y-(thermal?3.6:4.4),CW+2,thermal?5.2:6.4,"F"); font(fs.b,"bold",[110,74,0]); T("A pagar "+ondePaga(o),M,y); T(money(restante),R,y,{align:"right"}); y+=thermal?5:8; }
-  }
   if(o.obs){ font(fs.s,"bold",teal); T("OBSERVAÇÕES",M,y); y+=thermal?3.8:5; font(fs.b,"normal",ink); const lines=doc.splitTextToSize(U(o.obs),CW); T(lines,M,y); y+=lh(fs.b)*1.35*lines.length+(thermal?3:5); }
   hr(true); y+=thermal?4:7;
   // QR
   const qs=thermal?34:38;
-  if(thermal){ if(qr) doc.addImage(qr,"PNG",(W-qs)/2,y,qs,qs); y+=qs+3; font(fs.t,"bold",ink); T(o.codigo,W/2,y+1,{align:"center"}); y+=5; font(fs.s,"normal",grey); T("Apresente esta nota para retirar a peça.",W/2,y,{align:"center"}); y+=6; }
-  else { if(qr) doc.addImage(qr,"PNG",M,y,qs,qs); font(fs.s,"bold",teal); T("CÓDIGO DO PEDIDO",M+qs+8,y+12); font(20,"bold",ink); T(o.codigo,M+qs+8,y+21); font(fs.b,"normal",grey); T("Apresente esta nota para retirar a peça.",M+qs+8,y+28); y+=qs+8; }
+  if(thermal){ if(qr) doc.addImage(qr,"PNG",(W-qs)/2,y,qs,qs); y+=qs+3; font(fs.t,"bold",ink); T(o.codigo,W/2,y+1,{align:"center"}); y+=5; font(fs.s,"normal",grey); T("Apresente este código para retirar a peça.",W/2,y,{align:"center"}); y+=6; }
+  else { if(qr) doc.addImage(qr,"PNG",M,y,qs,qs); font(fs.s,"bold",teal); T("CÓDIGO DO PEDIDO",M+qs+8,y+12); font(20,"bold",ink); T(o.codigo,M+qs+8,y+21); font(fs.b,"normal",grey); T("Apresente este código para retirar a peça.",M+qs+8,y+28); y+=qs+8; }
   font(fs.s,"normal",grey); T("Comprovante interno do ateliê · sem valor fiscal",W/2,y,{align:"center"}); y+=M;
   return y;
 }
@@ -1205,6 +1228,41 @@ async function buildNotaPdf(o,fmt){
   layoutNota(doc,o,fmt,logo,qr);
   doc.setProperties({title:"Pedido "+o.codigo+" · Costura Expressa"});
   return doc.output("blob");
+}
+function printBrowser(o){
+  let area=$("#print-area"); if(!area){ area=document.createElement("div"); area.id="print-area"; document.body.appendChild(area); }
+  area.className="force-light";
+  area.innerHTML=notaHTML(o,{precos:false, qr:true}).replace('id="qr"','id="qr-print"');
+  try{ new QRCode(area.querySelector("#qr-print"),{text:qrText(o.codigo),width:240,height:240,colorDark:"#000000",colorLight:"#ffffff",correctLevel:QRCode.CorrectLevel.Q}); }catch(e){}
+  setTimeout(()=>window.print(),150);
+}
+async function printImagem(o){
+  if(!window.html2canvas) throw new Error("html2canvas");
+  const box=document.createElement("div"); box.className="force-light print-render";
+  box.innerHTML=notaHTML(o,{precos:false, qr:true}).replace('id="qr"','id="qr-pr"');
+  document.body.appendChild(box);
+  try{
+    new QRCode(box.querySelector("#qr-pr"),{text:qrText(o.codigo),width:300,height:300,colorDark:"#000000",colorLight:"#ffffff",correctLevel:QRCode.CorrectLevel.Q});
+    await new Promise(r=>setTimeout(r,60));
+    const cv=await html2canvas(box.querySelector(".nota"),{scale:1,backgroundColor:"#ffffff",logging:false,width:576,windowWidth:576});
+    return await new Promise((res,rej)=>cv.toBlob(b=>b?res(b):rej(new Error("imagem")),"image/png"));
+  } finally { box.remove(); }
+}
+function wirePrint(o){
+  let img=null; const pb=$("#print-now"), pm=$("#print-msg");
+  const html=pb.innerHTML; pb.disabled=true; pb.innerHTML='<span class="busy"><span class="spin"></span>Preparando a impressão</span>';
+  printImagem(o).then(b=>{ img=new File([b],`pedido-${o.codigo}.png`,{type:"image/png"}); })
+    .catch(e=>{ console.warn(e); pm.textContent="Não consegui preparar a impressão. Use Imprimir pelo navegador."; })
+    .finally(()=>{ pb.disabled=false; pb.innerHTML=html; });
+  $("#print-browser").onclick=()=>printBrowser(o);
+  pb.onclick=async()=>{
+    if(img && navigator.canShare && navigator.canShare({files:[img]})){
+      try{ await navigator.share({files:[img]}); pm.textContent="Escolha o Fun Print na lista e toque em imprimir."; return; }
+      catch(e){ if(e && e.name==="AbortError") return; }
+    }
+    if(img){ saveFile(img,img.name); pm.textContent="Imagem baixada ("+img.name+"). Abra o Fun Print e escolha essa imagem para imprimir."; return; }
+    printBrowser(o);
+  };
 }
 async function printNota(code,fmt,btn){
   const o=orders.find(x=>x.codigo===code); const msg=$("#print-msg");
@@ -1977,12 +2035,10 @@ function renderSheet(o){
       ${o.status==="pronto"?`<a class="btn wa ghostwa" id="wa-pronto" href="${waLink(c.telefone,waProntoText(o))}" target="_blank" rel="noopener">${waIcon}Avisar que a peça está pronta</a>`:""}
       <p class="hint" id="wa-msg">${o.whatsEnviadoEm?`Pedido enviado pelo WhatsApp em ${fmtDate(o.whatsEnviadoEm)}. `:""}Abre a conversa de ${esc((c.nome||"").split(" ")[0]||"cliente")}${waNumber(c.telefone)?" ("+esc(c.telefone)+")":""} com o texto “Segue o seu pedido” pronto e a imagem copiada: toque e segure na caixa de mensagem, escolha <b>Colar</b> e envie junto com o texto.</p>
     </div>`:""}
-    ${verValores?`<div class="panel print-box"><span class="label">Imprimir nota</span>
-      <button class="btn primary" id="print-now">Imprimir nota</button>
-      <button class="btn" id="print-img">Abrir nota como imagem</button>
-      <p class="hint">Imprimir abre a janela de impressão do navegador. A imagem serve para salvar, compartilhar no WhatsApp ou imprimir pela galeria.</p>
-      <div class="grid2"><button class="btn" data-print="a4">Baixar PDF A4</button><button class="btn" data-print="80">Baixar PDF térmica 80 mm</button></div>
-      <p class="hint" id="print-msg"></p>
+    ${verValores?`<div class="panel print-box"><span class="label">Imprimir (80 mm)</span>
+      <button class="btn primary" id="print-now">Imprimir</button>
+      <div class="grid2"><button class="btn" id="print-browser">Imprimir pelo navegador</button><button class="btn" data-print="80">Baixar PDF 80 mm</button></div>
+      <p class="hint" id="print-msg">Abre o compartilhar do celular: escolha o <b>Fun Print</b>. A impressão sai sem valores, só com os serviços, as observações e o QR code.</p>
     </div>`:""}
     ${o.audio?`<div class="panel"><span class="label">Áudio da atendente</span><div id="sh-audio" class="busy muted"><span class="spin"></span>Carregando áudio…</div></div>`:""}
     ${(o.fotos||[]).length?`<div class="panel"><span class="label">Fotos da peça</span><div class="thumbs" id="sh-photos">${o.fotos.map(()=>`<div class="thumb"></div>`).join("")}</div></div>`:""}
@@ -2012,10 +2068,8 @@ function renderSheet(o){
   const rt_=$("#ret-open"); if(rt_) rt_.onclick=()=>renderRetorno(o);
   $("#sheet").querySelectorAll("[data-print]").forEach(b=>b.onclick=()=>printNota(o.codigo,b.dataset.print,b));
   if(verValores){
-  $("#print-img").onclick=()=>notaImage(o.codigo,$("#print-img"));
   wireWhats(o);
-  $("#print-now").onclick=()=>{ const root=document.documentElement, prev=root.getAttribute("data-theme"); root.setAttribute("data-theme","light");
-    setTimeout(()=>{ window.print(); setTimeout(()=>{ if(prev==null) root.removeAttribute("data-theme"); else root.setAttribute("data-theme",prev); },500); },100); };
+  wirePrint(o);
   }
   const ls_=$("#sh-local-save"); if(ls_) ls_.onclick=async()=>{ const v=$("#sh-local").value.trim(); if(v===(o.local||"")) return; ls_.disabled=true;
     try{ await db.doc(`pedidos/${o.codigo}`).update({local:v}); toast(v?`Local salvo: ${v}.`:"Local removido."); }catch(err){ writeErr(err); } ls_.disabled=false; };
