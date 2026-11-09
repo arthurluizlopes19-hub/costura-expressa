@@ -424,6 +424,12 @@ input[type="text"]:not(#app-link):not(#m-pin):not(#lg-pin):not([inputmode="numer
 .print-render .qr-area .hint{font-size:18px;color:#000000}
 .print-render .foot{background:none;color:#000000;font-size:17px;margin:0;padding:6px 0}
 .print-render .foot small{display:none}
+.avulso.orc{border-color:var(--pay-line);background:var(--pay-bg)}
+.avulso.orc .label{color:var(--pay)}
+.orc-row{grid-template-columns:1fr auto!important}
+@media (max-width:420px){.orc-row input:first-child{grid-column:auto!important}}
+.tag-orc{font-size:10.5px;font-weight:800;letter-spacing:.06em;color:#3a2f00;background:var(--pay-line);border-radius:6px;padding:2px 6px}
+.aorcar{color:var(--pay);font-weight:800;font-size:12px;letter-spacing:.04em}
 .camhelp{font-size:14px}
 .camhelp summary{cursor:pointer;font-weight:700;padding:4px 0}
 .camhelp p{margin:6px 0 10px}
@@ -563,6 +569,15 @@ input[type="text"]:not(#app-link):not(#m-pin):not(#lg-pin):not([inputmode="numer
             <button class="btn" id="av-add" type="button">Adicionar</button>
           </div>
           <div id="av-list"></div>
+        </div>
+        <div class="avulso orc">
+          <span class="label">Serviço em orçamento</span>
+          <p class="hint" style="margin:0">Para o serviço que ainda vai ter o valor definido. Ele entra no pedido como “a orçar” e a administração coloca o valor depois, em Editar pedido.</p>
+          <div class="av-row orc-row">
+            <input type="text" id="orc-nome" placeholder="DESCREVA O SERVIÇO" aria-label="Serviço em orçamento" autocomplete="off">
+            <button class="btn" id="orc-add" type="button">Adicionar</button>
+          </div>
+          <div id="orc-list"></div>
         </div>
         <div id="svc-pick"></div>
       </div>
@@ -992,8 +1007,29 @@ $("#svc-pick").addEventListener("click",e=>{
   if(d){const k=d.dataset.dec; cart[k]=Math.max(0,(cart[k]||0)-1); if(!cart[k]) delete cart[k]; renderPick();}
 });
 let extras=[]; // serviços fora da tabela: {id,nome,preco,qtd}
+let orcs=[];   // serviços em orçamento: {id,nome,qtd}
 function cartItems(){ return services.filter(s=>cart[s.id]).map(s=>({nome:U(s.nome), preco:Number(s.preco)||0, qtd:cart[s.id]}))
-  .concat(extras.map(x=>({nome:U(x.nome), preco:Number(x.preco)||0, qtd:x.qtd, avulso:true}))); }
+  .concat(extras.map(x=>({nome:U(x.nome), preco:Number(x.preco)||0, qtd:x.qtd, avulso:true})))
+  .concat(orcs.map(x=>({nome:U(x.nome), preco:0, qtd:x.qtd, orcamento:true}))); }
+const temOrc=o=>(o.itens||[]).some(i=>i.orcamento);
+function renderOrcs(){
+  $("#orc-list").innerHTML = orcs.length ? `<div class="svc-list">${orcs.map(x=>`
+    <div class="svc on"><div style="min-width:0"><div class="nm">${esc(U(x.nome))}</div><div class="pr aorcar">A ORÇAR</div></div>
+    <div class="step"><button data-odec="${x.id}" aria-label="Diminuir ${esc(x.nome)}">−</button><span class="q">${x.qtd}</span><button data-oinc="${x.id}" aria-label="Aumentar ${esc(x.nome)}">+</button></div></div>`).join("")}</div>` : "";
+  updateTotal();
+}
+$("#orc-add").addEventListener("click",()=>{
+  const nome=U($("#orc-nome").value.trim());
+  if(!nome){ toast("Descreva o serviço em orçamento."); $("#orc-nome").focus(); return; }
+  orcs.push({id:"o"+Date.now().toString(36), nome, qtd:1}); $("#orc-nome").value=""; renderOrcs(); $("#orc-nome").focus();
+});
+$("#orc-nome").addEventListener("keydown",e=>{ if(e.key==="Enter"){ e.preventDefault(); $("#orc-add").click(); } });
+$("#orc-list").addEventListener("click",e=>{
+  const i=e.target.closest("[data-oinc]"), d=e.target.closest("[data-odec]");
+  if(i){ const x=orcs.find(y=>y.id===i.dataset.oinc); if(x) x.qtd++; }
+  if(d){ const x=orcs.find(y=>y.id===d.dataset.odec); if(x){ x.qtd--; if(x.qtd<=0) orcs=orcs.filter(y=>y!==x); } }
+  if(i||d) renderOrcs();
+});
 function renderExtras(){
   $("#av-list").innerHTML = extras.length ? `<div class="svc-list">${extras.map(x=>`
     <div class="svc on"><div style="min-width:0"><div class="nm">${esc(U(x.nome))}</div><div class="pr">${money(x.preco)} · fora da tabela</div></div>
@@ -1036,11 +1072,13 @@ function updateTotal(){
   $("#f-entrada").hidden = pagarEm==="ato";
   $("#f-pag").hidden = pagarEm!=="ato" && !sinal;
   $("#c-pag-lbl").textContent = pagarEm==="ato" ? "Forma de pagamento" : "Forma de pagamento do sinal";
-  if(!sub && !d.raw){ box.innerHTML=""; return; }
+  const nOrc=orcs.reduce((a,x)=>a+x.qtd,0);
+  if(!sub && !d.raw && !nOrc){ box.innerHTML=""; return; }
   const lbl = descTipo==="pct" && d.raw ? `Desconto (${String(d.raw).replace(".",",")}%)` : "Desconto";
   box.innerHTML=`<div><span>Serviços</span><span>${money(sub)}</span></div>
     ${d.desc?`<div class="disc"><span>${lbl}</span><span>− ${money(d.desc)}</span></div>`:""}
-    <div class="tot"><span>Total</span><span>${money(tot)}</span></div>
+    ${nOrc?`<div class="pay"><span>${nOrc} serviço${nOrc>1?"s":""} em orçamento</span><span>a orçar</span></div>`:""}
+    <div class="tot"><span>Total${nOrc?" (sem o orçamento)":""}</span><span>${money(tot)}</span></div>
     ${pagarEm==="ato" ? `<div><span>Pago no ato (${esc($("#c-pag").value)})</span><span>${money(tot)}</span></div>`
       : `${sinal?`<div><span>Sinal (${esc($("#c-pag").value)})</span><span>${money(sinal)}</span></div>`:""}<div class="pay"><span><b>A pagar na retirada</b></span><span><b>${money(Math.max(0,round2(tot-sinal)))}</b></span></div>`}
     ${d.err?`<div class="err">${d.err}</div>`:""}${pagarEm!=="ato"&&sinal>tot+0.001?`<div class="err">O sinal é maior que o total do pedido.</div>`:""}`;
@@ -1121,6 +1159,7 @@ async function finalizar(){
   finally{ saving=false; btn.disabled=false; btn.textContent="Finalizar pedido"; }
 }
 function resetForm(){
+  orcs=[]; $("#orc-nome").value=""; renderOrcs();
   $("#c-end").value=""; setEntrega("retirada");
   pagarEm="retirada"; $("#pm-ato").setAttribute("aria-pressed","false"); $("#pm-ret").setAttribute("aria-pressed","true"); $("#c-pag").value="Pix";
   autoNome=""; $("#c-found").hidden=true;
@@ -1135,7 +1174,7 @@ function ordCard(o){
   const qt=(o.itens||[]).reduce((a,b)=>a+b.qtd,0);
   const icons=`${(o.fotos||[]).length?'<svg aria-label="tem foto"><use href="#i-img"/></svg>':""}${o.audio?'<svg aria-label="tem áudio"><use href="#i-mic"/></svg>':""}`;
   return `<button class="ord${(session&&session.papel!=="costureira"&&o.status!=="entregue"&&restOf(o)>0.001)?" devendo":""}" data-open="${esc(o.codigo)}"><span class="stripe ${o.status}"></span>
-    <span class="mid"><span class="row" style="gap:8px"><span class="code">${esc(o.codigo)}</span>${o.retornoDe?`<span class="tag-ret">RETORNO</span>`:""}${comEntrega(o)?`<span class="tag-ent">ENTREGA</span>`:""}${(session&&session.papel!=="costureira"&&o.status!=="entregue"&&restOf(o)>0.001)?`<span class="pay-tag">A PAGAR</span>`:""}<span class="ic">${icons}</span></span>
+    <span class="mid"><span class="row" style="gap:8px"><span class="code">${esc(o.codigo)}</span>${o.retornoDe||o.emRetorno?`<span class="tag-ret">RETORNO</span>`:""}${comEntrega(o)?`<span class="tag-ent">ENTREGA</span>`:""}${temOrc(o)&&!(session&&session.papel==="costureira")?`<span class="tag-orc">ORÇAMENTO</span>`:""}${(session&&session.papel!=="costureira"&&o.status!=="entregue"&&restOf(o)>0.001)?`<span class="pay-tag">A PAGAR</span>`:""}<span class="ic">${icons}</span></span>
     <span class="who">${esc(o.cliente?.nome)}</span>
     <span class="sub">${qt} serviço${qt>1?"s":""} · ${lateTxt(o)}${o.costureira?" · "+esc(o.costureira):""}</span>${o.local?`<span><span class="loc">Local: ${esc(o.local)}</span></span>`:""}</span>
     <span class="pill st-${o.status}">${STATUS[o.status]||o.status}</span></button>`;
@@ -1196,7 +1235,7 @@ function layoutNota(doc,o,fmt,logo,qr){
   y+=thermal?5:8;
   // dados
   const c=o.cliente||{};
-  const kv=[["Cliente",c.nome],["Telefone",c.telefone],[comEntrega(o)?"Data da entrega":"Retirada prevista",o.entrega?fmtDay(o.entrega):""],["Entrega",comEntrega(o)?"FAZER ENTREGA":"CLIENTE RETIRA NO ATELIÊ"],["Endereço",comEntrega(o)?o.endereco:""],["Atendente",o.atendente],["Costureira",o.costureira],["Local da peça",o.local]].filter(r=>r[1]).map(([k,v])=>[k,U(v)]);
+  const kv=[["Cliente",c.nome],["Telefone",c.telefone],[comEntrega(o)?"Data da entrega":"Retirada prevista",o.entrega?fmtDay(diaAntes(o.entrega)):""],["Entrega",comEntrega(o)?"FAZER ENTREGA":"CLIENTE RETIRA NO ATELIÊ"],["Endereço",comEntrega(o)?o.endereco:""],["Atendente",o.atendente],["Costureira",o.costureira],["Local da peça",o.local]].filter(r=>r[1]).map(([k,v])=>[k,U(v)]);
   const kx=M+(thermal?26:36);
   kv.forEach(([k,v])=>{ font(fs.b,"normal",grey); T(k,M,y); font(fs.b,"bold",ink); const lines=doc.splitTextToSize(String(v),R-kx); T(lines,kx,y); y+=lh(fs.b)*1.35*lines.length+ (thermal?.6:1.2); });
   y+=thermal?2:4;
@@ -1232,14 +1271,14 @@ async function buildNotaPdf(o,fmt){
 function printBrowser(o){
   let area=$("#print-area"); if(!area){ area=document.createElement("div"); area.id="print-area"; document.body.appendChild(area); }
   area.className="force-light";
-  area.innerHTML=notaHTML(o,{precos:false, qr:true}).replace('id="qr"','id="qr-print"');
+  area.innerHTML=notaHTML(o,{precos:false, qr:true, interna:true}).replace('id="qr"','id="qr-print"');
   try{ new QRCode(area.querySelector("#qr-print"),{text:qrText(o.codigo),width:240,height:240,colorDark:"#000000",colorLight:"#ffffff",correctLevel:QRCode.CorrectLevel.Q}); }catch(e){}
   setTimeout(()=>window.print(),150);
 }
 async function printImagem(o){
   if(!window.html2canvas) throw new Error("html2canvas");
   const box=document.createElement("div"); box.className="force-light print-render";
-  box.innerHTML=notaHTML(o,{precos:false, qr:true}).replace('id="qr"','id="qr-pr"');
+  box.innerHTML=notaHTML(o,{precos:false, qr:true, interna:true}).replace('id="qr"','id="qr-pr"');
   document.body.appendChild(box);
   try{
     new QRCode(box.querySelector("#qr-pr"),{text:qrText(o.codigo),width:300,height:300,colorDark:"#000000",colorLight:"#ffffff",correctLevel:QRCode.CorrectLevel.Q});
@@ -1299,7 +1338,7 @@ function waNotaText(o){
   const L=[];
   L.push(`Olá${nome?", "+nome:""}! Aqui é da *Costura Expressa*.`);
   L.push(""); L.push(`*Pedido Nº ${o.codigo}*`); L.push(`Data: ${fmtDate(o.criadoEm)}`); L.push("");
-  (o.itens||[]).forEach(i=>L.push(`• ${i.qtd}× ${U(i.nome)}: ${money(i.preco*i.qtd)}`));
+  (o.itens||[]).forEach(i=>L.push(`• ${i.qtd}× ${U(i.nome)}: ${i.orcamento?"em orçamento (valor a definir)":money(i.preco*i.qtd)}`));
   L.push("");
   if(descOf(o)){ L.push(`Subtotal: ${money(subOf(o))}`); L.push(`${descLabel(o)}: - ${money(descOf(o))}`); }
   L.push(`*Total: ${money(totOf(o))}*`);
@@ -1672,7 +1711,7 @@ $("#ent-cost").addEventListener("change",e=>{ entCost=e.target.value; renderEntr
 function ddCard(o){
   const qt=(o.itens||[]).reduce((a,b)=>a+(b.qtd||0),0); const r=restOf(o);
   return `<button class="ord${(session&&session.papel!=="costureira"&&o.status!=="entregue"&&restOf(o)>0.001)?" devendo":""}" data-open="${esc(o.codigo)}"><span class="stripe ${o.status}"></span>
-    <span class="mid"><span class="row" style="gap:8px"><span class="code">${esc(o.codigo)}</span>${o.retornoDe?`<span class="tag-ret">RETORNO</span>`:""}${comEntrega(o)?`<span class="tag-ent">ENTREGA</span>`:""}<span class="pill st-${o.status}" style="font-size:10px;padding:2px 7px">${STATUS[o.status]}</span></span>
+    <span class="mid"><span class="row" style="gap:8px"><span class="code">${esc(o.codigo)}</span>${o.retornoDe||o.emRetorno?`<span class="tag-ret">RETORNO</span>`:""}${comEntrega(o)?`<span class="tag-ent">ENTREGA</span>`:""}${temOrc(o)&&!(session&&session.papel==="costureira")?`<span class="tag-orc">ORÇAMENTO</span>`:""}<span class="pill st-${o.status}" style="font-size:10px;padding:2px 7px">${STATUS[o.status]}</span></span>
     <span class="who">${esc(U((o.cliente||{}).nome||""))}</span>
     <span class="sub">${qt} serviço${qt>1?"s":""}${(o.cliente||{}).telefone?" · "+esc(o.cliente.telefone):""}${o.costureira?" · "+esc(o.costureira):""}</span>
     ${comEntrega(o)&&o.endereco?`<span class="sub" style="white-space:normal">${esc(o.endereco)}</span>`:""}</span>
@@ -1741,7 +1780,7 @@ function renderPedidos(){
   box.innerHTML = list.length ? list.slice(0,pdLimit).map(o=>{
     const qt=(o.itens||[]).reduce((a,b)=>a+(b.qtd||0),0);
     return `<button class="ord${(session&&session.papel!=="costureira"&&o.status!=="entregue"&&restOf(o)>0.001)?" devendo":""}" data-open="${esc(o.codigo)}"><span class="stripe ${o.status}"></span>
-      <span class="mid"><span class="row" style="gap:8px"><span class="code">${esc(o.codigo)}</span>${o.retornoDe?`<span class="tag-ret">RETORNO</span>`:""}${comEntrega(o)?`<span class="tag-ent">ENTREGA</span>`:""}<span class="pill st-${o.status}" style="font-size:10px;padding:2px 7px">${STATUS[o.status]||o.status}</span></span>
+      <span class="mid"><span class="row" style="gap:8px"><span class="code">${esc(o.codigo)}</span>${o.retornoDe||o.emRetorno?`<span class="tag-ret">RETORNO</span>`:""}${comEntrega(o)?`<span class="tag-ent">ENTREGA</span>`:""}${temOrc(o)&&!(session&&session.papel==="costureira")?`<span class="tag-orc">ORÇAMENTO</span>`:""}<span class="pill st-${o.status}" style="font-size:10px;padding:2px 7px">${STATUS[o.status]||o.status}</span></span>
       <span class="who">${esc(U((o.cliente||{}).nome||""))}</span>
       <span class="sub">${fmtDate(o.criadoEm).slice(0,10)} · ${qt} serviço${qt>1?"s":""}${(o.cliente||{}).telefone?" · "+esc(o.cliente.telefone):""}${o.costureira?" · "+esc(o.costureira):""}</span></span>
       ${verVal?`<span class="val">${o.status!=="entregue"&&restOf(o)>0.001?`<span class="pay-l">a receber</span>${money(restOf(o))}`:money(o.total)}</span>`:""}</button>`; }).join("")
@@ -1827,9 +1866,10 @@ function closeSheet(){ editing=null; if(!$("#overlay")) return; $("#overlay").hi
 $("#overlay").addEventListener("click",e=>{ if(e.target.id==="overlay") closeSheet(); });
 document.addEventListener("keydown",e=>{ if(e.key==="Escape" && !$("#overlay").hidden) closeSheet(); });
 
-function notaHTML(o,{precos=true,qr=true}={}){
+function diaAntes(iso){ if(!iso) return ""; const d=new Date(iso+"T12:00:00"); d.setDate(d.getDate()-1); if(d.getDay()===0) d.setDate(d.getDate()-1); return isoDay(d); }
+function notaHTML(o,{precos=true,qr=true,interna=false}={}){
   const c=o.cliente||{}; const restante=restOf(o);
-  const rows=(o.itens||[]).map(i=>`<tr><td>${esc(i.nome)}</td><td class="n">${i.qtd}×</td>${precos?`<td class="n">${money(i.preco)}</td><td class="n">${money(i.preco*i.qtd)}</td>`:""}</tr>`).join("");
+  const rows=(o.itens||[]).map(i=>`<tr><td>${esc(i.nome)}${i.orcamento?` <span class="aorcar">· EM ORÇAMENTO</span>`:""}</td><td class="n">${i.qtd}×</td>${precos?(i.orcamento?`<td class="n aorcar" colspan="2">A ORÇAR</td>`:`<td class="n">${money(i.preco)}</td><td class="n">${money(i.preco*i.qtd)}</td>`):""}</tr>`).join("");
   return `
     <article class="nota" aria-label="Pedido ${esc(o.codigo)}">
       <div class="nota-head">
@@ -1841,7 +1881,7 @@ function notaHTML(o,{precos=true,qr=true}={}){
         ${(o.retornos||[]).length?`<dt>Retornos</dt><dd>${o.retornos.map(esc).join(", ")}</dd>`:""}
         <dt>Cliente</dt><dd>${esc(c.nome)}</dd>
         ${c.telefone?`<dt>Telefone</dt><dd>${esc(c.telefone)}</dd>`:""}
-        <dt>${comEntrega(o)?"Data da entrega":"Retirada prevista"}</dt><dd>${fmtDay(o.entrega)}</dd>
+        <dt>${comEntrega(o)?"Data da entrega":"Retirada prevista"}</dt><dd>${fmtDay(interna?diaAntes(o.entrega):o.entrega)}</dd>
         <dt>Entrega</dt><dd>${comEntrega(o)?"FAZER ENTREGA":"CLIENTE RETIRA NO ATELIÊ"}</dd>
         ${comEntrega(o)&&o.endereco?`<dt>Endereço</dt><dd>${esc(o.endereco)}</dd>`:""}
         ${o.atendente?`<dt>Atendente</dt><dd>${esc(o.atendente)}</dd>`:""}
@@ -1867,7 +1907,7 @@ function notaHTML(o,{precos=true,qr=true}={}){
 let editing=null;
 function renderEdit(o){
   const c=o.cliente||{};
-  const e={ itens:(o.itens||[]).map(i=>({nome:U(i.nome), preco:Number(i.preco)||0, qtd:Number(i.qtd)||1})),
+  const e={ itens:(o.itens||[]).map(i=>({nome:U(i.nome), preco:Number(i.preco)||0, qtd:Number(i.qtd)||1, orcamento:!!i.orcamento})),
     tipo:o.descontoTipo==="pct"?"pct":"valor", desc: o.descontoTipo==="pct" ? (Number(o.descontoInformado)||0) : (Number(o.desconto)||0) };
   editing=o.codigo;
   const pagOpts=["Pix","Dinheiro","Cartão de débito","Cartão de crédito","Pagar na retirada"];
@@ -1897,10 +1937,10 @@ function renderEdit(o){
       <div class="sumbox" id="ed-sum"></div>
     </div>
     <div class="panel"><span class="label">Observações</span><textarea id="ed-obs">${esc(U(o.obs||""))}</textarea></div>
-    ${o.status==="entregue" && !o.retornoDe ? `<div class="panel ret-box"><span class="label">Retorno</span>
+    ${(o.status==="entregue"||o.status==="pronto") && !o.retornoDe ? `<div class="panel ret-box"><span class="label">Retorno</span>
       <p class="hint">A cliente voltou para refazer algum ajuste? Este pedido fica guardado e um pedido de retorno vai para a fila das costureiras.</p>
       <button class="btn" type="button" id="ed-retorno">Este pedido vai ter retorno</button></div>`
-      : o.status!=="entregue" && !o.retornoDe ? `<div class="panel"><span class="label">Retorno</span><p class="hint">O retorno fica disponível depois que o pedido for marcado como entregue.</p></div>` : ""}
+      : !o.retornoDe ? `<div class="panel"><span class="label">Retorno</span><p class="hint">O retorno fica disponível quando o pedido estiver pronto.</p></div>` : ""}
     <div class="edit-bar"><button class="btn ghost" id="ed-cancel">Cancelar</button><button class="btn primary" id="ed-save">Salvar alterações</button></div>`;
   $("#overlay").scrollTop=0;
   const calc=()=>{
@@ -1915,8 +1955,8 @@ function renderEdit(o){
     return {sub,raw,desc,tot,ent,err};
   };
   const paint=()=>{
-    $("#ed-items").innerHTML = e.itens.length ? e.itens.map((i,k)=>`<div class="ei"><span class="nm">${esc(i.nome)}</span>
-      <input type="number" min="0" step="0.01" inputmode="decimal" data-ep="${k}" value="${i.preco.toFixed(2)}" aria-label="Valor de ${esc(i.nome)}">
+    $("#ed-items").innerHTML = e.itens.length ? e.itens.map((i,k)=>`<div class="ei"><span class="nm">${esc(i.nome)}${i.orcamento?` <span class="aorcar">· A ORÇAR: digite o valor</span>`:""}</span>
+      <input type="number" min="0" step="0.01" inputmode="decimal" data-ep="${k}" value="${i.orcamento?"":i.preco.toFixed(2)}" placeholder="a orçar" aria-label="Valor de ${esc(i.nome)}">
       <div class="step"><button type="button" data-edec="${k}" aria-label="Diminuir">−</button><span class="q">${i.qtd}</span><button type="button" data-einc="${k}" aria-label="Aumentar">+</button></div>
       <button type="button" class="x" data-erm="${k}" aria-label="Remover ${esc(i.nome)}">×</button></div>`).join("") : `<div class="empty">Nenhum serviço. Adicione abaixo.</div>`;
     $("#ed-dt-valor").setAttribute("aria-pressed",String(e.tipo==="valor")); $("#ed-dt-pct").setAttribute("aria-pressed",String(e.tipo==="pct"));
@@ -1932,7 +1972,7 @@ function renderEdit(o){
     if(x) e.itens.splice(+x.dataset.erm,1);
     if(a||d||x) paint();
   });
-  $("#ed-items").addEventListener("input",ev=>{ const k=ev.target.dataset.ep; if(k==null) return; e.itens[+k].preco=round2(Math.max(0,Number(ev.target.value)||0)); sum(); });
+  $("#ed-items").addEventListener("input",ev=>{ const k=ev.target.dataset.ep; if(k==null) return; e.itens[+k].preco=round2(Math.max(0,Number(ev.target.value)||0)); if(e.itens[+k].preco>0) e.itens[+k].orcamento=false; sum(); });
   $("#ed-add").onclick=()=>{ const sv=services.find(x=>x.id===$("#ed-add-sel").value); if(!sv){ toast("Escolha um serviço da tabela."); return; }
     const ex=e.itens.find(i=>i.nome===U(sv.nome) && i.preco===Number(sv.preco)); if(ex) ex.qtd++; else e.itens.push({nome:U(sv.nome), preco:Number(sv.preco)||0, qtd:1});
     $("#ed-add-sel").value=""; paint(); };
@@ -1955,7 +1995,7 @@ function renderEdit(o){
     const btn=$("#ed-save"); btn.disabled=true; btn.textContent="Salvando…";
     const cur=orders.find(x=>x.codigo===o.codigo)||o; const now=Date.now();
     const patch={ cliente:{...(cur.cliente||{}), nome, telefone:$("#ed-tel").value.trim()}, entrega:$("#ed-entrega").value||"", entregaTipo:edEt, endereco: edEt==="entrega"?U($("#ed-end").value.trim()):"",
-      itens:e.itens.map(i=>({nome:i.nome, preco:i.preco, qtd:i.qtd})), subtotal:r.sub, desconto:r.desc, descontoTipo:e.tipo, descontoInformado:r.raw,
+      itens:e.itens.map(i=>({nome:i.nome, preco:i.preco, qtd:i.qtd, ...(i.orcamento?{orcamento:true}:{})})), subtotal:r.sub, desconto:r.desc, descontoTipo:e.tipo, descontoInformado:r.raw,
       total:r.tot, entrada:round2(r.ent), pagamento:$("#ed-pag").value, obs:U($("#ed-obs").value.trim()),
       pagarEm: ($("#ed-pag").value!=="Pagar na retirada" && r.ent>=r.tot-0.001 && r.tot>0) ? "ato" : "retirada",
       editadoEm:now, editadoPor:session?session.nome:"",
@@ -1971,7 +2011,7 @@ function renderRetorno(o){
   editing=o.codigo;
   const c=o.cliente||{};
   $("#sheet").innerHTML=`
-    <div class="sheet-top"><span class="pill st-entregue">Retorno de ${esc(o.codigo)}</span><button class="btn" id="rt-cancel-top">Cancelar</button></div>
+    <div class="sheet-top"><span class="pill st-${o.status}">Retorno de ${esc(o.codigo)}</span><button class="btn" id="rt-cancel-top">Cancelar</button></div>
     <div class="panel"><span class="label">Cliente</span><b style="text-transform:uppercase">${esc(c.nome||"")}</b>${c.telefone?`<span class="muted">${esc(c.telefone)}</span>`:""}</div>
     <div class="panel"><span class="label">O que precisa refazer</span>
       <div class="ret-items">${(o.itens||[]).map((i,k)=>`<label><input type="checkbox" data-ri="${k}" checked> ${esc(U(i.nome))}${i.qtd>1?` (${i.qtd}×)`:""}</label>`).join("")}</div>
@@ -1995,6 +2035,21 @@ function renderRetorno(o){
     const valor=round2(Math.max(0,Number($("#rt-valor").value)||0));
     const btn=$("#rt-save"); btn.disabled=true; btn.textContent="Abrindo…";
     const code=newCode(); const now=Date.now(); const por=session?session.nome:"";
+    if(o.status!=="entregue"){
+      const cur=orders.find(x=>x.codigo===o.codigo)||o;
+      const itens=[...(cur.itens||[])]; if(valor) itens.push({nome:"AJUSTE NO RETORNO", preco:valor, qtd:1});
+      const sub=round2(itens.reduce((a,i)=>a+(Number(i.preco)||0)*(Number(i.qtd)||0),0));
+      const patch={ status:"recebido", costureira:"", emRetorno:true, retornoCount:(cur.retornoCount||0)+1,
+        retornoItens:sel.map(i=>U(i.nome)), retornoMotivo:motivo,
+        obs:U(`${cur.obs?cur.obs+" · ":""}RETORNO: ${sel.map(i=>U(i.nome)).join(", ")} - ${motivo}`),
+        entrega:$("#rt-entrega").value||cur.entrega||"",
+        ...(valor?{itens, subtotal:sub, total:round2(sub-(Number(cur.desconto)||0))}:{}),
+        historico:[...(cur.historico||[]),{status:"recebido", acao:`Retorno: ${motivo}`, por, em:now}] };
+      try{ await db.doc(`pedidos/${o.codigo}`).update(patch); editing=null;
+        toast(`Pedido ${o.codigo} voltou para a fila das costureiras.`); renderSheet({...cur, ...patch}); $("#overlay").scrollTop=0; }
+      catch(err){ writeErr(err); btn.disabled=false; btn.textContent="Abrir retorno"; }
+      return;
+    }
     const itens=sel.map(i=>({nome:U(i.nome), preco:0, qtd:i.qtd}));
     if(valor) itens.push({nome:"AJUSTE NO RETORNO", preco:valor, qtd:1});
     const novo={codigo:code, retornoDe:o.codigo, cliente:{nome:U(c.nome||""), telefone:c.telefone||""}, itens,
@@ -2024,7 +2079,7 @@ function renderSheet(o){
   const waitMsg = {recebido:"Aguardando uma costureira pegar o pedido.", em_costura:"Em costura com "+esc(o.costureira||"a costureira")+".", pronto:"Pronto. A atendente entrega à cliente.", entregue:"Pedido entregue."}[o.status]||"";
   const payBox = restante>0?`<div class="paybox"><div class="field"><label for="pg-rest">Cliente pagou ${money(restante)} com</label>
       <select id="pg-rest"><option>Pix</option><option>Dinheiro</option><option>Cartão de débito</option><option>Cartão de crédito</option></select></div></div>`:"";
-  const nextBtn = (papel==="admin" && o.status!=="entregue") ? `${o.status!=="pronto"?`<p class="hint">${waitMsg}</p>`:""}${payBox}<button class="btn primary" data-st="entregue">Marcar como entregue</button>`
+  const nextBtn = (papel==="admin" && o.status!=="entregue") ? `${o.status!=="pronto"?`<p class="hint">${waitMsg}</p>`:""}${o.status==="pronto"?`<button class="btn" id="ret-pronto">Registrar retorno (a cliente pediu ajuste)</button>`:""}${payBox}<button class="btn primary" data-st="entregue">Marcar como entregue</button>`
     : !canNext ? `<p class="hint">${waitMsg}</p>` : {
     recebido:`<div class="take"><span class="label">Pegar este pedido</span>
       <p style="margin:0">Costureira: <b>${esc(session.nome)}</b></p>
@@ -2081,6 +2136,7 @@ function renderSheet(o){
   const db_=$("#del-ord"); if(db_) db_.onclick=()=>deleteOrder(o,db_);
   const ed_=$("#edit-ord"); if(ed_) ed_.onclick=()=>renderEdit(o);
   const rt_=$("#ret-open"); if(rt_) rt_.onclick=()=>renderRetorno(o);
+  const rp_=$("#ret-pronto"); if(rp_) rp_.onclick=()=>renderRetorno(o);
   $("#sheet").querySelectorAll("[data-print]").forEach(b=>b.onclick=()=>printNota(o.codigo,b.dataset.print,b));
   if(verValores){
   wireWhats(o);
