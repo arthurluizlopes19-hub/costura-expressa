@@ -23,7 +23,7 @@
   --band:#2b9c8e; --band-deep:#23867a; --band-ink:#ffffff;
   --logo-bg:#ffffff; --logo-plum:#9c3567; --logo-teal:#2b9c8e;
   --st-rec:#1f5fbf; --st-rec-bg:#e3edfb; --st-cos:#a3620a; --st-cos-bg:#fbefd9; --st-pro:#18794e; --st-pro-bg:#dff3e8; --st-ent:#5a6677; --st-ent-bg:#e7ebf0;
-  --danger:#b42318; --qr-bg:#ffffff; --qr-fg:#111111;
+  --danger:#b42318; --qr-bg:#ffffff; --qr-fg:#111111; --pay:#9a6700; --pay-bg:#fff4c2; --pay-line:#e8b400;
   --f-display:"Fredoka","Nunito",system-ui,sans-serif;
   --f-body:"Nunito",system-ui,-apple-system,"Segoe UI",Roboto,sans-serif;
   --f-script:"Pacifico","Brush Script MT",cursive;
@@ -35,14 +35,14 @@
   --accent:#e586b3; --accent-soft:#3a1f2d; --accent-ink:#2a0d1b;
   --band:#1f7369; --band-deep:#185d55; --band-ink:#ffffff;
   --st-rec:#8db6ff; --st-rec-bg:#1b2a44; --st-cos:#f2b45b; --st-cos-bg:#3a2a12; --st-pro:#6fd6a2; --st-pro-bg:#12311f; --st-ent:#a3adbb; --st-ent-bg:#252d38;
-  --danger:#ff8a80; color-scheme:dark;
+  --danger:#ff8a80; --pay:#ffd24d; --pay-bg:#3a3008; --pay-line:#e8b400; color-scheme:dark;
 }}
 :root[data-theme="dark"]{
   --bg:#0e1716; --surface:#16211f; --sunken:#111b1a; --ink:#e8eeed; --muted:#9aaba8; --line:#28403d;
   --accent:#e586b3; --accent-soft:#3a1f2d; --accent-ink:#2a0d1b;
   --band:#1f7369; --band-deep:#185d55; --band-ink:#ffffff;
   --st-rec:#8db6ff; --st-rec-bg:#1b2a44; --st-cos:#f2b45b; --st-cos-bg:#3a2a12; --st-pro:#6fd6a2; --st-pro-bg:#12311f; --st-ent:#a3adbb; --st-ent-bg:#252d38;
-  --danger:#ff8a80; color-scheme:dark;
+  --danger:#ff8a80; --pay:#ffd24d; --pay-bg:#3a3008; --pay-line:#e8b400; color-scheme:dark;
 }
 *{box-sizing:border-box}
 :root{padding-top:env(safe-area-inset-top,0px);padding-bottom:env(safe-area-inset-bottom,0px)}
@@ -299,7 +299,7 @@ audio{width:100%;max-width:100%}
 .btn.wa svg{width:20px;height:20px;flex:none}
 .btn.wa[aria-disabled="true"]{opacity:.5;pointer-events:none}
 .wa-box{border-color:color-mix(in srgb,#1fa855 40%,var(--line))}
-.force-light{  --bg:#f1f5f5; --surface:#ffffff; --sunken:#f3f7f7; --ink:#2a2b33; --muted:#647079; --line:#d5e1e0;   --accent:#9c3567; --accent-soft:#f7e7ef; --accent-ink:#ffffff;   --band:#2b9c8e; --band-deep:#23867a; --band-ink:#ffffff;   --logo-bg:#ffffff; --logo-plum:#9c3567; --logo-teal:#2b9c8e;   --st-rec:#1f5fbf; --st-rec-bg:#e3edfb; --st-cos:#a3620a; --st-cos-bg:#fbefd9; --st-pro:#18794e; --st-pro-bg:#dff3e8; --st-ent:#5a6677; --st-ent-bg:#e7ebf0;   --danger:#b42318; --qr-bg:#ffffff; --qr-fg:#111111;   --f-display:"Fredoka","Nunito",system-ui,sans-serif;   --f-body:"Nunito",system-ui,-apple-system,"Segoe UI",Roboto,sans-serif;   --f-script:"Pacifico","Brush Script MT",cursive;   --f-mono:"JetBrains Mono",ui-monospace,Menlo,Consolas,monospace;   --r:14px; color:var(--ink)}
+.force-light{  --bg:#f1f5f5; --surface:#ffffff; --sunken:#f3f7f7; --ink:#2a2b33; --muted:#647079; --line:#d5e1e0;   --accent:#9c3567; --accent-soft:#f7e7ef; --accent-ink:#ffffff;   --band:#2b9c8e; --band-deep:#23867a; --band-ink:#ffffff;   --logo-bg:#ffffff; --logo-plum:#9c3567; --logo-teal:#2b9c8e;   --st-rec:#1f5fbf; --st-rec-bg:#e3edfb; --st-cos:#a3620a; --st-cos-bg:#fbefd9; --st-pro:#18794e; --st-pro-bg:#dff3e8; --st-ent:#5a6677; --st-ent-bg:#e7ebf0;   --danger:#b42318; --qr-bg:#ffffff; --qr-fg:#111111; --pay:#9a6700; --pay-bg:#fff4c2; --pay-line:#e8b400;   --f-display:"Fredoka","Nunito",system-ui,sans-serif;   --f-body:"Nunito",system-ui,-apple-system,"Segoe UI",Roboto,sans-serif;   --f-script:"Pacifico","Brush Script MT",cursive;   --f-mono:"JetBrains Mono",ui-monospace,Menlo,Consolas,monospace;   --r:14px; color:var(--ink)}
 .cli-render{position:fixed;left:-10000px;top:0;width:420px;padding:0;pointer-events:none}
 .cli-render .nota{outline:none}
 .cli-code{display:flex;flex-direction:column;gap:2px;border-top:1px solid var(--line);padding-top:12px}
@@ -396,6 +396,12 @@ input[type="text"]:not(#app-link):not(#m-pin):not(#lg-pin):not([inputmode="numer
 #dd-filtro{scroll-margin-top:170px}
 .tel-row{display:grid;grid-template-columns:auto 1fr;gap:8px}
 .tel-row select{width:auto;min-width:96px}
+.ord.devendo{background:var(--pay-bg);border-color:var(--pay-line)}
+.ord.devendo .val{color:var(--pay)}
+.ord .val .pay-l{display:block;font-size:11px;font-weight:700;color:var(--pay);text-align:right;font-family:var(--f-body)}
+.pay-tag{font-size:10.5px;font-weight:800;letter-spacing:.06em;color:#3a2f00;background:var(--pay-line);border-radius:6px;padding:2px 6px}
+.items tr.pay td{background:var(--pay-bg);color:var(--pay);font-weight:800}
+.sumbox .pay{background:var(--pay-bg);color:var(--pay);border-radius:8px;padding:6px 8px;margin:2px -8px 0}
 .camhelp{font-size:14px}
 .camhelp summary{cursor:pointer;font-weight:700;padding:4px 0}
 .camhelp p{margin:6px 0 10px}
@@ -1003,7 +1009,7 @@ function updateTotal(){
     ${d.desc?`<div class="disc"><span>${lbl}</span><span>− ${money(d.desc)}</span></div>`:""}
     <div class="tot"><span>Total</span><span>${money(tot)}</span></div>
     ${pagarEm==="ato" ? `<div><span>Pago no ato (${esc($("#c-pag").value)})</span><span>${money(tot)}</span></div>`
-      : `${sinal?`<div><span>Sinal (${esc($("#c-pag").value)})</span><span>${money(sinal)}</span></div>`:""}<div><span><b>A pagar na retirada</b></span><span><b>${money(Math.max(0,round2(tot-sinal)))}</b></span></div>`}
+      : `${sinal?`<div><span>Sinal (${esc($("#c-pag").value)})</span><span>${money(sinal)}</span></div>`:""}<div class="pay"><span><b>A pagar na retirada</b></span><span><b>${money(Math.max(0,round2(tot-sinal)))}</b></span></div>`}
     ${d.err?`<div class="err">${d.err}</div>`:""}${pagarEm!=="ato"&&sinal>tot+0.001?`<div class="err">O sinal é maior que o total do pedido.</div>`:""}`;
 }
 function setDescTipo(t){ descTipo=t; $("#dt-valor").setAttribute("aria-pressed",String(t==="valor")); $("#dt-pct").setAttribute("aria-pressed",String(t==="pct"));
@@ -1095,8 +1101,8 @@ function resetForm(){
 function ordCard(o){
   const qt=(o.itens||[]).reduce((a,b)=>a+b.qtd,0);
   const icons=`${(o.fotos||[]).length?'<svg aria-label="tem foto"><use href="#i-img"/></svg>':""}${o.audio?'<svg aria-label="tem áudio"><use href="#i-mic"/></svg>':""}`;
-  return `<button class="ord" data-open="${esc(o.codigo)}"><span class="stripe ${o.status}"></span>
-    <span class="mid"><span class="row" style="gap:8px"><span class="code">${esc(o.codigo)}</span>${o.retornoDe?`<span class="tag-ret">RETORNO</span>`:""}${comEntrega(o)?`<span class="tag-ent">ENTREGA</span>`:""}<span class="ic">${icons}</span></span>
+  return `<button class="ord${(session&&session.papel!=="costureira"&&o.status!=="entregue"&&restOf(o)>0.001)?" devendo":""}" data-open="${esc(o.codigo)}"><span class="stripe ${o.status}"></span>
+    <span class="mid"><span class="row" style="gap:8px"><span class="code">${esc(o.codigo)}</span>${o.retornoDe?`<span class="tag-ret">RETORNO</span>`:""}${comEntrega(o)?`<span class="tag-ent">ENTREGA</span>`:""}${(session&&session.papel!=="costureira"&&o.status!=="entregue"&&restOf(o)>0.001)?`<span class="pay-tag">A PAGAR</span>`:""}<span class="ic">${icons}</span></span>
     <span class="who">${esc(o.cliente?.nome)}</span>
     <span class="sub">${qt} serviço${qt>1?"s":""} · ${lateTxt(o)}${o.costureira?" · "+esc(o.costureira):""}</span>${o.local?`<span><span class="loc">Local: ${esc(o.local)}</span></span>`:""}</span>
     <span class="pill st-${o.status}">${STATUS[o.status]||o.status}</span></button>`;
@@ -1179,7 +1185,7 @@ function layoutNota(doc,o,fmt,logo,qr){
   else {
     if(Number(o.entrada)){ font(fs.b,"normal",ink); T("Sinal ("+(o.pagamento||"")+")",M,y); T(money(o.entrada),R,y,{align:"right"}); y+=thermal?4:5.5; }
     if(o.status==="entregue" && o.valorRetirada){ font(fs.b,"normal",ink); T("Pago na retirada ("+(o.pagamentoRetirada||"")+")",M,y); T(money(o.valorRetirada),R,y,{align:"right"}); y+=thermal?5:8; }
-    else if(restante>0.001){ font(fs.b,"bold",ink); T("A pagar "+ondePaga(o),M,y); T(money(restante),R,y,{align:"right"}); y+=thermal?5:8; }
+    else if(restante>0.001){ doc.setFillColor(255,236,153); doc.rect(M-1,y-(thermal?3.6:4.4),CW+2,thermal?5.2:6.4,"F"); font(fs.b,"bold",[110,74,0]); T("A pagar "+ondePaga(o),M,y); T(money(restante),R,y,{align:"right"}); y+=thermal?5:8; }
   }
   if(o.obs){ font(fs.s,"bold",teal); T("OBSERVAÇÕES",M,y); y+=thermal?3.8:5; font(fs.b,"normal",ink); const lines=doc.splitTextToSize(U(o.obs),CW); T(lines,M,y); y+=lh(fs.b)*1.35*lines.length+(thermal?3:5); }
   hr(true); y+=thermal?4:7;
@@ -1422,7 +1428,7 @@ function renderCaixa(){
         <tr class="minus"><td>Descontos dados</td><td class="n">− ${money(desc)}</td></tr>
         <tr class="tot"><td>Total vendido</td><td class="n">${money(liquido)}</td></tr>
       </table>
-      ${feitos.length?`<div class="orders">${feitos.sort((x,y)=>y.criadoEm-x.criadoEm).map(o=>`<button class="ord" data-open="${esc(o.codigo)}"><span class="stripe ${o.status}"></span>
+      ${feitos.length?`<div class="orders">${feitos.sort((x,y)=>y.criadoEm-x.criadoEm).map(o=>`<button class="ord${(session&&session.papel!=="costureira"&&o.status!=="entregue"&&restOf(o)>0.001)?" devendo":""}" data-open="${esc(o.codigo)}"><span class="stripe ${o.status}"></span>
         <span class="mid"><span class="code">${esc(o.codigo)}</span><span class="who">${esc(o.cliente?.nome)}</span>
         <span class="sub">${new Date(o.criadoEm).toLocaleTimeString("pt-BR",{hour:"2-digit",minute:"2-digit"})} · ${esc(o.pagamento||"")}${descOf(o)?" · desconto "+money(descOf(o)):""}</span></span>
         <span class="val">${money(totOf(o))}</span></button>`).join("")}</div>`:`<div class="empty">Nenhum pedido feito neste dia.</div>`}
@@ -1577,7 +1583,7 @@ function renderEntregues(){
     return `<div class="day-group"><h4><span>${esc(lbl)}</span><span>${l.length}${session&&session.papel==="costureira"?"":" · "+money(sum)}</span></h4><div class="orders">${l.map(o=>{
       const qt=(o.itens||[]).reduce((a,b)=>a+b.qtd,0); const hr=new Date(deliveredAt(o)).toLocaleTimeString("pt-BR",{hour:"2-digit",minute:"2-digit"});
       const by=deliveredBy(o);
-      return `<button class="ord" data-open="${esc(o.codigo)}"><span class="stripe entregue"></span>
+      return `<button class="ord${(session&&session.papel!=="costureira"&&o.status!=="entregue"&&restOf(o)>0.001)?" devendo":""}" data-open="${esc(o.codigo)}"><span class="stripe entregue"></span>
         <span class="mid"><span class="code">${esc(o.codigo)}</span><span class="who">${esc(o.cliente?.nome)}</span>
         <span class="sub">${qt} serviço${qt>1?"s":""} · entregue às ${hr}${by?" por "+esc(by):""}${o.costureira?" · costura: "+esc(o.costureira):""}</span></span>
         ${session&&session.papel==="costureira"?"":`<span class="val">${money(o.total)}</span>`}</button>`; }).join("")}</div></div>`;
@@ -1592,12 +1598,12 @@ $("#ent-cost").addEventListener("change",e=>{ entCost=e.target.value; renderEntr
 /* ---------- entregar no dia ---------- */
 function ddCard(o){
   const qt=(o.itens||[]).reduce((a,b)=>a+(b.qtd||0),0); const r=restOf(o);
-  return `<button class="ord" data-open="${esc(o.codigo)}"><span class="stripe ${o.status}"></span>
+  return `<button class="ord${(session&&session.papel!=="costureira"&&o.status!=="entregue"&&restOf(o)>0.001)?" devendo":""}" data-open="${esc(o.codigo)}"><span class="stripe ${o.status}"></span>
     <span class="mid"><span class="row" style="gap:8px"><span class="code">${esc(o.codigo)}</span>${o.retornoDe?`<span class="tag-ret">RETORNO</span>`:""}${comEntrega(o)?`<span class="tag-ent">ENTREGA</span>`:""}<span class="pill st-${o.status}" style="font-size:10px;padding:2px 7px">${STATUS[o.status]}</span></span>
     <span class="who">${esc(U((o.cliente||{}).nome||""))}</span>
     <span class="sub">${qt} serviço${qt>1?"s":""}${(o.cliente||{}).telefone?" · "+esc(o.cliente.telefone):""}${o.costureira?" · "+esc(o.costureira):""}</span>
     ${comEntrega(o)&&o.endereco?`<span class="sub" style="white-space:normal">${esc(o.endereco)}</span>`:""}</span>
-    <span class="val">${r>0.001?`<span class="muted" style="font-size:11px;display:block;text-align:right">a receber</span>${money(r)}`:`<span class="muted" style="font-size:11px">pago</span>`}</span></button>`;
+    <span class="val">${r>0.001?`<span class="pay-l">a receber</span>${money(r)}`:`<span class="muted" style="font-size:11px">pago</span>`}</span></button>`;
 }
 let ddFiltro=null;
 function renderDoDia(){
@@ -1661,11 +1667,11 @@ function renderPedidos(){
   const verVal = session && session.papel!=="costureira";
   box.innerHTML = list.length ? list.slice(0,pdLimit).map(o=>{
     const qt=(o.itens||[]).reduce((a,b)=>a+(b.qtd||0),0);
-    return `<button class="ord" data-open="${esc(o.codigo)}"><span class="stripe ${o.status}"></span>
+    return `<button class="ord${(session&&session.papel!=="costureira"&&o.status!=="entregue"&&restOf(o)>0.001)?" devendo":""}" data-open="${esc(o.codigo)}"><span class="stripe ${o.status}"></span>
       <span class="mid"><span class="row" style="gap:8px"><span class="code">${esc(o.codigo)}</span>${o.retornoDe?`<span class="tag-ret">RETORNO</span>`:""}${comEntrega(o)?`<span class="tag-ent">ENTREGA</span>`:""}<span class="pill st-${o.status}" style="font-size:10px;padding:2px 7px">${STATUS[o.status]||o.status}</span></span>
       <span class="who">${esc(U((o.cliente||{}).nome||""))}</span>
       <span class="sub">${fmtDate(o.criadoEm).slice(0,10)} · ${qt} serviço${qt>1?"s":""}${(o.cliente||{}).telefone?" · "+esc(o.cliente.telefone):""}${o.costureira?" · "+esc(o.costureira):""}</span></span>
-      ${verVal?`<span class="val">${money(o.total)}</span>`:""}</button>`; }).join("")
+      ${verVal?`<span class="val">${o.status!=="entregue"&&restOf(o)>0.001?`<span class="pay-l">a receber</span>${money(restOf(o))}`:money(o.total)}</span>`:""}</button>`; }).join("")
     : `<div class="empty">${orders.length?"Nenhum pedido encontrado. Confira a pesquisa ou troque o filtro.":"Os pedidos feitos aparecem aqui."}</div>`;
   $("#pd-more").hidden = list.length<=pdLimit;
 }
@@ -1777,7 +1783,7 @@ function notaHTML(o,{precos=true,qr=true}={}){
           ${pagoNoAto(o) ? `<tr><td colspan="3" class="muted" style="font-weight:500">Pago no ato (${esc(o.pagamento)})</td><td class="n" style="font-weight:500">${money(o.entrada)}</td></tr>`
             : `${Number(o.entrada)?`<tr><td colspan="3" class="muted" style="font-weight:500">Sinal (${esc(o.pagamento)})</td><td class="n" style="font-weight:500">${money(o.entrada)}</td></tr>`:""}
                ${o.status==="entregue"&&o.valorRetirada?`<tr><td colspan="3" class="muted" style="font-weight:500">Pago na retirada (${esc(o.pagamentoRetirada||"")})</td><td class="n" style="font-weight:500">${money(o.valorRetirada)}</td></tr><tr><td colspan="3">Situação</td><td class="n">Quitado</td></tr>`
-                 : restante>0.001?`<tr><td colspan="3">A pagar ${ondePaga(o)}</td><td class="n">${money(restante)}</td></tr>`:""}`}
+                 : restante>0.001?`<tr class="pay"><td colspan="3">A pagar ${ondePaga(o)}</td><td class="n">${money(restante)}</td></tr>`:""}`}
         </tfoot>`:""}
       </table></div>
       ${o.obs?`<div><div class="label" style="margin-bottom:6px">Observações</div><div class="obs">${esc(o.obs)}</div></div>`:""}
