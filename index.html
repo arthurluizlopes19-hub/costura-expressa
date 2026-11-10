@@ -1399,7 +1399,7 @@ function wireWhats(o){
   const refresh=()=>{
     const tel = inp ? inp.value : (o.cliente||{}).telefone;
     const ok=!!waNumber(tel);
-    a.href=waLink(tel,waNotaText(o)+"\n\nVeja o seu pedido: "+linkPedido(o)); a.setAttribute("aria-disabled",String(!ok));
+    a.href=waLink(tel,waNotaText(o)); a.setAttribute("aria-disabled",String(!ok));
     if(ap){ ap.href=waLink(tel,waProntoText(o)); ap.setAttribute("aria-disabled",String(!ok)); }
   };
   if(inp) inp.addEventListener("input",refresh);
@@ -1411,7 +1411,7 @@ function wireWhats(o){
       await db.doc(`pedidos/${o.codigo}`).update(patch);
     }catch(e){ console.warn(e); }
   };
-  a.addEventListener("click",()=>{ publicar(o); mark("whatsEnviadoEm"); pm.innerHTML=`Mensagem aberta na conversa da cliente com o link do pedido. É só tocar em enviar no WhatsApp.`; });
+  a.addEventListener("click",()=>mark("whatsEnviadoEm"));
   if(ap) ap.addEventListener("click",()=>mark("whatsProntoEm"));
   // prepara a imagem do pedido (sem QR) assim que a nota abre, para copiar/compartilhar na hora do toque
   let img=null; const ib=$("#wa-img"), sb=$("#wa-share"), pm=$("#wa-msg");
@@ -1451,8 +1451,11 @@ function wireWhats(o){
     if(podeArquivo()) return enviarCopiando();
     saveFile(img,img.name); pm.textContent="Imagem baixada ("+img.name+"). Anexe na conversa da cliente pelo clipe.";
   };
-  const ajustar=()=>{ sb.hidden=true; };
-  pm.innerHTML=`${o.whatsEnviadoEm?`Pedido enviado em ${fmtDate(o.whatsEnviadoEm)}. `:""}O botão verde abre direto a conversa de <b>${esc(nomeCli)}</b> com a mensagem do pedido e um link para a cliente ver a nota completa. Para mandar a foto da nota, use <b>Compartilhar a imagem do pedido</b> e escolha a conversa.`;
+  // ajusta textos quando a imagem fica pronta
+  const ajustar=()=>{ if(!img) return;
+    if(podeArquivo()){ sb.hidden=false; sb.textContent="Copiar imagem e abrir a conversa da cliente";
+      pm.innerHTML=`${o.whatsEnviadoEm?`Pedido enviado em ${fmtDate(o.whatsEnviadoEm)}. `:""}Toque em <b>Compartilhar para o WhatsApp</b>, escolha o <b>WhatsApp</b> e depois a conversa de <b>${esc(nomeCli)}</b>. A imagem vai junto com a mensagem.`; }
+    else { sb.hidden=false; sb.textContent="Baixar a imagem do pedido"; } };
   const espera=setInterval(()=>{ if(img||!document.body.contains(ib)){ clearInterval(espera); ajustar(); } },200);
 }
 async function clienteImagem(o){
@@ -2113,9 +2116,9 @@ function renderSheet(o){
     ${notaHTML(o,{precos:papel!=="costureira", qr:true})}
     ${verValores?`<div class="panel wa-box"><span class="label">Enviar para a cliente</span>
       ${waNumber(c.telefone)?"":`<div class="field"><label for="wa-tel">WhatsApp da cliente</label><input type="tel" id="wa-tel" placeholder="(81) 9 9999-9999" value="${esc(c.telefone||"")}"></div>`}
-      <a class="btn wa" id="wa-nota" href="${waLink(c.telefone,waNotaText(o)+"\n\nVeja o seu pedido: "+linkPedido(o))}" target="_blank" rel="noopener">${waIcon}Enviar pedido no WhatsApp da cliente</a>
-      <button class="btn" id="wa-img">Compartilhar a imagem do pedido</button>
-      <button class="btn" id="wa-share" hidden>Copiar imagem e abrir a conversa</button>
+      <button class="btn wa" id="wa-img">${waIcon}Compartilhar para o WhatsApp</button>
+      <button class="btn" id="wa-share" hidden>Compartilhar a imagem de outro jeito</button>
+      <a class="btn wa ghostwa" id="wa-nota" href="${waLink(c.telefone,waNotaText(o))}" target="_blank" rel="noopener">${waIcon}Enviar só a mensagem de texto</a>
       ${o.status==="pronto"?`<a class="btn wa ghostwa" id="wa-pronto" href="${waLink(c.telefone,waProntoText(o))}" target="_blank" rel="noopener">${waIcon}Avisar que a peça está pronta</a>`:""}
       <p class="hint" id="wa-msg">${o.whatsEnviadoEm?`Pedido enviado pelo WhatsApp em ${fmtDate(o.whatsEnviadoEm)}. `:""}Abre a conversa de ${esc((c.nome||"").split(" ")[0]||"cliente")}${waNumber(c.telefone)?" ("+esc(c.telefone)+")":""} com o texto “Segue o seu pedido” pronto e a imagem copiada: toque e segure na caixa de mensagem, escolha <b>Colar</b> e envie junto com o texto.</p>
     </div>`:""}
