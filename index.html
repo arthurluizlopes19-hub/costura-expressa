@@ -354,6 +354,8 @@ input[type="text"]:not(#app-link):not(#m-pin):not(#lg-pin):not([inputmode="numer
 .paywhen{display:grid;grid-template-columns:1fr 1fr;gap:8px}
 .paywhen button{min-height:48px;border:1.5px solid var(--line);background:var(--sunken);border-radius:10px;font-weight:800;cursor:pointer;color:var(--muted);padding:8px}
 .paywhen button[aria-pressed="true"]{border-color:var(--accent);background:var(--accent-soft);color:var(--accent)}
+#pm-ato{border-color:var(--accent);color:var(--accent)}
+#pm-ato[aria-pressed="true"]{background:var(--accent);color:var(--accent-ink)}
 .desc-field label{color:var(--danger)!important;font-weight:800}
 .desc-field input{border-color:color-mix(in srgb,var(--danger) 55%,var(--line))!important;color:var(--danger)}
 .desc-field .seg{border-color:color-mix(in srgb,var(--danger) 55%,var(--line))}
@@ -654,8 +656,8 @@ input[type="text"]:not(#app-link):not(#m-pin):not(#lg-pin):not([inputmode="numer
         <span class="label">Pagamento</span>
         <div class="field"><span class="flabel">Quando a cliente vai pagar?</span>
           <div class="paywhen" role="group" aria-label="Quando a cliente vai pagar">
-            <button type="button" id="pm-ato" aria-pressed="false">Pagar no ato do pedido</button>
-            <button type="button" id="pm-ret" aria-pressed="true">Pagar na retirada</button>
+            <button type="button" id="pm-ato" aria-pressed="true">Pagar no ato do pedido</button>
+            <button type="button" id="pm-ret" aria-pressed="false">Pagar na retirada</button>
           </div>
         </div>
         <div class="grid2">
@@ -1156,7 +1158,7 @@ function calcDesconto(sub){
   if(raw>sub) return {desc:0, raw, err:"O desconto é maior que o valor dos serviços."};
   return {desc:round2(raw), raw, err:""};
 }
-let pagarEm="retirada";
+let pagarEm="ato";
 function setPagarEm(v){ pagarEm=v; $("#pm-ato").setAttribute("aria-pressed",String(v==="ato")); $("#pm-ret").setAttribute("aria-pressed",String(v==="retirada")); updateTotal(); }
 function updateTotal(){
   const it=cartItems(); const sub=round2(it.reduce((a,b)=>a+b.preco*b.qtd,0)); const n=it.reduce((a,b)=>a+b.qtd,0);
@@ -1261,7 +1263,7 @@ async function finalizar(){
 function resetForm(){
   orcs=[]; $("#orc-nome").value=""; renderOrcs(); setPrioNovo(false);
   $("#c-end").value=""; setEntrega("retirada");
-  pagarEm="retirada"; $("#pm-ato").setAttribute("aria-pressed","false"); $("#pm-ret").setAttribute("aria-pressed","true"); $("#c-pag").value="Pix";
+  pagarEm="ato"; $("#pm-ato").setAttribute("aria-pressed","true"); $("#pm-ret").setAttribute("aria-pressed","false"); $("#c-pag").value="Pix";
   autoNome=""; $("#c-found").hidden=true;
   extras=[]; $("#av-nome").value=""; $("#av-preco").value=""; renderExtras();
   ["#c-nome","#c-tel","#c-entrega","#c-obs","#c-entrada","#c-desc","#svc-busca"].forEach(s=>$(s).value=""); $("#c-ddi").value="+55"; $("#c-tel").placeholder="(81) 9 9999-9999"; $("#c-tel-hint").hidden=true; descTipo="valor"; setDescTipo("valor");
@@ -1438,7 +1440,10 @@ function waNumber(tel){
   return d.length>=10 ? d : "";
 }
 const ehCelular=/Android|iPhone|iPad|iPod/i.test(navigator.userAgent||"");
+const ehAndroid=/Android/i.test(navigator.userAgent||"");
+// No Android abre sempre o WhatsApp Business (pacote com.whatsapp.w4b), nunca o WhatsApp normal.
 function waLink(tel,text){ const n=waNumber(tel);
+  if(ehAndroid) return "intent://send/?phone="+(n||"")+"&text="+encodeURIComponent(text)+"#Intent;scheme=whatsapp;package=com.whatsapp.w4b;end";
   return ehCelular ? "whatsapp://send?phone="+(n||"")+"&text="+encodeURIComponent(text) : "https://wa.me/"+(n||"")+"?text="+encodeURIComponent(text); }
 function abrirWA(tel,text){ const u=waLink(tel,text); if(ehCelular) location.href=u; else window.open(u,"_blank","noopener"); }
 function linkPedido(o){ const base=location.href.split("#")[0].split("?")[0].replace(/[^/]*$/,""); return base+"pedido.html?c="+o.codigo; }
