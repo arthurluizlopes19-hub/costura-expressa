@@ -1442,20 +1442,27 @@ function wireWhats(o){
       : "Este aparelho não deixou copiar a imagem. Toque em <b>Compartilhar para o WhatsApp</b> de novo e escolha a conversa da cliente.";
   };
   ib.onclick=async()=>{
-    if(!img){ toast("A imagem ainda está sendo preparada. Tente de novo em instantes."); return; }
-    if(podeArquivo()){ if(await enviarCompartilhando()) return; }
-    await enviarCopiando();
+    const tel=telAtual();
+    if(!waNumber(tel)){ toast("Informe o WhatsApp da cliente."); if(inp) inp.focus(); return; }
+    if(!img){ toast("A foto do pedido ainda está sendo preparada. Tente de novo em instantes."); return; }
+    let copiou=false;
+    try{ if(navigator.clipboard && window.ClipboardItem){ await navigator.clipboard.write([new ClipboardItem({"image/png": Promise.resolve(img)})]); copiou=true; } }catch(e){ console.warn(e); }
+    if(!copiou){ try{ saveFile(img,img.name); }catch(e){} }
+    window.open(waLink(tel,legenda()),"_blank","noopener");
+    mark("whatsEnviadoEm");
+    pm.innerHTML = copiou
+      ? `Abrimos a conversa de <b>${esc(nomeCli)}</b> com a mensagem. A foto da nota foi copiada: toque e segure na caixa de mensagem, escolha <b>Colar</b> e envie. Se o Colar não mostrar a foto, toque no 📎 e escolha a foto <b>${esc(img.name)}</b> na galeria.`
+      : `Abrimos a conversa de <b>${esc(nomeCli)}</b> com a mensagem. A foto da nota foi salva no celular (${esc(img.name)}): toque no 📎 do WhatsApp, escolha <b>Galeria</b> (ou Downloads) e envie.`;
   };
   sb.onclick=async()=>{
     if(!img){ toast("A imagem ainda está sendo preparada. Tente de novo em instantes."); return; }
-    if(podeArquivo()) return enviarCopiando();
+    if(podeArquivo()){ await enviarCompartilhando(); return; }
     saveFile(img,img.name); pm.textContent="Imagem baixada ("+img.name+"). Anexe na conversa da cliente pelo clipe.";
   };
   // ajusta textos quando a imagem fica pronta
   const ajustar=()=>{ if(!img) return;
-    if(podeArquivo()){ sb.hidden=false; sb.textContent="Copiar imagem e abrir a conversa da cliente";
-      pm.innerHTML=`${o.whatsEnviadoEm?`Pedido enviado em ${fmtDate(o.whatsEnviadoEm)}. `:""}Toque em <b>Compartilhar para o WhatsApp</b>, escolha o <b>WhatsApp</b> e depois a conversa de <b>${esc(nomeCli)}</b>. A imagem vai junto com a mensagem.`; }
-    else { sb.hidden=false; sb.textContent="Baixar a imagem do pedido"; } };
+    sb.hidden=false; if(!podeArquivo()) sb.textContent="Baixar a foto do pedido";
+    pm.innerHTML=`${o.whatsEnviadoEm?`Pedido enviado em ${fmtDate(o.whatsEnviadoEm)}. `:""}O botão verde abre direto a conversa de <b>${esc(nomeCli)}</b> com a mensagem e deixa a foto da nota pronta para anexar.`; };
   const espera=setInterval(()=>{ if(img||!document.body.contains(ib)){ clearInterval(espera); ajustar(); } },200);
 }
 async function clienteImagem(o){
@@ -2116,8 +2123,8 @@ function renderSheet(o){
     ${notaHTML(o,{precos:papel!=="costureira", qr:true})}
     ${verValores?`<div class="panel wa-box"><span class="label">Enviar para a cliente</span>
       ${waNumber(c.telefone)?"":`<div class="field"><label for="wa-tel">WhatsApp da cliente</label><input type="tel" id="wa-tel" placeholder="(81) 9 9999-9999" value="${esc(c.telefone||"")}"></div>`}
-      <button class="btn wa" id="wa-img">${waIcon}Compartilhar para o WhatsApp</button>
-      <button class="btn" id="wa-share" hidden>Compartilhar a imagem de outro jeito</button>
+      <button class="btn wa" id="wa-img">${waIcon}Enviar no WhatsApp da cliente</button>
+      <button class="btn" id="wa-share" hidden>Compartilhar a foto (escolher a conversa)</button>
       <a class="btn wa ghostwa" id="wa-nota" href="${waLink(c.telefone,waNotaText(o))}" target="_blank" rel="noopener">${waIcon}Enviar só a mensagem de texto</a>
       ${o.status==="pronto"?`<a class="btn wa ghostwa" id="wa-pronto" href="${waLink(c.telefone,waProntoText(o))}" target="_blank" rel="noopener">${waIcon}Avisar que a peça está pronta</a>`:""}
       <p class="hint" id="wa-msg">${o.whatsEnviadoEm?`Pedido enviado pelo WhatsApp em ${fmtDate(o.whatsEnviadoEm)}. `:""}Abre a conversa de ${esc((c.nome||"").split(" ")[0]||"cliente")}${waNumber(c.telefone)?" ("+esc(c.telefone)+")":""} com o texto “Segue o seu pedido” pronto e a imagem copiada: toque e segure na caixa de mensagem, escolha <b>Colar</b> e envie junto com o texto.</p>
