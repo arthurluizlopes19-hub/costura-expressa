@@ -397,6 +397,22 @@ input[type="text"]:not(#app-link):not(#m-pin):not(#lg-pin):not([inputmode="numer
 .tel-row{display:grid;grid-template-columns:auto 1fr;gap:8px}
 .tel-row select{width:auto;min-width:96px}
 .ord.devendo{background:var(--pay-bg);border-color:var(--pay-line)}
+.cl-list{display:flex;flex-direction:column;gap:8px}
+.cli{background:var(--surface);border:1px solid var(--line);border-radius:10px;overflow:hidden}
+.cli>button.cli-h{display:grid;grid-template-columns:auto 1fr auto auto;gap:12px;align-items:center;width:100%;padding:12px;background:none;border:0;color:inherit;font:inherit;text-align:left;cursor:pointer}
+.cli .av{width:38px;height:38px;border-radius:50%;background:var(--band);color:var(--band-ink);display:grid;place-items:center;font-weight:800;font-size:15px}
+.cli .nm{font-weight:700;min-width:0;overflow:hidden;text-overflow:ellipsis;white-space:nowrap;text-transform:uppercase}
+.cli .sub{font-size:12.5px;color:var(--muted);min-width:0;overflow:hidden;text-overflow:ellipsis;white-space:nowrap}
+.cli .mid{min-width:0;display:flex;flex-direction:column}
+.cli .cnt{font-size:12px;font-weight:800;color:var(--muted);text-align:right;white-space:nowrap}
+.cli .cnt.ab{color:var(--pay)}
+.cli .chev{color:var(--muted);transition:transform .15s}
+.cli.open .chev{transform:rotate(90deg)}
+.cli-b{padding:0 12px 12px;display:flex;flex-direction:column;gap:10px;border-top:1px dashed var(--line)}
+.cli-b .info{display:grid;grid-template-columns:auto 1fr;gap:4px 12px;font-size:13.5px;padding-top:10px}
+.cli-b .info dt{color:var(--muted)} .cli-b .info dd{margin:0;font-weight:700;overflow-wrap:anywhere}
+.cli-b .acts{display:flex;gap:8px;flex-wrap:wrap}
+.cli-b .acts .btn{flex:1 1 140px}
 .ord.devendo .val{color:var(--pay)}
 .ord .val .pay-l{display:block;font-size:11px;font-weight:700;color:var(--pay);text-align:right;font-family:var(--f-body)}
 .pay-tag{font-size:10.5px;font-weight:800;letter-spacing:.06em;color:#3a2f00;background:var(--pay-line);border-radius:6px;padding:2px 6px}
@@ -669,6 +685,19 @@ input[type="text"]:not(#app-link):not(#m-pin):not(#lg-pin):not([inputmode="numer
     </section>
 
     <!-- PEDIDOS: pesquisa -->
+    <section class="view" id="view-clientes" hidden>
+      <h2 class="sec">Clientes</h2>
+      <label class="svc-search" for="cl-busca"><svg viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2.2" stroke-linecap="round" aria-hidden="true"><circle cx="11" cy="11" r="7"/><path d="m20 20-3.5-3.5"/></svg><input type="search" id="cl-busca" placeholder="NOME OU TELEFONE" autocomplete="off" aria-label="Pesquisar clientes"></label>
+      <div class="chips" id="cl-ordem">
+        <button class="chip" data-ord="nome" aria-pressed="true">A a Z</button>
+        <button class="chip" data-ord="recente" aria-pressed="false">Mais recentes</button>
+        <button class="chip" data-ord="pedidos" aria-pressed="false">Mais pedidos</button>
+        <button class="chip" data-ord="abertos" aria-pressed="false">Com pedido aberto</button>
+      </div>
+      <p class="hint" id="cl-count"></p>
+      <div class="cl-list" id="cl-list"></div>
+    </section>
+
     <section class="view" id="view-pedidos" hidden>
       <h2 class="sec">Pedidos</h2>
       <label class="svc-search" for="pd-busca"><svg viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2.2" stroke-linecap="round" aria-hidden="true"><circle cx="11" cy="11" r="7"/><path d="m20 20-3.5-3.5"/></svg><input type="search" id="pd-busca" placeholder="NOME, TELEFONE, CÓDIGO OU SERVIÇO" autocomplete="off" aria-label="Pesquisar pedidos"></label>
@@ -872,7 +901,7 @@ let saving = false;
 let sheetKey = -1;
 let takePhoto = null; // {blob,url}
 const ROLES = {gerencia:"Gerência", admin:"Administração", atendente:"Atendente", costureira:"Costureira"};
-const VIEWS = {gerencia:["atendimento","pedidos","dodia","caixa","faturamento","producao","entregues","servicos","equipe"], admin:["atendimento","pedidos","dodia","caixa","producao","entregues","servicos","equipe"], atendente:["atendimento","pedidos","dodia","caixa","entregues"], costureira:["costureiras","logistica","entregues"]};
+const VIEWS = {gerencia:["atendimento","pedidos","clientes","dodia","caixa","faturamento","producao","entregues","servicos","equipe"], admin:["atendimento","pedidos","clientes","dodia","caixa","producao","entregues","servicos","equipe"], atendente:["atendimento","pedidos","clientes","dodia","caixa","entregues"], costureira:["costureiras","logistica","entregues"]};
 let team = [];
 let teamLoaded = false;
 let session = null;      // {id,nome,papel}
@@ -933,11 +962,12 @@ function compressImage(file, max=1400, q=.72){
 }
 
 /* ---------- abas ---------- */
-const ALL_VIEWS=["menu","atendimento","pedidos","dodia","caixa","faturamento","costureiras","producao","logistica","entregues","servicos","equipe"];
+const ALL_VIEWS=["menu","atendimento","pedidos","clientes","dodia","caixa","faturamento","costureiras","producao","logistica","entregues","servicos","equipe"];
 const IC=(d)=>`<svg viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2" stroke-linecap="round" stroke-linejoin="round" aria-hidden="true">${d}</svg>`;
 const VIEW_INFO={
   atendimento:{t:"Atendimento", d:"Fazer um novo pedido", i:IC('<path d="M12 5v14M5 12h14"/>')},
   pedidos:{t:"Pedidos", d:"Encontrar e pesquisar pedidos", i:IC('<circle cx="11" cy="11" r="7"/><path d="m20 20-3.5-3.5"/>')},
+  clientes:{t:"Clientes", d:"Todas as clientes cadastradas", i:IC('<circle cx="12" cy="7" r="4"/><path d="M5 21v-1a7 7 0 0 1 14 0v1"/><path d="M3 3h4M17 3h4"/>')},
   dodia:{t:"Entregar no dia", d:"O que sai hoje", i:IC('<rect x="3" y="4" width="18" height="17" rx="2"/><path d="M8 2v4M16 2v4M3 10h18"/>')},
   caixa:{t:"Caixa do dia", d:"Quanto entrou hoje", i:IC('<rect x="2" y="6" width="20" height="12" rx="2"/><circle cx="12" cy="12" r="2.5"/>')},
   faturamento:{t:"Faturamento", d:"Quanto entrou no mês", i:IC('<path d="M4 20V10M10 20V4M16 20v-7M22 20H2"/>')},
@@ -955,6 +985,7 @@ function menuBadges(){
   b.dodia=[ab.filter(o=>o.entrega===hoje).length, ab.some(o=>o.entrega && o.entrega<hoje)];
   b.costureiras=[orders.filter(o=>o.status==="recebido").length,false];
   b.producao=[orders.filter(o=>o.status==="em_costura").length,false];
+  b.clientes=[listaClientes().length,false];
   return b;
 }
 function renderMenu(){
@@ -1735,6 +1766,67 @@ let entT=null;
 $("#ent-busca").addEventListener("input",e=>{ clearTimeout(entT); entT=setTimeout(()=>{ entBusca=e.target.value; if(entBusca.trim()&&entPer!=="tudo"){ entPer="tudo"; $("#ent-periodo").querySelectorAll("[data-per]").forEach(x=>x.setAttribute("aria-pressed",String(x.dataset.per==="tudo"))); } renderEntregues(); },200); });
 $("#ent-cost").addEventListener("change",e=>{ entCost=e.target.value; renderEntregues(); });
 
+/* ---------- clientes ---------- */
+let clOrdem="nome", clBusca="", clAberto="", clLimit=80;
+function listaClientes(){
+  const m=new Map();
+  clientes.forEach((d,k)=>{ m.set(k,{k, nome:U(d.nome||""), telefone:d.telefone||"", endereco:d.endereco||"", ped:[]}); });
+  orders.forEach(o=>{ const c=o.cliente||{}; const k=telKey(c.telefone)||("sem:"+norm(c.nome||"").trim()); if(k==="sem:") return;
+    if(!m.has(k)) m.set(k,{k, nome:U(c.nome||""), telefone:c.telefone||"", endereco:"", ped:[]});
+    const x=m.get(k); x.ped.push(o); if(!x.nome) x.nome=U(c.nome||""); if(!x.telefone) x.telefone=c.telefone||""; if(!x.endereco && o.endereco) x.endereco=o.endereco; });
+  return [...m.values()].map(x=>{ x.ped.sort((a,b)=>(b.criadoEm||0)-(a.criadoEm||0)); x.ultimo=x.ped[0]?x.ped[0].criadoEm||0:0;
+    x.abertos=x.ped.filter(o=>o.status!=="entregue"); x.gasto=round2(x.ped.reduce((a,o)=>a+(Number(o.total)||0),0)); x.deve=round2(x.abertos.reduce((a,o)=>a+restOf(o),0)); return x; });
+}
+function renderClientes(){
+  const box=$("#cl-list"); if(!box) return;
+  const veValor=session&&session.papel!=="costureira";
+  let l=listaClientes(); const total=l.length;
+  const q=norm(clBusca).trim(), qd=q.replace(/\D/g,"");
+  if(q) l=l.filter(x=>norm(x.nome).includes(q) || (qd.length>=3 && String(x.telefone).replace(/\D/g,"").includes(qd)) || (qd.length>=3 && x.k.includes(qd)));
+  if(clOrdem==="abertos") l=l.filter(x=>x.abertos.length);
+  const az=(a,b)=>a.nome.localeCompare(b.nome,"pt-BR");
+  l.sort(clOrdem==="recente"?(a,b)=>b.ultimo-a.ultimo||az(a,b) : clOrdem==="pedidos"?(a,b)=>b.ped.length-a.ped.length||az(a,b) : az);
+  $("#cl-count").textContent = q||clOrdem==="abertos" ? `${l.length} de ${total} cliente${total===1?"":"s"}` : `${total} cliente${total===1?"":"s"} cadastrada${total===1?"":"s"}`;
+  if(!l.length){ box.innerHTML=`<div class="empty">${total?"Nenhuma cliente encontrada.":"As clientes aparecem aqui assim que o primeiro pedido for feito."}</div>`; return; }
+  const vis=l.slice(0,clLimit);
+  box.innerHTML=vis.map(x=>{ const ab=clAberto===x.k; const ini=(x.nome.trim()[0]||"?");
+    return `<div class="cli${ab?" open":""}"><button class="cli-h" data-cli="${esc(x.k)}" aria-expanded="${ab}">
+      <span class="av" aria-hidden="true">${esc(ini)}</span>
+      <span class="mid"><span class="nm">${esc(x.nome||"SEM NOME")}</span><span class="sub">${esc(x.telefone||"sem telefone")}${x.ultimo?" · último pedido "+new Date(x.ultimo).toLocaleDateString("pt-BR"):""}</span></span>
+      <span class="cnt${x.abertos.length?" ab":""}">${x.ped.length} pedido${x.ped.length===1?"":"s"}${x.abertos.length?`<br>${x.abertos.length} aberto${x.abertos.length===1?"":"s"}`:""}</span>
+      <span class="chev" aria-hidden="true">›</span></button>
+      ${ab?`<div class="cli-b">
+        <dl class="info"><dt>Telefone</dt><dd>${esc(x.telefone||"—")}</dd>
+          ${x.endereco?`<dt>Endereço</dt><dd>${esc(U(x.endereco))}</dd>`:""}
+          <dt>Pedidos</dt><dd>${x.ped.length}${x.abertos.length?` (${x.abertos.length} em aberto)`:""}</dd>
+          ${veValor&&x.ped.length?`<dt>Total gasto</dt><dd>${money(x.gasto)}</dd>`:""}
+          ${veValor&&x.deve>0.001?`<dt>A receber</dt><dd style="color:var(--pay)">${money(x.deve)}</dd>`:""}</dl>
+        <div class="acts">${waNumber(x.telefone)?`<a class="btn wa" href="${waLink(x.telefone,"")}" ${ehCelular?"":'target="_blank" rel="noopener"'}>${waIcon}WhatsApp</a>`:""}
+          ${VIEWS[session.papel].includes("atendimento")?`<button class="btn" data-cli-novo="${esc(x.k)}">Novo pedido</button>`:""}</div>
+        ${x.ped.length?`<div class="orders">${x.ped.map(ordCard).join("")}</div>`:`<p class="hint">Nenhum pedido ainda.</p>`}
+      </div>`:""}</div>`; }).join("")
+    + (l.length>vis.length?`<button class="btn" id="cl-mais">Mostrar mais (${l.length-vis.length})</button>`:"");
+  const mais=$("#cl-mais"); if(mais) mais.onclick=()=>{ clLimit+=80; renderClientes(); };
+}
+$("#cl-list").addEventListener("click",e=>{
+  const n=e.target.closest("[data-cli-novo]");
+  if(n){ const x=listaClientes().find(c=>c.k===n.dataset.cliNovo); if(!x) return;
+    setView("atendimento");
+    const t=String(x.telefone||"").trim(); const d=t.replace(/\D/g,"");
+    if(t.startsWith("+") && !t.startsWith("+55")){ $("#c-ddi").value="+"; $("#c-tel").value=t; }
+    else { $("#c-ddi").value="+55"; $("#c-tel").value = t.startsWith("+55")? d.slice(2) : t; }
+    $("#c-ddi").dispatchEvent(new Event("change"));
+    $("#c-tel").dispatchEvent(new Event("input",{bubbles:true}));
+    if(!$("#c-nome").value.trim()) $("#c-nome").value=x.nome;
+    return; }
+  const h=e.target.closest("[data-cli]"); if(!h) return;
+  clAberto = clAberto===h.dataset.cli ? "" : h.dataset.cli; renderClientes();
+});
+$("#cl-ordem").addEventListener("click",e=>{ const b=e.target.closest("[data-ord]"); if(!b) return; clOrdem=b.dataset.ord;
+  $("#cl-ordem").querySelectorAll("[data-ord]").forEach(x=>x.setAttribute("aria-pressed",String(x===b))); renderClientes(); });
+let clT=null;
+$("#cl-busca").addEventListener("input",e=>{ clearTimeout(clT); clT=setTimeout(()=>{ clBusca=e.target.value; clLimit=80; renderClientes(); },200); });
+
 /* ---------- entregar no dia ---------- */
 function ddCard(o){
   const qt=(o.itens||[]).reduce((a,b)=>a+(b.qtd||0),0); const r=restOf(o);
@@ -2448,7 +2540,7 @@ function startSession(s){
   $("#c-atend").value=s.nome; $("#cost-nome").value=s.nome;
 
   setView("menu",true);
-  renderRecent(); renderQueue(); renderLogi(); renderEntregues(); renderCaixa(); renderProducao(); renderPedidos(); renderFaturamento(); renderDoDia(); if(curView==="menu") renderMenu();
+  renderRecent(); renderQueue(); renderLogi(); renderEntregues(); renderCaixa(); renderProducao(); renderPedidos(); renderClientes(); renderFaturamento(); renderDoDia(); if(curView==="menu") renderMenu();
   if(hashCode && ordersLoaded && !hashOpened){ hashOpened=true; openOrder(hashCode); }
 }
 function logout(){
@@ -2626,7 +2718,7 @@ document.addEventListener("input",e=>{
 const U=t=>String(t??"").toLocaleUpperCase("pt-BR");
 
 /* ---------- inicialização ---------- */
-renderPick(); renderPhotos(); renderAudio(); renderRecent(); renderQueue(); renderLogi(); renderEntregues(); renderCaixa(); renderProducao(); renderPedidos(); renderFaturamento(); renderDoDia(); if(curView==="menu") renderMenu(); renderSvcEdit();
+renderPick(); renderPhotos(); renderAudio(); renderRecent(); renderQueue(); renderLogi(); renderEntregues(); renderCaixa(); renderProducao(); renderPedidos(); renderClientes(); renderFaturamento(); renderDoDia(); if(curView==="menu") renderMenu(); renderSvcEdit();
 const hashCode = extractCode(decodeURIComponent(location.hash||""));
 let ordersLoaded=false, hashOpened=false;
 const offT=setTimeout(()=>{ if(!db) $("#offline").hidden=false; },4000);
@@ -2687,7 +2779,7 @@ function startData(){
     if(!session) renderLogin();
     renderTeam(); renderLogi(); renderProducao();
   }, e=>console.error(e));
-  db.collection("clientes").onSnapshot(s=>{ clientes.clear(); s.docs.forEach(d=>clientes.set(d.id,d.data())); if(telKey(telCompleto())) checkCliente(); }, e=>console.warn(e));
+  db.collection("clientes").onSnapshot(s=>{ clientes.clear(); s.docs.forEach(d=>clientes.set(d.id,d.data())); if(telKey(telCompleto())) checkCliente(); renderClientes(); if(curView==="menu") renderMenu(); }, e=>console.warn(e));
   db.collection("servicos").orderBy("nome").onSnapshot(s=>{
     services=s.docs.map(d=>({id:d.id,...d.data()})).sort((a,b)=>String(a.nome).localeCompare(String(b.nome),"pt-BR"));
     Object.keys(cart).forEach(k=>{ if(!services.find(x=>x.id===k)) delete cart[k]; });
@@ -2696,7 +2788,7 @@ function startData(){
   let first=true;
   db.collection("pedidos").orderBy("criadoEm","desc").limit(1000).onSnapshot(s=>{
     orders=s.docs.map(d=>d.data());
-    renderRecent(); renderQueue(); renderLogi(); renderEntregues(); renderCaixa(); renderProducao(); renderPedidos(); renderFaturamento(); renderDoDia(); if(curView==="menu") renderMenu();
+    renderRecent(); renderQueue(); renderLogi(); renderEntregues(); renderCaixa(); renderProducao(); renderPedidos(); renderClientes(); renderFaturamento(); renderDoDia(); if(curView==="menu") renderMenu();
     if(openCode){ const o=orders.find(x=>x.codigo===openCode); if(o && !editing && (o.historico||[]).length!==sheetKey) renderSheet(o); }
     if(first){ first=false; ordersLoaded=true; if(hashCode && session && !hashOpened){ hashOpened=true; openOrder(hashCode); } }
   }, e=>console.error(e));
