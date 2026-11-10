@@ -23,7 +23,7 @@
   --band:#2b9c8e; --band-deep:#23867a; --band-ink:#ffffff;
   --logo-bg:#ffffff; --logo-plum:#9c3567; --logo-teal:#2b9c8e;
   --st-rec:#1f5fbf; --st-rec-bg:#e3edfb; --st-cos:#a3620a; --st-cos-bg:#fbefd9; --st-pro:#18794e; --st-pro-bg:#dff3e8; --st-ent:#5a6677; --st-ent-bg:#e7ebf0;
-  --danger:#b42318; --qr-bg:#ffffff; --qr-fg:#111111; --pay:#9a6700; --pay-bg:#fff4c2; --pay-line:#e8b400;
+  --danger:#b42318; --qr-bg:#ffffff; --qr-fg:#111111; --pay:#9a6700; --pay-bg:#fff4c2; --pay-line:#e8b400; --prio:#c0262d; --prio-bg:#ffe1e1; --prio-line:#e5484d;
   --f-display:"Fredoka","Nunito",system-ui,sans-serif;
   --f-body:"Nunito",system-ui,-apple-system,"Segoe UI",Roboto,sans-serif;
   --f-script:"Pacifico","Brush Script MT",cursive;
@@ -35,14 +35,14 @@
   --accent:#e586b3; --accent-soft:#3a1f2d; --accent-ink:#2a0d1b;
   --band:#1f7369; --band-deep:#185d55; --band-ink:#ffffff;
   --st-rec:#8db6ff; --st-rec-bg:#1b2a44; --st-cos:#f2b45b; --st-cos-bg:#3a2a12; --st-pro:#6fd6a2; --st-pro-bg:#12311f; --st-ent:#a3adbb; --st-ent-bg:#252d38;
-  --danger:#ff8a80; --pay:#ffd24d; --pay-bg:#3a3008; --pay-line:#e8b400; color-scheme:dark;
+  --danger:#ff8a80; --pay:#ffd24d; --pay-bg:#3a3008; --pay-line:#e8b400; --prio:#ff8f8f; --prio-bg:#3d1214; --prio-line:#e5484d; color-scheme:dark;
 }}
 :root[data-theme="dark"]{
   --bg:#0e1716; --surface:#16211f; --sunken:#111b1a; --ink:#e8eeed; --muted:#9aaba8; --line:#28403d;
   --accent:#e586b3; --accent-soft:#3a1f2d; --accent-ink:#2a0d1b;
   --band:#1f7369; --band-deep:#185d55; --band-ink:#ffffff;
   --st-rec:#8db6ff; --st-rec-bg:#1b2a44; --st-cos:#f2b45b; --st-cos-bg:#3a2a12; --st-pro:#6fd6a2; --st-pro-bg:#12311f; --st-ent:#a3adbb; --st-ent-bg:#252d38;
-  --danger:#ff8a80; --pay:#ffd24d; --pay-bg:#3a3008; --pay-line:#e8b400; color-scheme:dark;
+  --danger:#ff8a80; --pay:#ffd24d; --pay-bg:#3a3008; --pay-line:#e8b400; --prio:#ff8f8f; --prio-bg:#3d1214; --prio-line:#e5484d; color-scheme:dark;
 }
 *{box-sizing:border-box}
 :root{padding-top:env(safe-area-inset-top,0px);padding-bottom:env(safe-area-inset-bottom,0px)}
@@ -299,7 +299,7 @@ audio{width:100%;max-width:100%}
 .btn.wa svg{width:20px;height:20px;flex:none}
 .btn.wa[aria-disabled="true"]{opacity:.5;pointer-events:none}
 .wa-box{border-color:color-mix(in srgb,#1fa855 40%,var(--line))}
-.force-light{  --bg:#f1f5f5; --surface:#ffffff; --sunken:#f3f7f7; --ink:#2a2b33; --muted:#647079; --line:#d5e1e0;   --accent:#9c3567; --accent-soft:#f7e7ef; --accent-ink:#ffffff;   --band:#2b9c8e; --band-deep:#23867a; --band-ink:#ffffff;   --logo-bg:#ffffff; --logo-plum:#9c3567; --logo-teal:#2b9c8e;   --st-rec:#1f5fbf; --st-rec-bg:#e3edfb; --st-cos:#a3620a; --st-cos-bg:#fbefd9; --st-pro:#18794e; --st-pro-bg:#dff3e8; --st-ent:#5a6677; --st-ent-bg:#e7ebf0;   --danger:#b42318; --qr-bg:#ffffff; --qr-fg:#111111; --pay:#9a6700; --pay-bg:#fff4c2; --pay-line:#e8b400;   --f-display:"Fredoka","Nunito",system-ui,sans-serif;   --f-body:"Nunito",system-ui,-apple-system,"Segoe UI",Roboto,sans-serif;   --f-script:"Pacifico","Brush Script MT",cursive;   --f-mono:"JetBrains Mono",ui-monospace,Menlo,Consolas,monospace;   --r:14px; color:var(--ink)}
+.force-light{  --bg:#f1f5f5; --surface:#ffffff; --sunken:#f3f7f7; --ink:#2a2b33; --muted:#647079; --line:#d5e1e0;   --accent:#9c3567; --accent-soft:#f7e7ef; --accent-ink:#ffffff;   --band:#2b9c8e; --band-deep:#23867a; --band-ink:#ffffff;   --logo-bg:#ffffff; --logo-plum:#9c3567; --logo-teal:#2b9c8e;   --st-rec:#1f5fbf; --st-rec-bg:#e3edfb; --st-cos:#a3620a; --st-cos-bg:#fbefd9; --st-pro:#18794e; --st-pro-bg:#dff3e8; --st-ent:#5a6677; --st-ent-bg:#e7ebf0;   --danger:#b42318; --qr-bg:#ffffff; --qr-fg:#111111; --pay:#9a6700; --pay-bg:#fff4c2; --pay-line:#e8b400; --prio:#c0262d; --prio-bg:#ffe1e1; --prio-line:#e5484d;   --f-display:"Fredoka","Nunito",system-ui,sans-serif;   --f-body:"Nunito",system-ui,-apple-system,"Segoe UI",Roboto,sans-serif;   --f-script:"Pacifico","Brush Script MT",cursive;   --f-mono:"JetBrains Mono",ui-monospace,Menlo,Consolas,monospace;   --r:14px; color:var(--ink)}
 .cli-render{position:fixed;left:-10000px;top:0;width:420px;padding:0;pointer-events:none}
 .cli-render .nota{outline:none}
 .cli-code{display:flex;flex-direction:column;gap:2px;border-top:1px solid var(--line);padding-top:12px}
@@ -397,6 +397,12 @@ input[type="text"]:not(#app-link):not(#m-pin):not(#lg-pin):not([inputmode="numer
 .tel-row{display:grid;grid-template-columns:auto 1fr;gap:8px}
 .tel-row select{width:auto;min-width:96px}
 .ord.devendo{background:var(--pay-bg);border-color:var(--pay-line)}
+.ord.prio{background:var(--prio-bg);border:2px solid var(--prio-line);box-shadow:inset 5px 0 0 var(--prio-line)}
+.tag-prio{font-size:10.5px;font-weight:800;letter-spacing:.06em;color:#fff;background:var(--prio-line);border-radius:6px;padding:2px 6px}
+.prio-toggle{display:flex;align-items:center;justify-content:center;gap:8px;width:100%;min-height:48px;border-radius:10px;border:2px dashed var(--prio-line);background:transparent;color:var(--prio);font:inherit;font-weight:800;cursor:pointer}
+.prio-toggle[aria-pressed="true"]{background:var(--prio-line);border-style:solid;color:#fff}
+.prio-banner{background:var(--prio-line);color:#fff;border-radius:10px;padding:10px 12px;font-weight:800;text-align:center;letter-spacing:.04em}
+.nota .prio-nota{border:2px solid currentColor;border-radius:6px;padding:4px 8px;font-weight:800;text-align:center;letter-spacing:.08em}
 .cl-list{display:flex;flex-direction:column;gap:8px}
 .cli{background:var(--surface);border:1px solid var(--line);border-radius:10px;overflow:hidden}
 .cli>button.cli-h{display:grid;grid-template-columns:auto 1fr auto auto;gap:12px;align-items:center;width:100%;padding:12px;background:none;border:0;color:inherit;font:inherit;text-align:left;cursor:pointer}
@@ -580,6 +586,7 @@ input[type="text"]:not(#app-link):not(#m-pin):not(#lg-pin):not([inputmode="numer
           <div class="field"><label for="c-entrega">Entrega prevista</label><input type="date" id="c-entrega"></div>
           <div class="field"><label for="c-atend">Atendente</label><input type="text" id="c-atend" readonly tabindex="-1"></div>
         </div>
+        <button type="button" class="prio-toggle" id="c-prio" aria-pressed="false">★ Marcar como prioridade</button>
         <div class="field"><span class="flabel">Precisa fazer entrega?</span>
           <div class="paywhen" role="group" aria-label="Precisa fazer entrega">
             <button type="button" id="et-ret" aria-pressed="true">Não, a cliente vem buscar</button>
@@ -1233,6 +1240,7 @@ async function finalizar(){
       itens, subtotal, desconto:dc.desc, descontoTipo:descTipo, descontoInformado:dc.raw, total,
       pagarEm, entrada: pagarEm==="ato" ? total : Math.min(total,Math.max(0,Number($("#c-entrada").value)||0)),
       pagamento: (pagarEm==="ato" || (Number($("#c-entrada").value)||0)>0) ? $("#c-pag").value : "Pagar na retirada",
+      prioridade: prioNovo,
       entrega:$("#c-entrega").value||"", entregaTipo, endereco: entregaTipo==="entrega"?U($("#c-end").value.trim()):"",
       obs:U($("#c-obs").value.trim()), fotos:fotoIds, audio:audioId,
       atendente:atend, costureira:"", status:"recebido", criadoEm:now,
@@ -1245,7 +1253,7 @@ async function finalizar(){
   finally{ saving=false; btn.disabled=false; btn.textContent="Finalizar pedido"; }
 }
 function resetForm(){
-  orcs=[]; $("#orc-nome").value=""; renderOrcs();
+  orcs=[]; $("#orc-nome").value=""; renderOrcs(); setPrioNovo(false);
   $("#c-end").value=""; setEntrega("retirada");
   pagarEm="retirada"; $("#pm-ato").setAttribute("aria-pressed","false"); $("#pm-ret").setAttribute("aria-pressed","true"); $("#c-pag").value="Pix";
   autoNome=""; $("#c-found").hidden=true;
@@ -1256,11 +1264,15 @@ function resetForm(){
 }
 
 /* ---------- listas de pedidos ---------- */
+const ehPrio=o=>!!o.prioridade && o.status!=="entregue";
+function ordCls(o){ return (ehPrio(o)?" prio":"")+((session&&session.papel!=="costureira"&&o.status!=="entregue"&&restOf(o)>0.001)?" devendo":""); }
+const prioTag=o=>ehPrio(o)?`<span class="tag-prio">PRIORIDADE</span>`:"";
+const prioPrim=(a,b)=>(ehPrio(b)?1:0)-(ehPrio(a)?1:0);
 function ordCard(o){
   const qt=(o.itens||[]).reduce((a,b)=>a+b.qtd,0);
   const icons=`${(o.fotos||[]).length?'<svg aria-label="tem foto"><use href="#i-img"/></svg>':""}${o.audio?'<svg aria-label="tem áudio"><use href="#i-mic"/></svg>':""}`;
-  return `<button class="ord${(session&&session.papel!=="costureira"&&o.status!=="entregue"&&restOf(o)>0.001)?" devendo":""}" data-open="${esc(o.codigo)}"><span class="stripe ${o.status}"></span>
-    <span class="mid"><span class="row" style="gap:8px"><span class="code">${esc(o.codigo)}</span>${o.retornoDe||o.emRetorno?`<span class="tag-ret">RETORNO</span>`:""}${comEntrega(o)?`<span class="tag-ent">ENTREGA</span>`:""}${temOrc(o)&&!(session&&session.papel==="costureira")?`<span class="tag-orc">ORÇAMENTO</span>`:""}${(session&&session.papel!=="costureira"&&o.status!=="entregue"&&restOf(o)>0.001)?`<span class="pay-tag">A PAGAR</span>`:""}<span class="ic">${icons}</span></span>
+  return `<button class="ord${ordCls(o)}" data-open="${esc(o.codigo)}"><span class="stripe ${o.status}"></span>
+    <span class="mid"><span class="row" style="gap:8px"><span class="code">${esc(o.codigo)}</span>${prioTag(o)}${o.retornoDe||o.emRetorno?`<span class="tag-ret">RETORNO</span>`:""}${comEntrega(o)?`<span class="tag-ent">ENTREGA</span>`:""}${temOrc(o)&&!(session&&session.papel==="costureira")?`<span class="tag-orc">ORÇAMENTO</span>`:""}${(session&&session.papel!=="costureira"&&o.status!=="entregue"&&restOf(o)>0.001)?`<span class="pay-tag">A PAGAR</span>`:""}<span class="ic">${icons}</span></span>
     <span class="who">${esc(o.cliente?.nome)}</span>
     <span class="sub">${qt} serviço${qt>1?"s":""} · ${lateTxt(o)}${o.costureira?" · "+esc(o.costureira):""}</span>${o.local?`<span><span class="loc">Local: ${esc(o.local)}</span></span>`:""}</span>
     <span class="pill st-${o.status}">${STATUS[o.status]||o.status}</span></button>`;
@@ -1276,6 +1288,7 @@ function renderQueue(){
   $("#filters").innerHTML=fl.map(([k,l])=>`<button class="chip" data-f="${k}" aria-pressed="${filter===k}">${l}<span class="n">${counts[k]||0}</span></button>`).join("");
   let list = filter==="ativos" ? orders.filter(o=>o.status!=="entregue") : orders.filter(o=>o.status===filter);
   if(filter==="ativos"||filter==="recebido") list=[...list].sort((a,b)=>(a.entrega||"9")<(b.entrega||"9")?-1:1);
+  list=[...list].sort(prioPrim);
   $("#queue").innerHTML = list.length ? list.map(ordCard).join("") : `<div class="empty">Nenhum pedido nesta lista.</div>`;
 }
 $("#filters").addEventListener("click",e=>{const b=e.target.closest("[data-f]"); if(!b) return; filter=b.dataset.f; renderQueue();});
@@ -1654,8 +1667,8 @@ function renderCaixa(){
         <tr class="minus"><td>Descontos dados</td><td class="n">− ${money(desc)}</td></tr>
         <tr class="tot"><td>Total vendido</td><td class="n">${money(liquido)}</td></tr>
       </table>
-      ${feitos.length?`<div class="orders">${feitos.sort((x,y)=>y.criadoEm-x.criadoEm).map(o=>`<button class="ord${(session&&session.papel!=="costureira"&&o.status!=="entregue"&&restOf(o)>0.001)?" devendo":""}" data-open="${esc(o.codigo)}"><span class="stripe ${o.status}"></span>
-        <span class="mid"><span class="code">${esc(o.codigo)}</span><span class="who">${esc(o.cliente?.nome)}</span>
+      ${feitos.length?`<div class="orders">${feitos.sort((x,y)=>y.criadoEm-x.criadoEm).map(o=>`<button class="ord${ordCls(o)}" data-open="${esc(o.codigo)}"><span class="stripe ${o.status}"></span>
+        <span class="mid"><span class="code">${esc(o.codigo)}</span>${prioTag(o)}<span class="who">${esc(o.cliente?.nome)}</span>
         <span class="sub">${new Date(o.criadoEm).toLocaleTimeString("pt-BR",{hour:"2-digit",minute:"2-digit"})} · ${esc(o.pagamento||"")}${descOf(o)?" · desconto "+money(descOf(o)):""}</span></span>
         <span class="val">${money(totOf(o))}</span></button>`).join("")}</div>`:`<div class="empty">Nenhum pedido feito neste dia.</div>`}
     </div>`;
@@ -1809,8 +1822,8 @@ function renderEntregues(){
     return `<div class="day-group"><h4><span>${esc(lbl)}</span><span>${l.length}${session&&session.papel==="costureira"?"":" · "+money(sum)}</span></h4><div class="orders">${l.map(o=>{
       const qt=(o.itens||[]).reduce((a,b)=>a+b.qtd,0); const hr=new Date(deliveredAt(o)).toLocaleTimeString("pt-BR",{hour:"2-digit",minute:"2-digit"});
       const by=deliveredBy(o);
-      return `<button class="ord${(session&&session.papel!=="costureira"&&o.status!=="entregue"&&restOf(o)>0.001)?" devendo":""}" data-open="${esc(o.codigo)}"><span class="stripe entregue"></span>
-        <span class="mid"><span class="code">${esc(o.codigo)}</span><span class="who">${esc(o.cliente?.nome)}</span>
+      return `<button class="ord${ordCls(o)}" data-open="${esc(o.codigo)}"><span class="stripe entregue"></span>
+        <span class="mid"><span class="code">${esc(o.codigo)}</span>${prioTag(o)}<span class="who">${esc(o.cliente?.nome)}</span>
         <span class="sub">${qt} serviço${qt>1?"s":""} · entregue às ${hr}${by?" por "+esc(by):""}${o.costureira?" · costura: "+esc(o.costureira):""}</span></span>
         ${session&&session.papel==="costureira"?"":`<span class="val">${money(o.total)}</span>`}</button>`; }).join("")}</div></div>`;
   }).join("");
@@ -1885,8 +1898,8 @@ $("#cl-busca").addEventListener("input",e=>{ clearTimeout(clT); clT=setTimeout((
 /* ---------- entregar no dia ---------- */
 function ddCard(o){
   const qt=(o.itens||[]).reduce((a,b)=>a+(b.qtd||0),0); const r=restOf(o);
-  return `<button class="ord${(session&&session.papel!=="costureira"&&o.status!=="entregue"&&restOf(o)>0.001)?" devendo":""}" data-open="${esc(o.codigo)}"><span class="stripe ${o.status}"></span>
-    <span class="mid"><span class="row" style="gap:8px"><span class="code">${esc(o.codigo)}</span>${o.retornoDe||o.emRetorno?`<span class="tag-ret">RETORNO</span>`:""}${comEntrega(o)?`<span class="tag-ent">ENTREGA</span>`:""}${temOrc(o)&&!(session&&session.papel==="costureira")?`<span class="tag-orc">ORÇAMENTO</span>`:""}<span class="pill st-${o.status}" style="font-size:10px;padding:2px 7px">${STATUS[o.status]}</span></span>
+  return `<button class="ord${ordCls(o)}" data-open="${esc(o.codigo)}"><span class="stripe ${o.status}"></span>
+    <span class="mid"><span class="row" style="gap:8px"><span class="code">${esc(o.codigo)}</span>${prioTag(o)}${o.retornoDe||o.emRetorno?`<span class="tag-ret">RETORNO</span>`:""}${comEntrega(o)?`<span class="tag-ent">ENTREGA</span>`:""}${temOrc(o)&&!(session&&session.papel==="costureira")?`<span class="tag-orc">ORÇAMENTO</span>`:""}<span class="pill st-${o.status}" style="font-size:10px;padding:2px 7px">${STATUS[o.status]}</span></span>
     <span class="who">${esc(U((o.cliente||{}).nome||""))}</span>
     <span class="sub">${qt} serviço${qt>1?"s":""}${(o.cliente||{}).telefone?" · "+esc(o.cliente.telefone):""}${o.costureira?" · "+esc(o.costureira):""}</span>
     ${comEntrega(o)&&o.endereco?`<span class="sub" style="white-space:normal">${esc(o.endereco)}</span>`:""}</span>
@@ -1949,13 +1962,13 @@ function renderPedidos(){
   cnt.entrega=0; base.forEach(o=>{ cnt[o.status]=(cnt[o.status]||0)+1; if(o.retornoDe) cnt.retorno++; if(comEntrega(o)) cnt.entrega++; });
   $("#pd-status").querySelectorAll("[data-st]").forEach(b=>{ b.querySelector(".n").textContent=cnt[b.dataset.st]||0; });
   let list = pdSt==="todos"?base : pdSt==="retorno"?base.filter(o=>o.retornoDe) : pdSt==="entrega"?base.filter(comEntrega) : base.filter(o=>o.status===pdSt);
-  list=[...list].sort((a,b)=>(b.criadoEm||0)-(a.criadoEm||0));
+  list=[...list].sort((a,b)=>prioPrim(a,b)||(b.criadoEm||0)-(a.criadoEm||0));
   $("#pd-count").textContent = list.length ? `${list.length} pedido${list.length>1?"s":""} encontrado${list.length>1?"s":""}${list.length>pdLimit?`, mostrando os ${pdLimit} mais recentes`:""}.` : "";
   const verVal = session && session.papel!=="costureira";
   box.innerHTML = list.length ? list.slice(0,pdLimit).map(o=>{
     const qt=(o.itens||[]).reduce((a,b)=>a+(b.qtd||0),0);
-    return `<button class="ord${(session&&session.papel!=="costureira"&&o.status!=="entregue"&&restOf(o)>0.001)?" devendo":""}" data-open="${esc(o.codigo)}"><span class="stripe ${o.status}"></span>
-      <span class="mid"><span class="row" style="gap:8px"><span class="code">${esc(o.codigo)}</span>${o.retornoDe||o.emRetorno?`<span class="tag-ret">RETORNO</span>`:""}${comEntrega(o)?`<span class="tag-ent">ENTREGA</span>`:""}${temOrc(o)&&!(session&&session.papel==="costureira")?`<span class="tag-orc">ORÇAMENTO</span>`:""}<span class="pill st-${o.status}" style="font-size:10px;padding:2px 7px">${STATUS[o.status]||o.status}</span></span>
+    return `<button class="ord${ordCls(o)}" data-open="${esc(o.codigo)}"><span class="stripe ${o.status}"></span>
+      <span class="mid"><span class="row" style="gap:8px"><span class="code">${esc(o.codigo)}</span>${prioTag(o)}${o.retornoDe||o.emRetorno?`<span class="tag-ret">RETORNO</span>`:""}${comEntrega(o)?`<span class="tag-ent">ENTREGA</span>`:""}${temOrc(o)&&!(session&&session.papel==="costureira")?`<span class="tag-orc">ORÇAMENTO</span>`:""}<span class="pill st-${o.status}" style="font-size:10px;padding:2px 7px">${STATUS[o.status]||o.status}</span></span>
       <span class="who">${esc(U((o.cliente||{}).nome||""))}</span>
       <span class="sub">${fmtDate(o.criadoEm).slice(0,10)} · ${qt} serviço${qt>1?"s":""}${(o.cliente||{}).telefone?" · "+esc(o.cliente.telefone):""}${o.costureira?" · "+esc(o.costureira):""}</span></span>
       ${verVal?`<span class="val">${o.status!=="entregue"&&restOf(o)>0.001?`<span class="pay-l">a receber</span>${money(restOf(o))}`:money(o.total)}</span>`:""}</button>`; }).join("")
@@ -2051,6 +2064,7 @@ function notaHTML(o,{precos=true,qr=true,interna=false}={}){
         <div><span class="logo" role="img" aria-label="Costura Expressa"></span><div class="addr">Galeria Jaqueira Park Center<br>R. do Futuro, 913 · Graças · Recife/PE</div></div>
         <div class="meta">Nº<b>${esc(o.codigo)}</b>${fmtDate(o.criadoEm)}</div>
       </div>
+      ${qr&&ehPrio(o)?`<div class="prio-nota">★ PRIORIDADE</div>`:""}
       <dl class="kv">
         ${o.retornoDe?`<dt>Retorno do</dt><dd>Pedido ${esc(o.retornoDe)}</dd>`:""}
         ${(o.retornos||[]).length?`<dt>Retornos</dt><dd>${o.retornos.map(esc).join(", ")}</dd>`:""}
@@ -2271,6 +2285,8 @@ function renderSheet(o){
   const back = {em_costura:"recebido",pronto:"em_costura",entregue:"pronto"}[o.status];
   $("#sheet").innerHTML=`
     <div class="sheet-top"><span class="pill st-${o.status}">${STATUS[o.status]}</span><button class="btn" id="sh-close">Fechar</button></div>
+    ${ehPrio(o)?`<div class="prio-banner">★ PEDIDO PRIORITÁRIO</div>`:""}
+    ${verValores&&o.status!=="entregue"?`<button type="button" class="prio-toggle" id="sh-prio" aria-pressed="${!!o.prioridade}">${o.prioridade?"★ Prioridade marcada (toque para tirar)":"★ Marcar como prioridade"}</button>`:""}
     ${notaHTML(o,{precos:papel!=="costureira", qr:true})}
     ${verValores?`<div class="panel wa-box"><span class="label">Enviar para a cliente</span>
       ${waNumber(c.telefone)?"":`<div class="field"><label for="wa-tel">WhatsApp da cliente</label><input type="tel" id="wa-tel" placeholder="(81) 9 9999-9999" value="${esc(c.telefone||"")}"></div>`}
@@ -2303,6 +2319,9 @@ function renderSheet(o){
       <p class="hint">Apaga o pedido, as fotos e o áudio. Não dá para desfazer.</p>
       <button class="btn del" id="del-ord">Excluir pedido ${esc(o.codigo)}</button></div>`:""}`;
   $("#sh-close").onclick=closeSheet;
+  const shp=$("#sh-prio"); if(shp) shp.onclick=async()=>{ shp.disabled=true; const v=!o.prioridade;
+    try{ await db.doc(`pedidos/${o.codigo}`).update({prioridade:v}); o.prioridade=v; const x=orders.find(z=>z.codigo===o.codigo); if(x) x.prioridade=v; renderSheet(o);
+      toast(v?"Pedido marcado como prioridade.":"Prioridade retirada."); }catch(e){ writeErr(e); shp.disabled=false; } };
   if($("#qr")) try{ new QRCode($("#qr"),{text:qrText(o.codigo),width:264,height:264,colorDark:"#111111",colorLight:"#ffffff",correctLevel:QRCode.CorrectLevel.Q}); }catch(e){ $("#qr").textContent=""; }
   $("#sheet").querySelectorAll("[data-st]").forEach(b=>b.onclick=()=>changeStatus(o.codigo,b.dataset.st,b));
   if(o.status==="recebido" && $("#tk-go")) wireTake(o);
@@ -2708,6 +2727,9 @@ function telCompleto(){
   if(ddi==="+55" || ddi==="+") return ddi==="+"?("+"+raw.replace(/^\+/,"")):raw;
   return ddi+" "+raw;
 }
+let prioNovo=false;
+function setPrioNovo(v){ prioNovo=v; const b=$("#c-prio"); b.setAttribute("aria-pressed",String(v)); b.textContent = v ? "★ Pedido prioritário (toque para tirar)" : "★ Marcar como prioridade"; }
+$("#c-prio").addEventListener("click",()=>setPrioNovo(!prioNovo));
 function setEntrega(v){ entregaTipo=v; $("#et-ret").setAttribute("aria-pressed",String(v==="retirada")); $("#et-ent").setAttribute("aria-pressed",String(v==="entrega"));
   $("#f-end").hidden = v!=="entrega";
   if(v==="entrega" && !$("#c-end").value.trim()){ const c=clientes.get(telKey(telCompleto())); if(c&&c.endereco) $("#c-end").value=U(c.endereco); }
