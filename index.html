@@ -1039,8 +1039,7 @@ window.addEventListener("popstate",()=>{
 function renderPick(){
   const el=$("#svc-pick");
   if(!services.length){
-    el.innerHTML=`<div class="empty"><span>Nenhum serviço cadastrado ainda.</span><button class="btn" id="go-svc">Cadastrar serviços</button></div>`;
-    $("#go-svc").onclick=()=>setView("servicos");
+    el.innerHTML="";
   } else {
     const q0=norm($("#svc-busca").value).trim();
     const lista=q0?services.filter(s=>norm(s.nome).includes(q0)):services;
