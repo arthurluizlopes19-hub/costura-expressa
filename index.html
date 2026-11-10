@@ -419,6 +419,7 @@ input[type="text"]:not(#app-link):not(#m-pin):not(#lg-pin):not([inputmode="numer
 .cli-b .info dt{color:var(--muted)} .cli-b .info dd{margin:0;font-weight:700;overflow-wrap:anywhere}
 .cli-b .acts{display:flex;gap:8px;flex-wrap:wrap}
 .cli-b .acts .btn{flex:1 1 140px}
+.cli-ed{display:flex;flex-direction:column;gap:10px;background:var(--sunken);border-radius:10px;padding:12px}
 .ord.devendo .val{color:var(--pay)}
 .ord .val .pay-l{display:block;font-size:11px;font-weight:700;color:var(--pay);text-align:right;font-family:var(--f-body)}
 .pay-tag{font-size:10.5px;font-weight:800;letter-spacing:.06em;color:#3a2f00;background:var(--pay-line);border-radius:6px;padding:2px 6px}
@@ -947,7 +948,10 @@ function writeErr(e){
   console.error(e);
   if(e && (e.code==="permission-denied"||e.code==="invalid_argument")) toast("Sem permissão para gravar. Confira as regras do Firestore.");
   else if(e && (e.code==="resource-exhausted"||e.code==="quota_exceeded")) toast("Limite do banco atingido. Tente mais tarde ou apague pedidos antigos.");
-  else toast("Não foi possível salvar. Verifique a internet e tente de novo.");
+  else if(e && /INTERNAL ASSERTION|internal/i.test(String(e.code||"")+" "+String(e.message||""))) toast("O app travou a gravação. Feche o app por completo e abra de novo.");
+  else if(e && (e.code==="unauthenticated")) toast("Este aparelho saiu do ateliê. Feche e abra o app e entre de novo.");
+  else if(e && e.code && /unavailable|deadline/.test(e.code)) toast("Sem conexão com o banco. Verifique a internet e tente de novo.");
+  else toast("Não foi possível salvar"+(e&&(e.code||e.message)?" ("+String(e.code||e.message).slice(0,60)+")":"")+". Tente de novo.");
 }
 
 /* ---------- arquivos (fotos/áudio) guardados em partes no banco ---------- */
@@ -1247,7 +1251,9 @@ async function finalizar(){
       historico:[{status:"recebido", por:atend||"Atendimento", em:now}]};
     await db.doc(`pedidos/${code}`).set(pedido);
     saveCliente(pedido.cliente.nome, pedido.cliente.telefone, pedido.endereco);
-    resetForm(); await openOrder(code, pedido); toast("Pedido "+code+" finalizado. Envie o pedido pelo WhatsApp.");
+    try{ resetForm(); }catch(e){ console.error(e); }
+    try{ await openOrder(code, pedido); }catch(e){ console.error(e); }
+    toast("Pedido "+code+" finalizado. Envie o pedido pelo WhatsApp.");
     setTimeout(()=>{ const w=$("#sheet .wa-box"); if(w) w.scrollIntoView({behavior:"smooth",block:"center"}); },500);
   }catch(e){ writeErr(e); }
   finally{ saving=false; btn.disabled=false; btn.textContent="Finalizar pedido"; }
@@ -1835,7 +1841,7 @@ $("#ent-busca").addEventListener("input",e=>{ clearTimeout(entT); entT=setTimeou
 $("#ent-cost").addEventListener("change",e=>{ entCost=e.target.value; renderEntregues(); });
 
 /* ---------- clientes ---------- */
-let clOrdem="nome", clBusca="", clAberto="", clLimit=80;
+let clOrdem="nome", clBusca="", clAberto="", clLimit=80, clEditando="";
 function listaClientes(){
   const m=new Map();
   clientes.forEach((d,k)=>{ m.set(k,{k, nome:U(d.nome||""), telefone:d.telefone||"", endereco:d.endereco||"", ped:[]}); });
@@ -1847,6 +1853,7 @@ function listaClientes(){
 }
 function renderClientes(){
   const box=$("#cl-list"); if(!box) return;
+  if(clEditando && $(".cli-ed")) return; // não apaga o que está sendo digitado
   const veValor=session&&session.papel!=="costureira";
   let l=listaClientes(); const total=l.length;
   const q=norm(clBusca).trim(), qd=q.replace(/\D/g,"");
@@ -1869,14 +1876,41 @@ function renderClientes(){
           <dt>Pedidos</dt><dd>${x.ped.length}${x.abertos.length?` (${x.abertos.length} em aberto)`:""}</dd>
           ${veValor&&x.ped.length?`<dt>Total gasto</dt><dd>${money(x.gasto)}</dd>`:""}
           ${veValor&&x.deve>0.001?`<dt>A receber</dt><dd style="color:var(--pay)">${money(x.deve)}</dd>`:""}</dl>
-        <div class="acts">${waNumber(x.telefone)?`<a class="btn wa" href="${waLink(x.telefone,"")}" ${ehCelular?"":'target="_blank" rel="noopener"'}>${waIcon}WhatsApp</a>`:""}
+        ${clEditando===x.k?`<div class="cli-ed">
+          <div class="field"><label for="ce-nome">Nome</label><input type="text" id="ce-nome" value="${esc(x.nome)}"></div>
+          <div class="field"><label for="ce-tel">WhatsApp / telefone</label><input type="tel" id="ce-tel" value="${esc(x.telefone)}" placeholder="(81) 9 9999-9999"></div>
+          <div class="field"><label for="ce-end">Endereço (opcional)</label><input type="text" id="ce-end" value="${esc(U(x.endereco||""))}"></div>
+          <p class="hint">O nome e o telefone também são atualizados nos pedidos desta cliente.</p>
+          <div class="acts"><button class="btn primary" data-cli-salvar="${esc(x.k)}">Salvar</button><button class="btn" data-cli-cancelar>Cancelar</button></div></div>`:""}
+        <div class="acts">${clEditando!==x.k?`<button class="btn" data-cli-editar="${esc(x.k)}">Editar dados</button>`:""}${waNumber(x.telefone)?`<a class="btn wa" href="${waLink(x.telefone,"")}" ${ehCelular?"":'target="_blank" rel="noopener"'}>${waIcon}WhatsApp</a>`:""}
           ${VIEWS[session.papel].includes("atendimento")?`<button class="btn" data-cli-novo="${esc(x.k)}">Novo pedido</button>`:""}</div>
         ${x.ped.length?`<div class="orders">${x.ped.map(ordCard).join("")}</div>`:`<p class="hint">Nenhum pedido ainda.</p>`}
       </div>`:""}</div>`; }).join("")
     + (l.length>vis.length?`<button class="btn" id="cl-mais">Mostrar mais (${l.length-vis.length})</button>`:"");
   const mais=$("#cl-mais"); if(mais) mais.onclick=()=>{ clLimit+=80; renderClientes(); };
 }
+async function salvarClienteEditado(k,btn){
+  const x=listaClientes().find(c=>c.k===k); if(!x) return;
+  const nome=U($("#ce-nome").value.trim()), tel=$("#ce-tel").value.trim(), end=U($("#ce-end").value.trim());
+  if(!nome){ toast("Informe o nome da cliente."); $("#ce-nome").focus(); return; }
+  if(tel && !waNumber(tel)){ toast("Telefone inválido. Confira o número."); $("#ce-tel").focus(); return; }
+  const nk=telKey(tel);
+  btn.disabled=true; btn.textContent="Salvando…";
+  try{
+    if(nk){ await db.doc(`clientes/${nk}`).set({nome, telefone:tel, endereco:end, atualizadoEm:Date.now()}); }
+    if(clientes.has(k) && k!==nk){ await db.doc(`clientes/${k}`).delete(); }
+    // atualiza o nome/telefone nos pedidos dessa cliente
+    const muda=x.ped.filter(o=>(o.cliente||{}).nome!==nome || String((o.cliente||{}).telefone||"")!==tel);
+    for(const o of muda){ await db.doc(`pedidos/${o.codigo}`).update({cliente:{...(o.cliente||{}), nome, telefone:tel}}); }
+    clEditando=""; clAberto=nk||("sem:"+norm(nome).trim());
+    toast("Dados da cliente atualizados"+(muda.length?` em ${muda.length} pedido${muda.length>1?"s":""}.`:"."));
+    renderClientes();
+  }catch(e){ writeErr(e); btn.disabled=false; btn.textContent="Salvar"; }
+}
 $("#cl-list").addEventListener("click",e=>{
+  const ed=e.target.closest("[data-cli-editar]"); if(ed){ clEditando=ed.dataset.cliEditar; renderClientes(); const i=$("#ce-nome"); if(i) i.focus(); return; }
+  if(e.target.closest("[data-cli-cancelar]")){ clEditando=""; renderClientes(); return; }
+  const sv=e.target.closest("[data-cli-salvar]"); if(sv){ salvarClienteEditado(sv.dataset.cliSalvar, sv); return; }
   const n=e.target.closest("[data-cli-novo]");
   if(n){ const x=listaClientes().find(c=>c.k===n.dataset.cliNovo); if(!x) return;
     setView("atendimento");
@@ -1888,7 +1922,7 @@ $("#cl-list").addEventListener("click",e=>{
     if(!$("#c-nome").value.trim()) $("#c-nome").value=x.nome;
     return; }
   const h=e.target.closest("[data-cli]"); if(!h) return;
-  clAberto = clAberto===h.dataset.cli ? "" : h.dataset.cli; renderClientes();
+  clAberto = clAberto===h.dataset.cli ? "" : h.dataset.cli; clEditando=""; renderClientes();
 });
 $("#cl-ordem").addEventListener("click",e=>{ const b=e.target.closest("[data-ord]"); if(!b) return; clOrdem=b.dataset.ord;
   $("#cl-ordem").querySelectorAll("[data-ord]").forEach(x=>x.setAttribute("aria-pressed",String(x===b))); renderClientes(); });

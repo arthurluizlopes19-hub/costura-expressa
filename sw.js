@@ -1,7 +1,7 @@
 // Service worker do Costura Expressa: deixa o app instalável e abre mesmo com internet fraca.
 // Arquivos do próprio site: tenta a rede primeiro (sempre a versão mais nova) e usa a cópia guardada se cair.
 // Banco de dados e outros sites (Firebase, fontes) passam direto, sem cache.
-const CACHE = "costura-expressa-v42";
+const CACHE = "costura-expressa-v43";
 const ARQUIVOS = [
   "./",
   "./index.html",
