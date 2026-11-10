@@ -442,6 +442,9 @@ input[type="text"]:not(#app-link):not(#m-pin):not(#lg-pin):not([inputmode="numer
 .print-render .foot small{display:none}
 .avulso.orc{border-color:var(--pay-line);background:var(--pay-bg)}
 .tab-pecas{display:flex;flex-direction:column;gap:8px}
+.tab-pecas[hidden]{display:none}
+#tp-btn{min-height:50px;font-size:16px}
+#tp-count:not(:empty){margin-left:8px;background:var(--accent-ink);color:var(--accent);border-radius:999px;padding:1px 9px;font-size:13px;font-weight:800}
 #tp-list{display:flex;flex-direction:column;gap:6px}
 .tp-sec{border:1px solid var(--line);border-radius:10px;overflow:hidden;background:var(--surface)}
 .tp-sec>summary{list-style:none;display:grid;grid-template-columns:1fr auto auto;gap:10px;align-items:center;padding:12px;cursor:pointer;font-weight:800;text-transform:uppercase;font-size:14px}
@@ -607,9 +610,10 @@ input[type="text"]:not(#app-link):not(#m-pin):not(#lg-pin):not([inputmode="numer
           </div>
           <div id="orc-list"></div>
         </div>
-        <div class="tab-pecas">
-          <div class="row" style="justify-content:space-between"><span class="label">Tabela de preços por peça</span><span class="hint" id="tp-count"></span></div>
+        <button class="btn primary" id="tp-btn" type="button" aria-expanded="false" aria-controls="tp-box">Tabela de preços<span id="tp-count"></span></button>
+        <div class="tab-pecas" id="tp-box" hidden>
           <div id="tp-list"></div>
+          <button class="btn" id="tp-fechar" type="button">Fechar tabela de preços</button>
         </div>
         <div id="svc-pick"></div>
       </div>
@@ -1072,8 +1076,12 @@ function renderTabela(){
   });
   box.innerHTML = html || (q?`<div class="svc-list"><div class="svc-none">Nenhum serviço da tabela com “${esc(U($("#svc-busca").value))}”.</div></div>`:"");
   const n=Object.values(tcart).reduce((t,v)=>t+v,0);
-  $("#tp-count").textContent = n?`${n} da tabela`:"";
+  $("#tp-count").textContent = n?String(n):"";
 }
+function tpMostrar(on){ $("#tp-box").hidden=!on; const b=$("#tp-btn"); b.setAttribute("aria-expanded",String(on));
+  b.firstChild.textContent = on ? "Esconder tabela de preços" : "Tabela de preços"; }
+$("#tp-btn").addEventListener("click",()=>tpMostrar($("#tp-box").hidden));
+$("#tp-fechar").addEventListener("click",()=>{ tpMostrar(false); $("#tp-btn").scrollIntoView({behavior:"smooth",block:"center"}); });
 $("#tp-list").addEventListener("toggle",e=>{ const d=e.target; if(!d.matches||!d.matches(".tp-sec")||norm($("#svc-busca").value).trim()) return; const a=Number(d.dataset.sec); if(d.open) tpOpen.add(a); else tpOpen.delete(a); },true);
 $("#tp-list").addEventListener("click",e=>{
   const i=e.target.closest("[data-tinc]"), d=e.target.closest("[data-tdec]");
@@ -1244,7 +1252,7 @@ function resetForm(){
   autoNome=""; $("#c-found").hidden=true;
   extras=[]; $("#av-nome").value=""; $("#av-preco").value=""; renderExtras();
   ["#c-nome","#c-tel","#c-entrega","#c-obs","#c-entrada","#c-desc","#svc-busca"].forEach(s=>$(s).value=""); $("#c-ddi").value="+55"; $("#c-tel").placeholder="(81) 9 9999-9999"; $("#c-tel-hint").hidden=true; descTipo="valor"; setDescTipo("valor");
-  cart={}; tcart={}; tpOpen.clear(); renderTabela(); photos.forEach(p=>URL.revokeObjectURL(p.url)); photos=[]; if(audio) URL.revokeObjectURL(audio.url); audio=null;
+  cart={}; tcart={}; tpOpen.clear(); renderTabela(); tpMostrar(false); photos.forEach(p=>URL.revokeObjectURL(p.url)); photos=[]; if(audio) URL.revokeObjectURL(audio.url); audio=null;
   renderPick(); renderPhotos(); renderAudio();
 }
 
