@@ -251,6 +251,12 @@ audio{width:100%;max-width:100%}
 .cx-table td.n{text-align:right;font-family:var(--f-mono);white-space:nowrap;padding-left:10px}
 .cx-table tr.tot td{font-weight:800;border-bottom:0;border-top:1px solid var(--line)}
 .cx-table tr.minus td{color:var(--st-pro)}
+.dp-item{display:grid;grid-template-columns:1fr auto auto;gap:10px;align-items:center;padding:10px 0;border-bottom:1px dotted var(--line)}
+.dp-item .d{min-width:0}.dp-item .d b{display:block;text-transform:uppercase;overflow-wrap:anywhere}
+.dp-item .d span{font-size:12.5px;color:var(--muted)}
+.dp-item .v{font-family:var(--f-mono);font-weight:700;color:var(--danger);white-space:nowrap}
+.dp-item .x{border:1px solid var(--line);background:none;color:var(--muted);border-radius:8px;min-width:40px;min-height:40px;cursor:pointer;font-size:16px}
+.lucro-pos{color:var(--st-pro)!important}.lucro-neg{color:var(--danger)!important}
 .tiles{display:grid;grid-template-columns:repeat(4,1fr);gap:8px}
 .hist-sum{display:grid;grid-template-columns:repeat(3,1fr);gap:8px}
 @media (max-width:420px){.hist-sum{grid-template-columns:1fr 1fr}.hist-sum .stat:last-child{grid-column:1/-1}}
@@ -765,6 +771,29 @@ input[type="text"]:not(#app-link):not(#m-pin):not(#lg-pin):not([inputmode="numer
     </section>
 
     <!-- FATURAMENTO (gerência) -->
+    <section class="view" id="view-despesas" hidden>
+      <h2 class="sec">Despesas</h2>
+      <div class="panel">
+        <span class="label">Nova despesa</span>
+        <div class="field"><label for="dp-desc">Descrição</label><input type="text" id="dp-desc" placeholder="Ex.: Conta de luz, linha, aluguel" autocomplete="off"></div>
+        <div class="grid2">
+          <div class="field"><label for="dp-valor">Valor (R$)</label><input type="number" id="dp-valor" inputmode="decimal" min="0" step="0.01" placeholder="0,00"></div>
+          <div class="field"><label for="dp-data">Data</label><input type="date" id="dp-data"></div>
+        </div>
+        <div class="grid2">
+          <div class="field"><label for="dp-cat">Categoria</label><select id="dp-cat"></select></div>
+          <div class="field"><label for="dp-forma">Pago com</label><select id="dp-forma"><option>Pix</option><option>Dinheiro</option><option>Cartão de débito</option><option>Cartão de crédito</option><option>Boleto</option><option>Transferência</option></select></div>
+        </div>
+        <button class="btn primary" id="dp-add">Adicionar despesa</button>
+      </div>
+      <div class="cx-head">
+        <button class="btn" id="dp-prev" aria-label="Mês anterior">‹</button>
+        <div class="field"><label for="dp-mes">Mês</label><input type="month" id="dp-mes"></div>
+        <button class="btn" id="dp-next" aria-label="Próximo mês">›</button>
+      </div>
+      <div id="dp-body"></div>
+    </section>
+
     <section class="view" id="view-faturamento" hidden>
       <h2 class="sec">Faturamento</h2>
       <div class="paywhen" role="group" aria-label="Tipo de visualização">
@@ -932,7 +961,7 @@ let saving = false;
 let sheetKey = -1;
 let takePhoto = null; // {blob,url}
 const ROLES = {gerencia:"Gerência", admin:"Administração", atendente:"Atendente", costureira:"Costureira"};
-const VIEWS = {gerencia:["atendimento","pedidos","clientes","dodia","caixa","faturamento","producao","entregues","servicos","equipe"], admin:["atendimento","pedidos","clientes","dodia","caixa","producao","entregues","servicos","equipe"], atendente:["atendimento","pedidos","clientes","dodia","caixa","entregues"], costureira:["costureiras","logistica","entregues"]};
+const VIEWS = {gerencia:["atendimento","pedidos","clientes","dodia","caixa","faturamento","despesas","producao","entregues","servicos","equipe"], admin:["atendimento","pedidos","clientes","dodia","caixa","producao","entregues","servicos","equipe"], atendente:["atendimento","pedidos","clientes","dodia","caixa","entregues"], costureira:["costureiras","logistica","entregues"]};
 let team = [];
 let teamLoaded = false;
 let session = null;      // {id,nome,papel}
@@ -996,7 +1025,7 @@ function compressImage(file, max=1400, q=.72){
 }
 
 /* ---------- abas ---------- */
-const ALL_VIEWS=["menu","atendimento","pedidos","clientes","dodia","caixa","faturamento","costureiras","producao","logistica","entregues","servicos","equipe"];
+const ALL_VIEWS=["menu","atendimento","pedidos","clientes","despesas","dodia","caixa","faturamento","costureiras","producao","logistica","entregues","servicos","equipe"];
 const IC=(d)=>`<svg viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2" stroke-linecap="round" stroke-linejoin="round" aria-hidden="true">${d}</svg>`;
 const VIEW_INFO={
   atendimento:{t:"Atendimento", d:"Fazer um novo pedido", i:IC('<path d="M12 5v14M5 12h14"/>')},
@@ -1004,6 +1033,7 @@ const VIEW_INFO={
   clientes:{t:"Clientes", d:"Todas as clientes cadastradas", i:IC('<circle cx="12" cy="7" r="4"/><path d="M5 21v-1a7 7 0 0 1 14 0v1"/><path d="M3 3h4M17 3h4"/>')},
   dodia:{t:"Entregar no dia", d:"O que sai hoje", i:IC('<rect x="3" y="4" width="18" height="17" rx="2"/><path d="M8 2v4M16 2v4M3 10h18"/>')},
   caixa:{t:"Caixa do dia", d:"Quanto entrou hoje", i:IC('<rect x="2" y="6" width="20" height="12" rx="2"/><circle cx="12" cy="12" r="2.5"/>')},
+  despesas:{t:"Despesas", d:"Gastos do ateliê e lucro do mês", i:IC('<rect x="3" y="6" width="18" height="13" rx="2"/><path d="M3 10h18M7 15h4"/>')},
   faturamento:{t:"Faturamento", d:"Quanto entrou no mês", i:IC('<path d="M4 20V10M10 20V4M16 20v-7M22 20H2"/>')},
   costureiras:{t:"Fila de costura", d:"Pegar e terminar pedidos", i:IC('<path d="M6 3v6a6 6 0 0 0 12 0V3"/><path d="M4 21h16"/>')},
   producao:{t:"Costureiras", d:"Quem está fazendo o quê", i:IC('<circle cx="9" cy="8" r="3.5"/><path d="M2 21a7 7 0 0 1 14 0"/><path d="M17 4a3.5 3.5 0 0 1 0 7M22 21a7 7 0 0 0-4-6.3"/>')},
@@ -1704,6 +1734,50 @@ function resumoPeriodo(a,b){
 function mesRange(ym){ const [y,m]=ym.split("-").map(Number); return [new Date(y,m-1,1).getTime(), new Date(y,m,1).getTime()]; }
 function mesNome(ym){ const [y,m]=ym.split("-").map(Number); return cap(new Date(y,m-1,15).toLocaleDateString("pt-BR",{month:"long",year:"numeric"})); }
 function mesShift(ym,d){ const [y,m]=ym.split("-").map(Number); const t=new Date(y,m-1+d,1); return t.getFullYear()+"-"+String(t.getMonth()+1).padStart(2,"0"); }
+/* ---------- despesas (só gerência) ---------- */
+let despesas=[];
+const DP_CATS=["Aluguel e condomínio","Água, luz e internet","Materiais e aviamentos","Salários e comissões","Manutenção de máquinas","Impostos e taxas","Transporte e entregas","Marketing","Outros"];
+function despesasEntre(a,b){ return despesas.filter(d=>{ const t=new Date((d.data||"")+"T12:00:00").getTime(); return t>=a && t<b; }); }
+function renderDespesas(){
+  const body=$("#dp-body"); if(!body) return;
+  const cat=$("#dp-cat"); if(!cat.options.length) cat.innerHTML=DP_CATS.map(c=>`<option>${esc(c)}</option>`).join("");
+  if(!$("#dp-data").value) $("#dp-data").value=isoDay(new Date());
+  const inp=$("#dp-mes"); if(!inp.value){ const n=new Date(); inp.value=n.getFullYear()+"-"+String(n.getMonth()+1).padStart(2,"0"); }
+  const ym=inp.value; const [a,b]=mesRange(ym);
+  const l=despesasEntre(a,b).sort((x,y)=>(y.data||"").localeCompare(x.data||"")||(y.criadoEm||0)-(x.criadoEm||0));
+  const tot=round2(l.reduce((s,d)=>s+(Number(d.valor)||0),0));
+  const entrou=resumoPeriodo(a,b).recebido; const lucro=round2(entrou-tot);
+  const porCat={}; l.forEach(d=>porCat[d.categoria||"Outros"]=(porCat[d.categoria||"Outros"]||0)+(Number(d.valor)||0));
+  body.innerHTML=`
+    <div class="hist-sum">
+      <div class="stat"><span class="n" style="color:var(--danger)">${money(tot)}</span><span class="t">Despesas em ${esc(mesNome(ym).toLowerCase())}</span></div>
+      <div class="stat"><span class="n">${money(entrou)}</span><span class="t">Entrou no mês</span></div>
+      <div class="stat"><span class="n ${lucro>=0?"lucro-pos":"lucro-neg"}">${money(lucro)}</span><span class="t">Lucro (entrou − despesas)</span></div>
+    </div>
+    ${l.length?`<div class="panel"><span class="label">Por categoria</span><table class="cx-table">${Object.entries(porCat).sort((x,y)=>y[1]-x[1]).map(([c,v])=>`<tr><td>${esc(c)}</td><td class="n">${money(v)}</td></tr>`).join("")}<tr class="tot"><td>Total</td><td class="n">${money(tot)}</td></tr></table></div>`:""}
+    <div class="panel"><span class="label">Lançamentos (${l.length})</span>
+      ${l.length?l.map(d=>`<div class="dp-item"><div class="d"><b>${esc(d.descricao)}</b><span>${fmtDay(d.data)} · ${esc(d.categoria||"Outros")} · ${esc(d.forma||"")}${d.por?" · "+esc(d.por):""}</span></div><span class="v">${money(d.valor)}</span><button class="x" data-dp-del="${esc(d.id)}" aria-label="Apagar despesa ${esc(d.descricao)}">✕</button></div>`).join(""):`<p class="hint">Nenhuma despesa lançada neste mês.</p>`}
+    </div>`;
+}
+$("#dp-add").addEventListener("click",async()=>{
+  const desc=U($("#dp-desc").value.trim()), valor=round2(Number(String($("#dp-valor").value).replace(",","."))||0), data=$("#dp-data").value;
+  if(!desc){ toast("Informe a descrição da despesa."); $("#dp-desc").focus(); return; }
+  if(!(valor>0)){ toast("Informe o valor da despesa."); $("#dp-valor").focus(); return; }
+  if(!data){ toast("Informe a data."); $("#dp-data").focus(); return; }
+  const btn=$("#dp-add"); btn.disabled=true;
+  const id="d"+Date.now().toString(36)+Math.random().toString(36).slice(2,6);
+  try{ await db.doc(`despesas/${id}`).set({descricao:desc, valor, data, categoria:$("#dp-cat").value, forma:$("#dp-forma").value, por:session?session.nome:"", criadoEm:Date.now()});
+    $("#dp-desc").value=""; $("#dp-valor").value=""; $("#dp-mes").value=data.slice(0,7); toast("Despesa adicionada."); renderDespesas(); }
+  catch(e){ writeErr(e); } finally{ btn.disabled=false; }
+});
+$("#dp-body").addEventListener("click",async e=>{ const b=e.target.closest("[data-dp-del]"); if(!b) return;
+  const d=despesas.find(x=>x.id===b.dataset.dpDel); if(!d) return;
+  if(b.dataset.ok!=="1"){ b.dataset.ok="1"; b.textContent="Apagar?"; b.style.color="var(--danger)"; setTimeout(()=>{ if(b.isConnected){ b.dataset.ok=""; b.textContent="✕"; b.style.color=""; } },4000); return; }
+  try{ await db.doc(`despesas/${d.id}`).delete(); toast("Despesa apagada."); }catch(err){ writeErr(err); } });
+$("#dp-mes").addEventListener("change",renderDespesas);
+$("#dp-prev").addEventListener("click",()=>{ renderDespesas(); $("#dp-mes").value=mesShift($("#dp-mes").value,-1); renderDespesas(); });
+$("#dp-next").addEventListener("click",()=>{ renderDespesas(); $("#dp-mes").value=mesShift($("#dp-mes").value,1); renderDespesas(); });
+
 let ftModo="mes";
 function fmtD(t){ return new Date(t).toLocaleDateString("pt-BR"); }
 function renderFaturamento(){
@@ -1769,6 +1843,11 @@ function renderFaturamento(){
         <tr><td>Pedidos entregues ${perTxt}</td><td class="n">${r.entregues.length}</td></tr>
         <tr><td>Ainda a receber dos pedidos ${perTxt==="no mês"?"do mês":"do período"}</td><td class="n">${money(r.aReceber)}</td></tr>
       </table></div>
+    ${(()=>{ const dl=despesasEntre(a,b); const dt=round2(dl.reduce((x,d)=>x+(Number(d.valor)||0),0)); const lu=round2(r.recebido-dt);
+      return `<div class="panel"><span class="label">Despesas e lucro ${perTxt}</span><table class="cx-table">
+        <tr><td>Entrou</td><td class="n">${money(r.recebido)}</td></tr>
+        <tr><td style="color:var(--danger)">Despesas (${dl.length})</td><td class="n" style="color:var(--danger)">− ${money(dt)}</td></tr>
+        <tr class="tot"><td>Lucro</td><td class="n ${lu>=0?"lucro-pos":"lucro-neg"}">${money(lu)}</td></tr></table></div>`; })()}
     ${seis}
     <p class="hint">“Entrou” soma os pagamentos feitos no ato e os sinais (no dia do pedido) e os pagamentos na retirada ou na entrega (no dia em que o pedido foi entregue).</p>`;
 }
@@ -2657,7 +2736,7 @@ function startSession(s){
   $("#c-atend").value=s.nome; $("#cost-nome").value=s.nome;
 
   setView("menu",true);
-  renderRecent(); renderQueue(); renderLogi(); renderEntregues(); renderCaixa(); renderProducao(); renderPedidos(); renderClientes(); renderFaturamento(); renderDoDia(); if(curView==="menu") renderMenu();
+  renderRecent(); renderQueue(); renderLogi(); renderEntregues(); renderCaixa(); renderProducao(); renderPedidos(); renderClientes(); renderFaturamento(); renderDespesas(); renderDoDia(); if(curView==="menu") renderMenu();
   if(hashCode && ordersLoaded && !hashOpened){ hashOpened=true; openOrder(hashCode); }
 }
 function logout(){
@@ -2838,7 +2917,7 @@ document.addEventListener("input",e=>{
 const U=t=>String(t??"").toLocaleUpperCase("pt-BR");
 
 /* ---------- inicialização ---------- */
-renderPick(); renderTabela(); renderPhotos(); renderAudio(); renderRecent(); renderQueue(); renderLogi(); renderEntregues(); renderCaixa(); renderProducao(); renderPedidos(); renderClientes(); renderFaturamento(); renderDoDia(); if(curView==="menu") renderMenu(); renderSvcEdit();
+renderPick(); renderTabela(); renderPhotos(); renderAudio(); renderRecent(); renderQueue(); renderLogi(); renderEntregues(); renderCaixa(); renderProducao(); renderPedidos(); renderClientes(); renderFaturamento(); renderDespesas(); renderDoDia(); if(curView==="menu") renderMenu(); renderSvcEdit();
 const hashCode = extractCode(decodeURIComponent(location.hash||""));
 let ordersLoaded=false, hashOpened=false;
 const offT=setTimeout(()=>{ if(!db) $("#offline").hidden=false; },4000);
@@ -2899,6 +2978,7 @@ function startData(){
     if(!session) renderLogin();
     renderTeam(); renderLogi(); renderProducao();
   }, e=>console.error(e));
+  db.collection("despesas").onSnapshot(s=>{ despesas=s.docs.map(d=>({id:d.id,...d.data()})); renderDespesas(); renderFaturamento(); }, e=>console.warn(e));
   db.collection("clientes").onSnapshot(s=>{ clientes.clear(); s.docs.forEach(d=>clientes.set(d.id,d.data())); if(telKey(telCompleto())) checkCliente(); renderClientes(); if(curView==="menu") renderMenu(); }, e=>console.warn(e));
   db.collection("servicos").orderBy("nome").onSnapshot(s=>{
     services=s.docs.map(d=>({id:d.id,...d.data()})).sort((a,b)=>String(a.nome).localeCompare(String(b.nome),"pt-BR"));
@@ -2908,7 +2988,7 @@ function startData(){
   let first=true;
   db.collection("pedidos").orderBy("criadoEm","desc").limit(1000).onSnapshot(s=>{
     orders=s.docs.map(d=>d.data());
-    renderRecent(); renderQueue(); renderLogi(); renderEntregues(); renderCaixa(); renderProducao(); renderPedidos(); renderClientes(); renderFaturamento(); renderDoDia(); if(curView==="menu") renderMenu();
+    renderRecent(); renderQueue(); renderLogi(); renderEntregues(); renderCaixa(); renderProducao(); renderPedidos(); renderClientes(); renderFaturamento(); renderDespesas(); renderDoDia(); if(curView==="menu") renderMenu();
     if(openCode){ const o=orders.find(x=>x.codigo===openCode); if(o && !editing && (o.historico||[]).length!==sheetKey) renderSheet(o); }
     if(first){ first=false; ordersLoaded=true; if(hashCode && session && !hashOpened){ hashOpened=true; openOrder(hashCode); } }
   }, e=>console.error(e));
