@@ -1,0 +1,109 @@
+<!doctype html>
+<html lang="pt-BR">
+<head>
+<meta charset="utf-8">
+<meta name="viewport" content="width=device-width,initial-scale=1,viewport-fit=cover">
+<meta name="theme-color" content="#2b9c8e">
+<title>Seu pedido · Costura Expressa</title>
+<meta name="description" content="Pedido do ateliê Costura Expressa">
+<meta property="og:title" content="Seu pedido na Costura Expressa">
+<meta property="og:description" content="Toque para ver os serviços, os valores e a data do seu pedido.">
+<meta property="og:image" content="icons/icon-512.png">
+<link rel="icon" type="image/png" href="icons/favicon-48.png">
+<link rel="stylesheet" href="https://fonts.googleapis.com/css2?family=Fredoka:wght@600;700&family=Nunito:wght@400;600;700;800&family=JetBrains+Mono:wght@500;700&display=swap">
+<style>
+  :root{--bg:#f1f5f5;--card:#ffffff;--ink:#2a2b33;--muted:#647079;--line:#d5e1e0;--plum:#9c3567;--teal:#2b9c8e;--danger:#b42318;--pay:#9a6700;--pay-bg:#fff4c2;
+    --f-d:"Fredoka","Nunito",system-ui,sans-serif;--f-b:"Nunito",system-ui,-apple-system,"Segoe UI",Roboto,sans-serif;--f-m:"JetBrains Mono",ui-monospace,Menlo,monospace}
+  *{box-sizing:border-box}
+  html,body{margin:0;background:var(--bg);color:var(--ink);font-family:var(--f-b);font-size:15px}
+  header{background:var(--teal);color:#fff;padding:18px max(16px,env(safe-area-inset-left)) 14px max(16px,env(safe-area-inset-right));text-align:center}
+  header h1{font-family:var(--f-d);font-size:20px;margin:0}
+  .stitch{height:10px;background:#23867a;background-image:linear-gradient(90deg,rgba(255,255,255,.85) 55%,transparent 55%);background-size:12px 2px;background-repeat:repeat-x;background-position:0 50%}
+  main{max-width:520px;margin:0 auto;padding:18px max(16px,env(safe-area-inset-left)) 32px max(16px,env(safe-area-inset-right))}
+  .nota{background:var(--card);border-radius:8px;padding:20px 18px;outline:1.5px dashed var(--teal);outline-offset:-8px;display:flex;flex-direction:column;gap:14px;box-shadow:0 6px 24px rgba(0,0,0,.06)}
+  .head{display:flex;justify-content:space-between;gap:12px;align-items:flex-start;border-bottom:1px solid var(--line);padding-bottom:12px}
+  .head img{width:130px;height:auto}
+  .addr{font-size:11.5px;color:var(--muted);margin-top:6px;line-height:1.35}
+  .meta{text-align:right;font-family:var(--f-m);font-size:12px;color:var(--muted)}
+  .meta b{display:block;color:var(--ink);font-size:16px}
+  dl{display:grid;grid-template-columns:auto 1fr;gap:4px 12px;margin:0;font-size:14px}
+  dt{color:var(--muted)} dd{margin:0;font-weight:700;text-transform:uppercase;overflow-wrap:anywhere}
+  table{width:100%;border-collapse:collapse;font-size:14px}
+  th{font-size:11px;letter-spacing:.08em;text-transform:uppercase;color:var(--muted);text-align:left;padding:6px 0;border-bottom:1px solid var(--line)}
+  td{padding:7px 0;border-bottom:1px dotted var(--line);vertical-align:top}
+  td:first-child{text-transform:uppercase}
+  .n{text-align:right;font-family:var(--f-m);white-space:nowrap;padding-left:10px}
+  tfoot td{border-bottom:0;font-weight:700}
+  .big{font-family:var(--f-d);font-size:24px;color:var(--plum)}
+  .disc td{color:var(--danger);font-weight:800}
+  .pay td{background:var(--pay-bg);color:var(--pay);font-weight:800}
+  .orc{color:var(--pay);font-weight:800;font-size:12px}
+  .obs{background:#f3f7f7;border-radius:8px;padding:10px 12px;white-space:pre-wrap;text-transform:uppercase}
+  .label{font-size:11px;font-weight:800;letter-spacing:.12em;text-transform:uppercase;color:var(--teal);margin-bottom:6px}
+  .code{border-top:1px solid var(--line);padding-top:12px;display:flex;flex-direction:column;gap:2px}
+  .code b{font-family:var(--f-m);font-size:22px;letter-spacing:.04em}
+  .code span{font-size:13px;color:var(--muted)}
+  .foot{background:var(--teal);color:#fff;text-align:center;margin:0 -18px -20px;padding:10px 14px;font-weight:700;font-size:13px;border-radius:0 0 8px 8px}
+  .status{display:inline-block;font-size:12px;font-weight:800;letter-spacing:.04em;text-transform:uppercase;padding:5px 10px;border-radius:999px;background:#e3edfb;color:#1f5fbf;margin:0 auto 14px}
+  .status.pronto{background:#dff3e8;color:#18794e} .status.entregue{background:#e7ebf0;color:#5a6677} .status.em_costura{background:#fbefd9;color:#a3620a}
+  .center{text-align:center}
+  .msg{background:var(--card);border-radius:12px;padding:24px;text-align:center;color:var(--muted)}
+</style>
+</head>
+<body>
+<header><h1>Costura Expressa</h1></header>
+<div class="stitch"></div>
+<main id="app"><div class="msg">Carregando o seu pedido…</div></main>
+<script src="https://www.gstatic.com/firebasejs/10.12.2/firebase-app-compat.js"></script>
+<script src="https://www.gstatic.com/firebasejs/10.12.2/firebase-auth-compat.js"></script>
+<script src="https://www.gstatic.com/firebasejs/10.12.2/firebase-firestore-compat.js"></script>
+<script src="firebase-config.js"></script>
+<script>
+(function(){
+  const app=document.getElementById("app");
+  const esc=t=>String(t??"").replace(/[&<>"']/g,c=>({"&":"&amp;","<":"&lt;",">":"&gt;",'"':"&quot;","'":"&#39;"}[c]));
+  const money=v=>new Intl.NumberFormat("pt-BR",{style:"currency",currency:"BRL"}).format(Number(v)||0);
+  const fmtDay=iso=>{ if(!iso) return "—"; const [y,m,d]=iso.split("-"); return `${d}/${m}/${y}`; };
+  const fmtDate=ts=>{ const d=new Date(ts); return d.toLocaleDateString("pt-BR")+" "+d.toLocaleTimeString("pt-BR",{hour:"2-digit",minute:"2-digit"}); };
+  const STATUS={recebido:"Recebido",em_costura:"Em costura",pronto:"Pronto para retirada",entregue:"Entregue"};
+  const code=(new URLSearchParams(location.search).get("c")||"").toUpperCase().replace(/[^A-Z0-9-]/g,"");
+  const falha=t=>{ app.innerHTML=`<div class="msg">${esc(t)}<br><br>Qualquer dúvida, fale com a gente no WhatsApp (81) 99616-0055.</div>`; };
+  if(!/^CE-[A-Z0-9]{6}$/.test(code)){ falha("Não encontramos este pedido. Confira o link que você recebeu."); return; }
+  function render(p){
+    const rows=(p.itens||[]).map(i=>`<tr><td>${esc(i.nome)}${i.orcamento?` <span class="orc">· em orçamento</span>`:""}</td><td class="n">${i.qtd}×</td>${i.orcamento?`<td class="n orc" colspan="2">A ORÇAR</td>`:`<td class="n">${money(i.preco)}</td><td class="n">${money(i.preco*i.qtd)}</td>`}</tr>`).join("");
+    let pag="";
+    if(p.pagoNoAto) pag+=`<tr><td colspan="3" style="font-weight:500;color:var(--muted)">Pago no ato (${esc(p.pagamento)})</td><td class="n" style="font-weight:500">${money(p.entrada)}</td></tr>`;
+    else {
+      if(Number(p.entrada)) pag+=`<tr><td colspan="3" style="font-weight:500;color:var(--muted)">Sinal (${esc(p.pagamento)})</td><td class="n" style="font-weight:500">${money(p.entrada)}</td></tr>`;
+      if(p.status==="entregue") pag+=`<tr><td colspan="3">Situação</td><td class="n">Quitado</td></tr>`;
+      else if(p.restante>0.001) pag+=`<tr class="pay"><td colspan="3">A pagar ${esc(p.ondePaga)}</td><td class="n">${money(p.restante)}</td></tr>`;
+    }
+    app.innerHTML=`<div class="center"><span class="status ${esc(p.status)}">${esc(STATUS[p.status]||"")}</span></div>
+    <article class="nota">
+      <div class="head"><div><img src="logo-costura-expressa.png" alt="Costura Expressa"><div class="addr">Galeria Jaqueira Park Center<br>R. do Futuro, 913 · Graças · Recife/PE</div></div>
+        <div class="meta">Nº<b>${esc(p.codigo)}</b>${p.criadoEm?fmtDate(p.criadoEm):""}</div></div>
+      <dl><dt>Cliente</dt><dd>${esc(p.cliente)}</dd>
+        <dt>${p.comEntrega?"Data da entrega":"Retirada prevista"}</dt><dd>${fmtDay(p.entrega)}</dd>
+        <dt>Entrega</dt><dd>${p.comEntrega?"Entrega no endereço":"Retirada no ateliê"}</dd></dl>
+      <table><thead><tr><th>Serviço</th><th class="n">Qtd</th><th class="n">Unit.</th><th class="n">Valor</th></tr></thead><tbody>${rows}</tbody>
+        <tfoot>${p.desconto?`<tr><td colspan="3">Subtotal</td><td class="n">${money(p.subtotal)}</td></tr><tr class="disc"><td colspan="3">${esc(p.descontoLabel||"Desconto")}</td><td class="n">− ${money(p.desconto)}</td></tr>`:""}
+        <tr><td colspan="3">Total</td><td class="n big">${money(p.total)}</td></tr>${pag}</tfoot></table>
+      ${p.obs?`<div><div class="label">Observações</div><div class="obs">${esc(p.obs)}</div></div>`:""}
+      <div class="code"><span class="label" style="margin:0">Código do pedido</span><b>${esc(p.codigo)}</b><span>Apresente este código para retirar a peça.</span></div>
+      <div class="foot">WhatsApp (81) 99616-0055</div>
+    </article>`;
+  }
+  (async()=>{
+    try{
+      if(!window.firebase || !window.FIREBASE_CONFIG){ falha("Não foi possível abrir o pedido agora."); return; }
+      firebase.initializeApp(window.FIREBASE_CONFIG);
+      try{ await firebase.auth().signInAnonymously(); }catch(e){}
+      const d=await firebase.firestore().doc(`publico/${code}`).get();
+      if(!d.exists){ falha("Não encontramos este pedido. Confira o link que você recebeu."); return; }
+      render(d.data());
+    }catch(e){ console.error(e); falha("Não foi possível abrir o pedido agora. Tente de novo em alguns minutos."); }
+  })();
+})();
+</script>
+</body>
+</html>
