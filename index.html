@@ -1398,11 +1398,11 @@ function waProntoText(o){
   ].join("\n");
 }
 function wireWhats(o){
-  const a=$("#wa-nota"), ap=$("#wa-pronto"), inp=$("#wa-tel");
+  const ap=$("#wa-pronto"), inp=$("#wa-tel");
   const refresh=()=>{
     const tel = inp ? inp.value : (o.cliente||{}).telefone;
     const ok=!!waNumber(tel);
-    a.href=waLink(tel,waNotaText(o)); a.setAttribute("aria-disabled",String(!ok));
+
     if(ap){ ap.href=waLink(tel,waProntoText(o)); ap.setAttribute("aria-disabled",String(!ok)); }
   };
   if(inp) inp.addEventListener("input",refresh);
@@ -1414,14 +1414,13 @@ function wireWhats(o){
       await db.doc(`pedidos/${o.codigo}`).update(patch);
     }catch(e){ console.warn(e); }
   };
-  a.addEventListener("click",()=>mark("whatsEnviadoEm"));
   if(ap) ap.addEventListener("click",()=>mark("whatsProntoEm"));
   // prepara a imagem do pedido (sem QR) assim que a nota abre, para copiar/compartilhar na hora do toque
-  let img=null; const ib=$("#wa-img"), sb=$("#wa-share"), pm=$("#wa-msg");
-  const ibHtml=ib.innerHTML; ib.disabled=true; sb.disabled=true; ib.innerHTML='<span class="busy"><span class="spin"></span>Preparando a imagem</span>';
+  let img=null; const ib=$("#wa-img"), pm=$("#wa-msg");
+  const ibHtml=ib.innerHTML; ib.disabled=true; ib.innerHTML='<span class="busy"><span class="spin"></span>Preparando a imagem</span>';
   clienteImagem(o).then(b=>{ img=new File([b],`pedido-${o.codigo}.png`,{type:"image/png"}); })
     .catch(e=>{ console.error(e); pm.textContent="Não consegui gerar a imagem agora. Verifique a internet e abra o pedido de novo."; })
-    .finally(()=>{ ib.disabled=false; sb.disabled=false; ib.innerHTML=ibHtml; });
+    .finally(()=>{ ib.disabled=false; ib.innerHTML=ibHtml; });
   const legenda=()=>{ const nome=String((o.cliente||{}).nome||"").trim().split(/\s+/)[0]||""; return `Olá${nome?", "+nome:""}! Segue o seu pedido ${o.codigo} da Costura Expressa.`; };
   const podeArquivo=()=>{ try{ return !!(img && navigator.canShare && navigator.canShare({files:[img]})); }catch(e){ return false; } };
   const telAtual=()=> inp ? inp.value : (o.cliente||{}).telefone;
@@ -1444,28 +1443,30 @@ function wireWhats(o){
       ? "Imagem copiada. Na conversa que abriu, toque e segure na caixa de mensagem, escolha <b>Colar</b> e envie junto com o texto."
       : "Este aparelho não deixou copiar a imagem. Toque em <b>Compartilhar para o WhatsApp</b> de novo e escolha a conversa da cliente.";
   };
+  // único botão: copia a foto da nota e abre direto a conversa da cliente com a mensagem escrita
   const copiarEAbrir=async()=>{
     const tel=telAtual();
     if(!waNumber(tel)){ toast("Informe o WhatsApp da cliente."); if(inp) inp.focus(); return; }
     let copiou=false;
     try{ if(navigator.clipboard && window.ClipboardItem){ await navigator.clipboard.write([new ClipboardItem({"image/png": Promise.resolve(img)})]); copiou=true; } }catch(e){ console.warn(e); }
-    if(!copiou){ try{ saveFile(img,img.name); }catch(e){} }
+    if(!copiou){
+      // aparelho não deixa copiar imagem: usa o compartilhar (foto + mensagem juntas)
+      if(podeArquivo() && await enviarCompartilhando()) return;
+      try{ saveFile(img,img.name); }catch(e){}
+    }
     abrirWA(tel,legenda());
     mark("whatsEnviadoEm");
     pm.innerHTML = copiou
-      ? `Abrimos a conversa de <b>${esc(nomeCli)}</b>. A foto da nota foi copiada: toque e segure na caixa de mensagem, escolha <b>Colar</b> e envie.`
+      ? `Abrimos a conversa de <b>${esc(nomeCli)}</b> com a mensagem e a <b>foto da nota copiada</b>: toque e segure na caixa de mensagem, escolha <b>Colar</b> e envie.`
       : `Abrimos a conversa de <b>${esc(nomeCli)}</b>. A foto da nota foi salva no celular: toque no 📎, escolha a foto <b>${esc(img.name)}</b> e envie.`;
   };
   ib.onclick=async()=>{
     if(!img){ toast("A foto da nota ainda está sendo preparada. Tente de novo em instantes."); return; }
-    if(podeArquivo()){ if(await enviarCompartilhando()) return; }
     await copiarEAbrir();
   };
-  sb.onclick=async()=>{ if(!img){ toast("A foto da nota ainda está sendo preparada. Tente de novo em instantes."); return; } await copiarEAbrir(); };
   // ajusta textos quando a imagem fica pronta
   const ajustar=()=>{ if(!img) return;
-    sb.hidden=!podeArquivo();
-    pm.innerHTML=`${o.whatsEnviadoEm?`Pedido enviado em ${fmtDate(o.whatsEnviadoEm)}. `:""}<b>Enviar nota pelo WhatsApp</b> manda a <b>foto da nota</b> com a mensagem “Olá, ${esc(String(nomeCli).split(" ")[0])}! Segue o seu pedido ${esc(o.codigo)} da Costura Expressa.” Escolha o WhatsApp e a conversa de <b>${esc(nomeCli)}</b>${telAtual()?" ("+esc(telAtual())+")":""}.`; };
+    pm.innerHTML=`${o.whatsEnviadoEm?`Pedido enviado em ${fmtDate(o.whatsEnviadoEm)}. `:""}<b>Enviar nota pelo WhatsApp</b> abre direto a conversa de <b>${esc(nomeCli)}</b> com a mensagem pronta e a foto da nota copiada. Lá, toque e segure na caixa de mensagem, escolha <b>Colar</b> e envie.`; };
   const espera=setInterval(()=>{ if(img||!document.body.contains(ib)){ clearInterval(espera); ajustar(); } },200);
 }
 async function clienteImagem(o){
@@ -2128,8 +2129,6 @@ function renderSheet(o){
       ${waNumber(c.telefone)?"":`<div class="field"><label for="wa-tel">WhatsApp da cliente</label><input type="tel" id="wa-tel" placeholder="(81) 9 9999-9999" value="${esc(c.telefone||"")}"></div>`}
       <button class="btn wa" id="wa-img">${waIcon}Enviar nota pelo WhatsApp</button>
       ${o.status==="pronto"?`<a class="btn wa ghostwa" id="wa-pronto" href="${waLink(c.telefone,waProntoText(o))}" ${ehCelular?"":'target="_blank" rel="noopener"'}>${waIcon}Avisar que a peça está pronta</a>`:""}
-      <a class="btn" id="wa-nota" href="${waLink(c.telefone,waNotaText(o))}" ${ehCelular?"":'target="_blank" rel="noopener"'}>Enviar a nota só em texto (abre a conversa da cliente)</a>
-      <button class="btn" id="wa-share" hidden>Copiar a foto e abrir a conversa</button>
       <p class="hint" id="wa-msg">${o.whatsEnviadoEm?`Pedido enviado pelo WhatsApp em ${fmtDate(o.whatsEnviadoEm)}. `:""}Abre a conversa de ${esc((c.nome||"").split(" ")[0]||"cliente")}${waNumber(c.telefone)?" ("+esc(c.telefone)+")":""} com o texto “Segue o seu pedido” pronto e a imagem copiada: toque e segure na caixa de mensagem, escolha <b>Colar</b> e envie junto com o texto.</p>
     </div>`:""}
     ${verValores?`<div class="panel print-box"><span class="label">Imprimir (80 mm)</span>
