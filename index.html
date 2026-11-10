@@ -1332,7 +1332,10 @@ function waNumber(tel){
   if(d.length===8 || d.length===9) return "5581"+d;
   return d.length>=10 ? d : "";
 }
-function waLink(tel,text){ const n=waNumber(tel); return "https://wa.me/"+(n||"")+"?text="+encodeURIComponent(text); }
+const ehCelular=/Android|iPhone|iPad|iPod/i.test(navigator.userAgent||"");
+function waLink(tel,text){ const n=waNumber(tel);
+  return ehCelular ? "whatsapp://send?phone="+(n||"")+"&text="+encodeURIComponent(text) : "https://wa.me/"+(n||"")+"?text="+encodeURIComponent(text); }
+function abrirWA(tel,text){ const u=waLink(tel,text); if(ehCelular) location.href=u; else window.open(u,"_blank","noopener"); }
 function linkPedido(o){ const base=location.href.split("#")[0].split("?")[0].replace(/[^/]*$/,""); return base+"pedido.html?c="+o.codigo; }
 function publicoDe(o){
   return { codigo:o.codigo, cliente:U(String((o.cliente||{}).nome||"").trim()), itens:(o.itens||[]).map(i=>({nome:U(i.nome), qtd:i.qtd, preco:Number(i.preco)||0, ...(i.orcamento?{orcamento:true}:{})})),
@@ -1435,7 +1438,7 @@ function wireWhats(o){
     if(!waNumber(tel)){ toast("Informe o WhatsApp da cliente."); if(inp) inp.focus(); return; }
     let copiou=false;
     try{ if(navigator.clipboard && window.ClipboardItem){ await navigator.clipboard.write([new ClipboardItem({"image/png": Promise.resolve(img)})]); copiou=true; } }catch(e){ console.warn(e); }
-    window.open(waLink(tel,legenda()),"_blank","noopener");
+    abrirWA(tel,legenda());
     mark("whatsEnviadoEm");
     pm.innerHTML = copiou
       ? "Imagem copiada. Na conversa que abriu, toque e segure na caixa de mensagem, escolha <b>Colar</b> e envie junto com o texto."
@@ -1448,7 +1451,7 @@ function wireWhats(o){
     let copiou=false;
     try{ if(navigator.clipboard && window.ClipboardItem){ await navigator.clipboard.write([new ClipboardItem({"image/png": Promise.resolve(img)})]); copiou=true; } }catch(e){ console.warn(e); }
     if(!copiou){ try{ saveFile(img,img.name); }catch(e){} }
-    window.open(waLink(tel,legenda()),"_blank","noopener");
+    abrirWA(tel,legenda());
     mark("whatsEnviadoEm");
     pm.innerHTML = copiou
       ? `Abrimos a conversa de <b>${esc(nomeCli)}</b> com a mensagem. A foto da nota foi copiada: toque e segure na caixa de mensagem, escolha <b>Colar</b> e envie. Se o Colar não mostrar a foto, toque no 📎 e escolha a foto <b>${esc(img.name)}</b> na galeria.`
@@ -1462,7 +1465,7 @@ function wireWhats(o){
   // ajusta textos quando a imagem fica pronta
   const ajustar=()=>{ if(!img) return;
     sb.hidden=false; if(!podeArquivo()) sb.textContent="Baixar a foto do pedido";
-    pm.innerHTML=`${o.whatsEnviadoEm?`Pedido enviado em ${fmtDate(o.whatsEnviadoEm)}. `:""}O botão verde abre direto a conversa de <b>${esc(nomeCli)}</b> com a mensagem e deixa a foto da nota pronta para anexar.`; };
+    pm.innerHTML=`${o.whatsEnviadoEm?`Pedido enviado em ${fmtDate(o.whatsEnviadoEm)}. `:""}<b>Enviar nota pelo WhatsApp</b> abre direto a conversa de <b>${esc(nomeCli)}</b> com a nota escrita na mensagem. É só tocar em enviar.`; };
   const espera=setInterval(()=>{ if(img||!document.body.contains(ib)){ clearInterval(espera); ajustar(); } },200);
 }
 async function clienteImagem(o){
@@ -2123,10 +2126,10 @@ function renderSheet(o){
     ${notaHTML(o,{precos:papel!=="costureira", qr:true})}
     ${verValores?`<div class="panel wa-box"><span class="label">Enviar para a cliente</span>
       ${waNumber(c.telefone)?"":`<div class="field"><label for="wa-tel">WhatsApp da cliente</label><input type="tel" id="wa-tel" placeholder="(81) 9 9999-9999" value="${esc(c.telefone||"")}"></div>`}
-      <button class="btn wa" id="wa-img">${waIcon}Enviar no WhatsApp da cliente</button>
+      <a class="btn wa" id="wa-nota" href="${waLink(c.telefone,waNotaText(o))}" ${ehCelular?"":'target="_blank" rel="noopener"'}>${waIcon}Enviar nota pelo WhatsApp</a>
+      ${o.status==="pronto"?`<a class="btn wa ghostwa" id="wa-pronto" href="${waLink(c.telefone,waProntoText(o))}" ${ehCelular?"":'target="_blank" rel="noopener"'}>${waIcon}Avisar que a peça está pronta</a>`:""}
+      <button class="btn" id="wa-img">Enviar a foto da nota</button>
       <button class="btn" id="wa-share" hidden>Compartilhar a foto (escolher a conversa)</button>
-      <a class="btn wa ghostwa" id="wa-nota" href="${waLink(c.telefone,waNotaText(o))}" target="_blank" rel="noopener">${waIcon}Enviar só a mensagem de texto</a>
-      ${o.status==="pronto"?`<a class="btn wa ghostwa" id="wa-pronto" href="${waLink(c.telefone,waProntoText(o))}" target="_blank" rel="noopener">${waIcon}Avisar que a peça está pronta</a>`:""}
       <p class="hint" id="wa-msg">${o.whatsEnviadoEm?`Pedido enviado pelo WhatsApp em ${fmtDate(o.whatsEnviadoEm)}. `:""}Abre a conversa de ${esc((c.nome||"").split(" ")[0]||"cliente")}${waNumber(c.telefone)?" ("+esc(c.telefone)+")":""} com o texto “Segue o seu pedido” pronto e a imagem copiada: toque e segure na caixa de mensagem, escolha <b>Colar</b> e envie junto com o texto.</p>
     </div>`:""}
     ${verValores?`<div class="panel print-box"><span class="label">Imprimir (80 mm)</span>
@@ -2221,7 +2224,7 @@ async function deleteOrder(o,btn){
 }
 async function changeStatus(code, st, btn){
   const o=orders.find(x=>x.codigo===code); if(!o||!db) return;
-  if(st==="entregue" && o.status!=="entregue"){ const tel=(o.cliente||{}).telefone; if(waNumber(tel)) window.open(waLink(tel,waEntregueText(o)),"_blank","noopener"); }
+  if(st==="entregue" && o.status!=="entregue"){ const tel=(o.cliente||{}).telefone; if(waNumber(tel)) abrirWA(tel,waEntregueText(o)); }
   const por = session ? session.nome : "";
   btn.disabled=true;
   const patch={status:st, historico:[...(o.historico||[]),{status:st, por, em:Date.now()}]};
