@@ -355,6 +355,7 @@ input[type="text"]:not(#app-link):not(#m-pin):not(#lg-pin):not([inputmode="numer
 .paywhen button{min-height:48px;border:1.5px solid var(--line);background:var(--sunken);border-radius:10px;font-weight:800;cursor:pointer;color:var(--muted);padding:8px}
 .paywhen button[aria-pressed="true"]{border-color:var(--accent);background:var(--accent-soft);color:var(--accent)}
 #pm-ato{border-color:var(--accent);color:var(--accent)}
+.btn.pronto-btn{background:#18794e;border-color:#18794e;color:#fff;font-weight:800}
 #pm-ato[aria-pressed="true"]{background:var(--accent);color:var(--accent-ink)}
 .desc-field label{color:var(--danger)!important;font-weight:800}
 .desc-field input{border-color:color-mix(in srgb,var(--danger) 55%,var(--line))!important;color:var(--danger)}
@@ -2307,7 +2308,9 @@ function renderSheet(o){
   const waitMsg = {recebido:"Aguardando uma costureira pegar o pedido.", em_costura:"Em costura com "+esc(o.costureira||"a costureira")+".", pronto:"Pronto. A atendente entrega à cliente.", entregue:"Pedido entregue."}[o.status]||"";
   const payBox = restante>0?`<div class="paybox"><div class="field"><label for="pg-rest">Cliente pagou ${money(restante)} com</label>
       <select id="pg-rest"><option>Pix</option><option>Dinheiro</option><option>Cartão de débito</option><option>Cartão de crédito</option></select></div></div>`:"";
-  const nextBtn = (papel==="admin" && o.status!=="entregue") ? `${o.status!=="pronto"?`<p class="hint">${waitMsg}</p>`:""}${o.status==="pronto"?`<button class="btn" id="ret-pronto">Registrar retorno (a cliente pediu ajuste)</button>`:""}${payBox}<button class="btn primary" data-st="entregue">Marcar como entregue</button>`
+  const prontoBtn = `<button class="btn pronto-btn" data-st="pronto" data-avisar="1">Pedido pronto · avisar a cliente</button>`;
+  const nextBtn = (papel==="atendente" && (o.status==="recebido"||o.status==="em_costura")) ? `<p class="hint">${waitMsg}</p>${prontoBtn}`
+    : (papel==="admin" && o.status!=="entregue") ? `${o.status!=="pronto"?`<p class="hint">${waitMsg}</p>${prontoBtn}`:""}${o.status==="pronto"?`<button class="btn" id="ret-pronto">Registrar retorno (a cliente pediu ajuste)</button>`:""}${payBox}<button class="btn primary" data-st="entregue">Marcar como entregue</button>`
     : !canNext ? `<p class="hint">${waitMsg}</p>` : {
     recebido:`<div class="take"><span class="label">Pegar este pedido</span>
       <p style="margin:0">Costureira: <b>${esc(session.nome)}</b></p>
@@ -2429,6 +2432,7 @@ async function deleteOrder(o,btn){
 async function changeStatus(code, st, btn){
   const o=orders.find(x=>x.codigo===code); if(!o||!db) return;
   if(st==="entregue" && o.status!=="entregue"){ const tel=(o.cliente||{}).telefone; if(waNumber(tel)) abrirWA(tel,waEntregueText(o)); }
+  if(st==="pronto" && o.status!=="pronto" && btn && btn.dataset.avisar){ const tel=(o.cliente||{}).telefone; if(waNumber(tel)) abrirWA(tel,waProntoText({...o,status:"pronto"})); else toast("Pedido marcado como pronto. A cliente não tem WhatsApp cadastrado."); }
   const por = session ? session.nome : "";
   btn.disabled=true;
   const patch={status:st, historico:[...(o.historico||[]),{status:st, por, em:Date.now()}]};
