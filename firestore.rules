@@ -4,7 +4,7 @@ rules_version = '2';
 //    Login anônimo ou de qualquer outro tipo não acessa nada.
 //  - Cada coleção aceita só os campos e formatos que o app usa (bloqueia gravação de campos estranhos).
 //  - O que não está listado aqui é negado.
-//  - A página pública do pedido (publico/{codigo}) abre só pelo código exato; listar todas é proibido.
+//  - Nenhum dado é lido sem login: não existe mais rota pública.
 service cloud.firestore {
   match /databases/{database}/documents {
 
@@ -108,11 +108,11 @@ service cloud.firestore {
       }
     }
 
-    // ---------- página pública do pedido ----------
+    // ---------- cópias antigas da página pública do pedido ----------
+    // Fechada: nenhum dado de cliente é lido sem login. Só a equipe pode ler ou apagar.
     match /publico/{codigo} {
-      allow get: if codigoOk(codigo);
-      allow list: if false;
-      allow write: if staff() && codigoOk(codigo);
+      allow read, delete: if staff();
+      allow create, update: if false;
     }
 
     // Qualquer outra coleção: negado.

@@ -18,7 +18,7 @@ Por isso alguns itens comuns em auditorias não se aplicam: não há SQL (nem SQ
 | # | Problema encontrado | Gravidade | Correção |
 |---|---|---|---|
 | 1 | Regras liberavam leitura e gravação de **todo o banco para qualquer login**, inclusive o **anônimo**, que qualquer pessoa consegue criar. | Crítica | As regras agora exigem login por **e-mail e senha** (`sign_in_provider == 'password'`) e negam o resto. |
-| 2 | A coleção `publico` podia ser **listada inteira** por qualquer pessoa, com nome da cliente, serviços e valores de todos os pedidos. | Alta | Só abre por código exato (`get`). Listar (`list`) é proibido. |
+| 2 | A coleção `publico` podia ser **listada inteira** por qualquer pessoa, com nome da cliente, serviços e valores de todos os pedidos. | Alta | Fechada: só a equipe logada lê. O app não grava mais cópias públicas. **Não existe nenhuma rota de dados sem login.** |
 | 3 | Sem validação no banco: dava para gravar campos e valores quaisquer (mass assignment), como uma função inventada ou um preço negativo. | Alta | Cada coleção aceita só os campos e formatos que o app usa, com limites de tamanho. |
 | 4 | PIN guardado como **SHA-256 simples**, que se testa muito rápido. | Alta | **PBKDF2-SHA256 com 210 mil iterações** e sal aleatório (WebCrypto). PINs antigos continuam funcionando e são convertidos no primeiro login certo. |
 | 5 | PIN sem limite de tentativas. | Média | Depois de 5 erros a pessoa espera 30 s, depois 1 min, 2 min... até 15 min. |

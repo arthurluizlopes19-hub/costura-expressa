@@ -1598,7 +1598,7 @@ async function changeStatus(code, st, btn){
   if(st==="entregue"){ patch.entregueEm=Date.now(); patch.entreguePor=por; const r=restOf(o); patch.valorRetirada=r; patch.pagamentoRetirada= r>0 && $("#pg-rest") ? $("#pg-rest").value : ""; }
   if(o.status==="entregue" && st!=="entregue"){ patch.entregueEm=null; patch.entreguePor=""; patch.valorRetirada=0; patch.pagamentoRetirada=""; }
   try{ await db.doc(`pedidos/${code}`).update(patch); toast(`Pedido ${code}: ${STATUS[st]}.`);
-    db.doc(`publico/${code}`).get().then(d=>{ if(d.exists) publicar({...o,...patch}); }).catch(()=>{}); }
+    }
   catch(e){ writeErr(e); btn.disabled=false; }
 }
 
