@@ -1,12 +1,123 @@
 rules_version = '2';
+// Regras de acesso do banco do Costura Expressa.
+//  - Só lê e grava quem entrou com o e-mail e a senha do ateliê (provedor "password").
+//    Login anônimo ou de qualquer outro tipo não acessa nada.
+//  - Cada coleção aceita só os campos e formatos que o app usa (bloqueia gravação de campos estranhos).
+//  - O que não está listado aqui é negado.
+//  - A página pública do pedido (publico/{codigo}) abre só pelo código exato; listar todas é proibido.
 service cloud.firestore {
   match /databases/{database}/documents {
-    // Página pública do pedido (link enviado à cliente): só leitura, sem login.
-    match /publico/{codigo} {
-      allow read: if true;
+
+    function staff() {
+      return request.auth != null
+        && request.auth.token.firebase.sign_in_provider == 'password';
     }
+    function d() { return request.resource.data; }
+    function str(v, max) { return v is string && v.size() <= max; }
+    function num(v, min, max) { return (v is int || v is float) && v >= min && v <= max; }
+    function optStr(k, max) { return !(k in d()) || d()[k] == null || str(d()[k], max); }
+    function optNum(k, min, max) { return !(k in d()) || d()[k] == null || num(d()[k], min, max); }
+    function codigoOk(c) { return c.matches('^CE-[A-Z0-9]{6}$'); }
+
+    // ---------- pedidos ----------
+    match /pedidos/{codigo} {
+      allow read, delete: if staff();
+      allow create, update: if staff()
+        && codigoOk(codigo)
+        && d().codigo == codigo
+        && d().status in ['recebido', 'em_costura', 'pronto', 'entregue']
+        && d().cliente is map
+        && str(d().cliente.nome, 120)
+        && (!('telefone' in d().cliente) || str(d().cliente.telefone, 40))
+        && d().itens is list && d().itens.size() <= 200
+        && num(d().total, 0, 1000000)
+        && optNum('subtotal', 0, 1000000)
+        && optNum('desconto', 0, 1000000)
+        && optNum('entrada', 0, 1000000)
+        && optStr('obs', 5000)
+        && optStr('endereco', 500)
+        && optStr('local', 200)
+        && optStr('costureira', 120)
+        && optStr('atendente', 120)
+        && (!('historico' in d()) || (d().historico is list && d().historico.size() <= 500))
+        && (!('fotos' in d()) || (d().fotos is list && d().fotos.size() <= 12))
+        && (!('prioridade' in d()) || d().prioridade is bool)
+        && d().size() <= 80;
+    }
+
+    // ---------- tabela de serviços ----------
+    match /servicos/{id} {
+      allow read, delete: if staff();
+      allow create, update: if staff()
+        && d().keys().hasOnly(['nome', 'preco', 'criadoEm'])
+        && str(d().nome, 160)
+        && num(d().preco, 0, 1000000);
+    }
+
+    // ---------- equipe (nome, função e senha só em hash) ----------
+    match /equipe/{id} {
+      allow read, delete: if staff();
+      allow create, update: if staff()
+        && str(d().nome, 80) && d().nome.size() > 0
+        && d().papel in ['gerencia', 'admin', 'atendente', 'costureira']
+        && str(d().salt, 64)
+        && d().pinHash is string && d().pinHash.matches('^[0-9a-f]{64}$')
+        && optStr('pinAlg', 40)
+        && d().size() <= 10;
+    }
+
+    // ---------- clientes (chave = número do WhatsApp só com dígitos) ----------
+    match /clientes/{tel} {
+      allow read, delete: if staff();
+      allow create, update: if staff()
+        && tel.matches('^[0-9]{8,15}$')
+        && d().keys().hasOnly(['nome', 'telefone', 'endereco', 'atualizadoEm'])
+        && str(d().nome, 120)
+        && str(d().telefone, 40)
+        && optStr('endereco', 500);
+    }
+
+    // ---------- despesas (gerência) ----------
+    match /despesas/{id} {
+      allow read, delete: if staff();
+      allow create, update: if staff()
+        && d().keys().hasOnly(['descricao', 'valor', 'data', 'categoria', 'forma', 'por', 'criadoEm'])
+        && str(d().descricao, 200) && d().descricao.size() > 0
+        && num(d().valor, 0.01, 10000000)
+        && d().data is string && d().data.matches('^[0-9]{4}-[0-9]{2}-[0-9]{2}$')
+        && str(d().categoria, 60)
+        && str(d().forma, 40)
+        && optStr('por', 80);
+    }
+
+    // ---------- fotos e áudios (guardados em partes) ----------
+    match /arquivos/{id} {
+      allow read, delete: if staff();
+      allow create, update: if staff()
+        && d().keys().hasOnly(['tipo', 'n', 'kind', 'tamanho', 'criadoEm'])
+        && str(d().tipo, 60)
+        && d().kind in ['foto', 'audio', 'retirada']
+        && num(d().n, 1, 60)
+        && num(d().tamanho, 0, 10485760);
+      match /partes/{parte} {
+        allow read, delete: if staff();
+        allow create, update: if staff()
+          && d().keys().hasOnly(['i', 'd'])
+          && num(d().i, 0, 59)
+          && str(d().d, 200000);
+      }
+    }
+
+    // ---------- página pública do pedido ----------
+    match /publico/{codigo} {
+      allow get: if codigoOk(codigo);
+      allow list: if false;
+      allow write: if staff() && codigoOk(codigo);
+    }
+
+    // Qualquer outra coleção: negado.
     match /{document=**} {
-      allow read, write: if request.auth != null;
+      allow read, write: if false;
     }
   }
 }

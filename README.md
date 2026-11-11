@@ -43,9 +43,12 @@ Abra o link, crie o acesso de **Administração** e cadastre a equipe na aba **E
 
 ## Arquivos
 
-- `index.html`: o app.
+- `index.html` e `app.js`: o app.
+- `pedido.html` e `pedido.js`: página do pedido para a cliente.
 - `firebase-config.js`: configuração do seu projeto Firebase.
 - `firestore.rules`: regras de acesso do banco.
 - `logo-costura-expressa.png`: logo.
+
+Veja também [SEGURANCA.md](SEGURANCA.md): o que protege o app e os passos obrigatórios no Firebase.
 
 Cada aparelho precisa entrar uma vez com o e-mail e a senha do ateliê; sem isso, o banco recusa leitura e gravação. Depois, cada pessoa entra com o próprio nome e PIN. A nota é um comprovante interno e não substitui a NF-e/NFS-e oficial.
