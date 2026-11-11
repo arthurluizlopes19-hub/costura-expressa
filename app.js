@@ -492,6 +492,11 @@ function printBrowser(o){
   setTimeout(()=>window.print(),150);
 }
 async function printImagem(o){
+  const cv=await canvasNotaInterna(o);
+  return await new Promise((res,rej)=>cv.toBlob(b=>b?res(b):rej(new Error("imagem")),"image/png"));
+}
+// A mesma nota da impressão (para as costureiras, sem valores), como imagem de 576 px (80 mm).
+async function canvasNotaInterna(o){
   if(!window.html2canvas) throw new Error("html2canvas");
   const box=document.createElement("div"); box.className="force-light print-render";
   box.innerHTML=notaHTML(o,{precos:false, qr:true, interna:true}).replace('id="qr"','id="qr-pr"');
@@ -499,9 +504,25 @@ async function printImagem(o){
   try{
     new QRCode(box.querySelector("#qr-pr"),{text:qrText(o.codigo),width:300,height:300,colorDark:"#000000",colorLight:"#ffffff",correctLevel:QRCode.CorrectLevel.Q});
     await new Promise(r=>setTimeout(r,60));
-    const cv=await html2canvas(box.querySelector(".nota"),{scale:1,backgroundColor:"#ffffff",logging:false,width:576,windowWidth:576});
-    return await new Promise((res,rej)=>cv.toBlob(b=>b?res(b):rej(new Error("imagem")),"image/png"));
+    return await html2canvas(box.querySelector(".nota"),{scale:1,backgroundColor:"#ffffff",logging:false,width:576,windowWidth:576});
   } finally { box.remove(); }
+}
+// Junta as notas de vários pedidos num PDF de 80 mm: uma nota por página, com linha de corte no fim.
+async function pdfNotasDoDia(lista,onProg){
+  if(!window.jspdf) throw new Error("jspdf");
+  const {jsPDF}=window.jspdf; let doc=null;
+  for(let i=0;i<lista.length;i++){
+    onProg && onProg(i+1,lista.length);
+    const cv=await canvasNotaInterna(lista[i]);
+    const h=80*cv.height/cv.width, H=h+8;
+    if(!doc) doc=new jsPDF({unit:"mm",format:[80,H],compress:true}); else doc.addPage([80,H]);
+    doc.addImage(cv.toDataURL("image/jpeg",0.92),"JPEG",0,0,80,h);
+    doc.setDrawColor(120); doc.setLineDashPattern([1.5,1.2],0); doc.setLineWidth(0.3); doc.line(3,h+4,77,h+4);
+    doc.setFontSize(6); doc.setTextColor(120); doc.text("corte aqui",40,h+6.8,{align:"center"});
+    await new Promise(r=>setTimeout(r,0));
+  }
+  doc.setProperties({title:"Notas do dia · Costura Expressa"});
+  return doc.output("blob");
 }
 function wirePrint(o){
   let img=null; const pb=$("#print-now"), pm=$("#print-msg");
@@ -1145,12 +1166,16 @@ $("#dd-hoje").addEventListener("click",()=>{ $("#dd-dia").value=isoDay(new Date(
 
 /* ---------- pedidos: pesquisa ---------- */
 let pdSt="todos", pdPer="tudo", pdLimit=60;
+let pdLista=[], pdArquivo=null, pdArqChave="";
+const pdChave=l=>l.map(o=>o.codigo+":"+(o.historico||[]).length).join(",");
 function renderPedidos(){
   const box=$("#pd-list"); if(!box) return;
   const now=new Date(); const today=new Date(now.getFullYear(),now.getMonth(),now.getDate()).getTime();
-  const from = pdPer==="hoje"?today : pdPer==="7"?today-6*864e5 : pdPer==="mes"?new Date(now.getFullYear(),now.getMonth(),1).getTime() : 0;
+  let from = pdPer==="hoje"?today : pdPer==="7"?today-6*864e5 : pdPer==="mes"?new Date(now.getFullYear(),now.getMonth(),1).getTime() : 0, ate=Infinity;
+  if(pdPer==="data"){ const di=$("#pd-data"); if(!di.value) di.value=isoDay(now); const d=new Date(di.value+"T00:00:00"); from=d.getTime(); ate=new Date(d.getFullYear(),d.getMonth(),d.getDate()+1).getTime(); }
+  $("#pd-dia").hidden = pdPer!=="data";
   const raw=$("#pd-busca").value; const q=norm(raw).trim(); const qd=q.replace(/\D/g,"");
-  let base=orders.filter(o=>(o.criadoEm||0)>=from);
+  let base=orders.filter(o=>(o.criadoEm||0)>=from && (o.criadoEm||0)<ate);
   if(q) base=base.filter(o=>{ const c=o.cliente||{};
     return norm(c.nome).includes(q) || norm(o.codigo).includes(q) || norm(o.obs).includes(q)
       || (o.itens||[]).some(i=>norm(i.nome).includes(q)) || norm(o.costureira).includes(q) || norm(o.endereco).includes(q)
@@ -1171,12 +1196,45 @@ function renderPedidos(){
       ${verVal?`<span class="val">${o.status!=="entregue"&&restOf(o)>0.001?`<span class="pay-l">a receber</span>${money(restOf(o))}`:money(o.total)}</span>`:""}</button>`; }).join("")
     : `<div class="empty">${orders.length?"Nenhum pedido encontrado. Confira a pesquisa ou troque o filtro.":"Os pedidos feitos aparecem aqui."}</div>`;
   $("#pd-more").hidden = list.length<=pdLimit;
+  // imprimir todas as notas do dia escolhido (Hoje ou Escolher data)
+  const umDia = pdPer==="hoje" || pdPer==="data";
+  pdLista = umDia ? [...list].sort((a,b)=>(a.criadoEm||0)-(b.criadoEm||0)) : [];
+  $("#pd-print").hidden = !umDia || !verVal;
+  if(pdArquivo && pdArqChave!==pdChave(pdLista)) pdResetArquivo();
+  if(umDia && !pdArquivo){ const b=$("#pd-print-btn"); b.disabled=!pdLista.length; b.textContent = pdLista.length ? `Imprimir todas as notas deste dia (${pdLista.length})` : "Nenhum pedido neste dia para imprimir"; }
 }
+function pdResetArquivo(){ pdArquivo=null; pdArqChave=""; const m=$("#pd-print-msg"); if(m) m.textContent="Gera um arquivo só com as notas das costureiras (sem valores), uma embaixo da outra, para cortar depois."; }
+$("#pd-data").addEventListener("change",()=>{ pdResetArquivo(); pdLimit=60; renderPedidos(); });
+$("#pd-print-btn").addEventListener("click",async()=>{
+  const b=$("#pd-print-btn"), m=$("#pd-print-msg");
+  const chave=pdChave(pdLista);
+  const dia = pdPer==="hoje" ? isoDay(new Date()) : $("#pd-data").value;
+  const nome=`notas-${dia}.pdf`;
+  // 1º toque prepara o arquivo; 2º toque envia (o celular só deixa compartilhar logo depois de um toque)
+  if(!pdArquivo || pdArqChave!==chave){
+    if(!pdLista.length) return;
+    b.disabled=true;
+    try{
+      const blob=await pdfNotasDoDia(pdLista,(i,n)=>{ b.innerHTML=`<span class="busy"><span class="spin"></span>Preparando nota ${i} de ${n}</span>`; });
+      pdArquivo=new File([blob],nome,{type:"application/pdf"}); pdArqChave=chave;
+      b.textContent=`Enviar para o Fun Print (${pdLista.length} nota${pdLista.length>1?"s":""})`;
+      m.innerHTML=`Arquivo pronto com <b>${pdLista.length}</b> nota${pdLista.length>1?"s":""}. Toque no botão de novo para escolher o <b>Fun Print</b>.`;
+    }catch(e){ console.error(e); b.textContent="Imprimir todas as notas deste dia"; m.textContent="Não consegui preparar as notas. Tente de novo."; }
+    finally{ b.disabled=false; }
+    return;
+  }
+  if(navigator.canShare && navigator.canShare({files:[pdArquivo]})){
+    try{ await navigator.share({files:[pdArquivo]}); m.innerHTML="Escolha o <b>Fun Print</b> na lista e imprima. As notas saem uma embaixo da outra, com a linha de corte."; return; }
+    catch(e){ if(e && e.name==="AbortError") return; }
+  }
+  saveFile(pdArquivo,pdArquivo.name);
+  m.innerHTML=`Arquivo baixado (<b>${esc(pdArquivo.name)}</b>). Abra o Fun Print e escolha esse PDF para imprimir.`;
+});
 let pdT=null;
 $("#pd-busca").addEventListener("input",()=>{ clearTimeout(pdT); pdT=setTimeout(()=>{ pdLimit=60; renderPedidos(); },150); });
 $("#pd-status").addEventListener("click",e=>{ const b=e.target.closest("[data-st]"); if(!b) return; pdSt=b.dataset.st; pdLimit=60;
   $("#pd-status").querySelectorAll("[data-st]").forEach(x=>x.setAttribute("aria-pressed",String(x===b))); renderPedidos(); });
-$("#pd-periodo").addEventListener("click",e=>{ const b=e.target.closest("[data-per]"); if(!b) return; pdPer=b.dataset.per; pdLimit=60;
+$("#pd-periodo").addEventListener("click",e=>{ const b=e.target.closest("[data-per]"); if(!b) return; pdPer=b.dataset.per; pdLimit=60; pdResetArquivo();
   $("#pd-periodo").querySelectorAll("[data-per]").forEach(x=>x.setAttribute("aria-pressed",String(x===b))); renderPedidos(); });
 $("#pd-more").addEventListener("click",()=>{ pdLimit+=60; renderPedidos(); });
 

@@ -415,6 +415,9 @@ input[type="text"]:not(#app-link):not(#m-pin):not(#lg-pin):not([inputmode="numer
 .prio-banner{background:var(--prio-line);color:#fff;border-radius:10px;padding:10px 12px;font-weight:800;text-align:center;letter-spacing:.04em}
 .nota .prio-nota{border:2px solid currentColor;border-radius:6px;padding:4px 8px;font-weight:800;text-align:center;letter-spacing:.08em}
 .cl-list{display:flex;flex-direction:column;gap:8px}
+.pd-dia{margin:8px 0 4px;max-width:260px}
+.pd-print{display:flex;flex-direction:column;gap:6px;margin:10px 0 6px}
+.pd-print[hidden],.pd-dia[hidden]{display:none}
 .cli{background:var(--surface);border:1px solid var(--line);border-radius:10px;overflow:hidden}
 .cli>button.cli-h{display:grid;grid-template-columns:auto 1fr auto auto;gap:12px;align-items:center;width:100%;padding:12px;background:none;border:0;color:inherit;font:inherit;text-align:left;cursor:pointer}
 .cli .av{width:38px;height:38px;border-radius:50%;background:var(--band);color:var(--band-ink);display:grid;place-items:center;font-weight:800;font-size:15px}
@@ -754,6 +757,14 @@ input[type="text"]:not(#app-link):not(#m-pin):not(#lg-pin):not([inputmode="numer
         <button class="chip" data-per="hoje" aria-pressed="false">Hoje</button>
         <button class="chip" data-per="7" aria-pressed="false">7 dias</button>
         <button class="chip" data-per="mes" aria-pressed="false">Este mês</button>
+        <button class="chip" data-per="data" aria-pressed="false">Escolher data</button>
+      </div>
+      <div class="pd-dia" id="pd-dia" hidden>
+        <div class="field"><label for="pd-data">Pedidos feitos no dia</label><input type="date" id="pd-data"></div>
+      </div>
+      <div class="pd-print" id="pd-print" hidden>
+        <button class="btn primary" id="pd-print-btn" type="button">Imprimir todas as notas deste dia</button>
+        <p class="hint" id="pd-print-msg">Gera um arquivo só com as notas das costureiras (sem valores), uma embaixo da outra, para cortar depois.</p>
       </div>
       <p class="hint" id="pd-count"></p>
       <div class="orders" id="pd-list"></div>
