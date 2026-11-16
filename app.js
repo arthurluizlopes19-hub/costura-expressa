@@ -41,6 +41,7 @@ function writeErr(e){
   if(e && (e.code==="permission-denied"||e.code==="invalid_argument")) toast("Sem permissão para gravar. Confira as regras do Firestore.");
   else if(e && (e.code==="resource-exhausted"||e.code==="quota_exceeded")) toast("Limite do banco atingido. Tente mais tarde ou apague pedidos antigos.");
   else if(e && /INTERNAL ASSERTION|internal/i.test(String(e.code||"")+" "+String(e.message||""))) toast("O app travou a gravação. Feche o app por completo e abra de novo.");
+  else if(e && e.code==="failed-precondition") toast("A conexão do app travou. Feche o app por completo, abra de novo e tente outra vez.");
   else if(e && (e.code==="unauthenticated")) toast("Este aparelho saiu do ateliê. Feche e abra o app e entre de novo.");
   else if(e && e.code && /unavailable|deadline/.test(e.code)) toast("Sem conexão com o banco. Verifique a internet e tente de novo.");
   else toast("Não foi possível salvar"+(e&&(e.code||e.message)?" ("+String(e.code||e.message).slice(0,60)+")":"")+". Tente de novo.");
@@ -2099,7 +2100,9 @@ const offT=setTimeout(()=>{ if(!db) $("#offline").hidden=false; },4000);
 })();
 function connectDB(){
   db=firebase.firestore();
-  try{ db.enablePersistence({synchronizeTabs:true}).catch(()=>{}); }catch(e){}
+  // Cache local de uma aba só. O modo "várias abas" travava a gravação no iPhone (erro failed-precondition)
+  // quando o app voltava do segundo plano. Se o cache não abrir, o app segue funcionando direto pela internet.
+  try{ db.enablePersistence().catch(e=>console.warn("cache local desligado:",e&&e.code)); }catch(e){}
   renderLogin(); startData();
 }
 function renderDeviceLogin(err){
