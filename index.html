@@ -419,6 +419,9 @@ input[type="text"]:not(#app-link):not(#m-pin):not(#lg-pin):not([inputmode="numer
 .nota .prio-nota{border:2px solid currentColor;border-radius:6px;padding:4px 8px;font-weight:800;text-align:center;letter-spacing:.08em}
 .cl-list{display:flex;flex-direction:column;gap:8px}
 .pd-dia{margin:8px 0 4px;max-width:260px}
+.cost-box{display:flex;flex-direction:column;gap:6px;margin:8px 0 4px;padding:10px;border:1.5px dashed var(--line);border-radius:10px}
+.cost-box label{font-weight:800;font-size:14px}.cost-box small{font-weight:600;color:var(--muted)}
+.cost-box select{width:100%}
 .auto-print{display:flex;gap:10px;align-items:center;font-size:14px;font-weight:700;padding:6px 2px;cursor:pointer}
 .auto-print input{width:22px;height:22px;accent-color:var(--accent)}
 .pd-print{display:flex;flex-direction:column;gap:6px;margin:10px 0 6px}
@@ -881,7 +884,7 @@ input[type="text"]:not(#app-link):not(#m-pin):not(#lg-pin):not([inputmode="numer
         <div class="grid2">
           <div class="field"><label for="m-nome">Nome</label><input type="text" id="m-nome" placeholder="Ex.: Lúcia"></div>
           <div class="field"><label for="m-papel">Função</label>
-            <select id="m-papel"><option value="costureira">Costureira</option><option value="atendente">Atendente</option><option value="admin">Administração</option><option value="gerencia">Gerência</option></select></div>
+            <select id="m-papel"><option value="atendente">Atendente</option><option value="costureira">Costureira (só o nome)</option><option value="admin">Administração</option><option value="gerencia">Gerência</option></select></div>
         </div>
         <div class="field"><label for="m-pin">Senha de 4 a 6 números</label><input type="text" id="m-pin" inputmode="numeric" maxlength="6" autocomplete="off" placeholder="••••"></div>
         <button class="btn primary" id="m-add">Criar acesso</button>

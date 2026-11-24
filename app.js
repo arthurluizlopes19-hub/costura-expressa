@@ -383,6 +383,7 @@ function resetForm(){
 }
 
 /* ---------- listas de pedidos ---------- */
+const ehAdm=()=>!!session && (session.papel==="admin"||session.papel==="gerencia");
 const ehPrio=o=>!!o.prioridade && o.status!=="entregue";
 function ordCls(o){ return (ehPrio(o)?" prio":"")+((session&&session.papel!=="costureira"&&o.status!=="entregue"&&restOf(o)>0.001)?" devendo":""); }
 const prioTag=o=>ehPrio(o)?`<span class="tag-prio">PRIORIDADE</span>`:"";
@@ -393,7 +394,7 @@ function ordCard(o){
   return `<button class="ord${ordCls(o)}" data-open="${esc(o.codigo)}"><span class="stripe ${o.status}"></span>
     <span class="mid"><span class="row" style="gap:8px"><span class="code">${esc(o.codigo)}</span>${prioTag(o)}${o.retornoDe||o.emRetorno?`<span class="tag-ret">RETORNO</span>`:""}${comEntrega(o)?`<span class="tag-ent">ENTREGA</span>`:""}${temOrc(o)&&!(session&&session.papel==="costureira")?`<span class="tag-orc">ORÇAMENTO</span>`:""}${(session&&session.papel!=="costureira"&&o.status!=="entregue"&&restOf(o)>0.001)?`<span class="pay-tag">A PAGAR</span>`:""}<span class="ic">${icons}</span></span>
     <span class="who">${esc(o.cliente?.nome)}</span>
-    <span class="sub">${qt} serviço${qt>1?"s":""} · ${lateTxt(o)}${o.costureira?" · "+esc(o.costureira):""}</span>${o.local?`<span><span class="loc">Local: ${esc(o.local)}</span></span>`:""}</span>
+    <span class="sub">${qt} serviço${qt>1?"s":""} · ${lateTxt(o)}${o.costureira&&ehAdm()?" · "+esc(o.costureira):""}</span>${o.local?`<span><span class="loc">Local: ${esc(o.local)}</span></span>`:""}</span>
     <span class="pill st-${o.status}">${STATUS[o.status]||o.status}</span></button>`;
 }
 function renderRecent(){
@@ -608,7 +609,7 @@ function waEntregueText(o){
   const nome=U(String((o.cliente||{}).nome||"").trim());
   return [`Olá${nome?", *"+nome+"*":""}!`,"",
     "Somos da @Costuraexpressa_,",
-    `estamos passando para avisar que o seu pedido *${o.codigo}* foi entregue${comEntrega(o)?" no endereço informado":""}! ✅🧵`,"",
+    `estamos passando para avisar que o seu pedido *${o.codigo}* *foi entregue*${comEntrega(o)?" no endereço informado":""}! ✅🧵`,"",
     "*IMPORTANTE*",
     "Caso seja necessário alguma alteração, o prazo de retorno para os serviços prestados é de *7 dias corridos*.","",
     "Agradecemos a preferência!📌✂️"].join("\n");
@@ -641,7 +642,7 @@ function waProntoText(o){
     `Olá${nome?", *"+nome+"*":""}!`,
     "",
     "Somos da @Costuraexpressa_,",
-    "estamos passando para avisar que sua roupa está pronta!👏🏻🪡🧵",
+    "estamos passando para avisar que *sua roupa está pronta*!👏🏻🪡🧵",
     "",
     `Pedido: *${o.codigo}*`,
     "",
@@ -784,7 +785,8 @@ function bucket(o){ const d=daysUntil(o.entrega); if(d===null) return "sem"; if(
 const subOf=o=>Number(o.subtotal ?? o.total)||0;
 const descOf=o=>Number(o.desconto)||0;
 const totOf=o=>Number(o.total)||0;
-const restOf=o=>Math.max(0,round2(totOf(o)-(Number(o.entrada)||0)));
+const pagoAntes=o=>round2((o.pagRetiradas||[]).reduce((a,p)=>a+(Number(p.valor)||0),0));
+const restOf=o=>Math.max(0,round2(totOf(o)-(Number(o.entrada)||0)-pagoAntes(o)));
 function pagoNoAto(o){ return o.pagarEm==="ato" || (!o.pagarEm && o.pagamento!=="Pagar na retirada" && restOf(o)<=0.001 && Number(o.entrada)>0); }
 function descLabel(o){ return o.descontoTipo==="pct" && o.descontoInformado ? `Desconto (${String(o.descontoInformado).replace(".",",")}%)` : "Desconto"; }
 
@@ -804,6 +806,7 @@ function renderCaixa(){
   const add=(f,v)=>{ if(!v) return; f=f||"Não informado"; formas[f]=round2((formas[f]||0)+v); };
   feitos.forEach(o=>{ if(o.pagamento!=="Pagar na retirada") add(o.pagamento,Number(o.entrada)||0); });
   entregues.forEach(o=>{ const v= o.valorRetirada!=null ? Number(o.valorRetirada)||0 : restOf(o); add(o.pagamentoRetirada,v); });
+  orders.forEach(o=>(o.pagRetiradas||[]).forEach(p=>{ if(inDay(p.em||0)) add(p.pagamento,Number(p.valor)||0); }));
   const recebido=round2(Object.values(formas).reduce((x,v)=>x+v,0));
   const entradas=round2(feitos.reduce((x,o)=>x+(o.pagamento!=="Pagar na retirada"?(Number(o.entrada)||0):0),0));
   const naRetirada=round2(recebido-entradas);
@@ -845,6 +848,7 @@ function resumoPeriodo(a,b){
   const formas={}; const add=(f,v)=>{ if(!v) return; f=f||"Não informado"; formas[f]=round2((formas[f]||0)+v); };
   feitos.forEach(o=>{ if(o.pagamento!=="Pagar na retirada") add(o.pagamento,Number(o.entrada)||0); });
   entregues.forEach(o=>{ const v=o.valorRetirada!=null?Number(o.valorRetirada)||0:restOf(o); add(o.pagamentoRetirada,v); });
+  orders.forEach(o=>(o.pagRetiradas||[]).forEach(p=>{ if(inR(p.em||0)) add(p.pagamento,Number(p.valor)||0); }));
   const recebido=round2(Object.values(formas).reduce((x,v)=>x+v,0));
   return { feitos, entregues, formas, recebido,
     bruto:round2(feitos.reduce((x,o)=>x+subOf(o),0)), desc:round2(feitos.reduce((x,o)=>x+descOf(o),0)),
@@ -1139,7 +1143,7 @@ function ddCard(o){
   return `<button class="ord${ordCls(o)}" data-open="${esc(o.codigo)}"><span class="stripe ${o.status}"></span>
     <span class="mid"><span class="row" style="gap:8px"><span class="code">${esc(o.codigo)}</span>${prioTag(o)}${o.retornoDe||o.emRetorno?`<span class="tag-ret">RETORNO</span>`:""}${comEntrega(o)?`<span class="tag-ent">ENTREGA</span>`:""}${temOrc(o)&&!(session&&session.papel==="costureira")?`<span class="tag-orc">ORÇAMENTO</span>`:""}<span class="pill st-${o.status}" style="font-size:10px;padding:2px 7px">${STATUS[o.status]}</span></span>
     <span class="who">${esc(U((o.cliente||{}).nome||""))}</span>
-    <span class="sub">${qt} serviço${qt>1?"s":""}${(o.cliente||{}).telefone?" · "+esc(o.cliente.telefone):""}${o.costureira?" · "+esc(o.costureira):""}</span>
+    <span class="sub">${qt} serviço${qt>1?"s":""}${(o.cliente||{}).telefone?" · "+esc(o.cliente.telefone):""}${o.costureira&&ehAdm()?" · "+esc(o.costureira):""}</span>
     ${comEntrega(o)&&o.endereco?`<span class="sub" style="white-space:normal">${esc(o.endereco)}</span>`:""}</span>
     <span class="val">${r>0.001?`<span class="pay-l">a receber</span>${money(r)}`:`<span class="muted" style="font-size:11px">pago</span>`}</span></button>`;
 }
@@ -1212,7 +1216,7 @@ function renderPedidos(){
     return `<button class="ord${ordCls(o)}" data-open="${esc(o.codigo)}"><span class="stripe ${o.status}"></span>
       <span class="mid"><span class="row" style="gap:8px"><span class="code">${esc(o.codigo)}</span>${prioTag(o)}${o.retornoDe||o.emRetorno?`<span class="tag-ret">RETORNO</span>`:""}${comEntrega(o)?`<span class="tag-ent">ENTREGA</span>`:""}${temOrc(o)&&!(session&&session.papel==="costureira")?`<span class="tag-orc">ORÇAMENTO</span>`:""}<span class="pill st-${o.status}" style="font-size:10px;padding:2px 7px">${STATUS[o.status]||o.status}</span></span>
       <span class="who">${esc(U((o.cliente||{}).nome||""))}</span>
-      <span class="sub">${fmtDate(o.criadoEm).slice(0,10)} · ${qt} serviço${qt>1?"s":""}${(o.cliente||{}).telefone?" · "+esc(o.cliente.telefone):""}${o.costureira?" · "+esc(o.costureira):""}</span></span>
+      <span class="sub">${fmtDate(o.criadoEm).slice(0,10)} · ${qt} serviço${qt>1?"s":""}${(o.cliente||{}).telefone?" · "+esc(o.cliente.telefone):""}${o.costureira&&ehAdm()?" · "+esc(o.costureira):""}</span></span>
       ${verVal?`<span class="val">${o.status!=="entregue"&&restOf(o)>0.001?`<span class="pay-l">a receber</span>${money(restOf(o))}`:money(o.total)}</span>`:""}</button>`; }).join("")
     : `<div class="empty">${orders.length?"Nenhum pedido encontrado. Confira a pesquisa ou troque o filtro.":"Os pedidos feitos aparecem aqui."}</div>`;
   $("#pd-more").hidden = list.length<=pdLimit;
@@ -1349,7 +1353,6 @@ function notaHTML(o,{precos=true,qr=true,interna=false}={}){
         <dt>Entrega</dt><dd>${comEntrega(o)?"FAZER ENTREGA":"CLIENTE RETIRA NO ATELIÊ"}</dd>
         ${comEntrega(o)&&o.endereco?`<dt>Endereço</dt><dd>${esc(o.endereco)}</dd>`:""}
         ${o.atendente?`<dt>Atendente</dt><dd>${esc(o.atendente)}</dd>`:""}
-        ${o.costureira?`<dt>Costureira</dt><dd>${esc(o.costureira)}</dd>`:""}
       </dl>
       <div style="overflow-x:auto"><table class="items">
         <thead><tr><th>Serviço</th><th class="n">Qtd</th>${precos?`<th class="n">Unit.</th><th class="n">Valor</th>`:""}</tr></thead>
@@ -1359,6 +1362,7 @@ function notaHTML(o,{precos=true,qr=true,interna=false}={}){
           <tr><td colspan="3">Total</td><td class="n big">${money(o.total)}</td></tr>
           ${o.semCusto ? `<tr><td colspan="3" class="muted" style="font-weight:600">Retorno sem custo para a cliente</td><td class="n" style="font-weight:600">${money(0)}</td></tr>` : pagoNoAto(o) ? `<tr><td colspan="3" class="muted" style="font-weight:500">Pago no ato (${esc(o.pagamento)})</td><td class="n" style="font-weight:500">${money(o.entrada)}</td></tr>`
             : `${Number(o.entrada)?`<tr><td colspan="3" class="muted" style="font-weight:500">Sinal (${esc(o.pagamento)})</td><td class="n" style="font-weight:500">${money(o.entrada)}</td></tr>`:""}
+               ${(o.pagRetiradas||[]).filter(p=>Number(p.valor)>0).map(p=>`<tr><td colspan="3" class="muted" style="font-weight:500">Pago na retirada em ${fmtDate(p.em).slice(0,10)} (${esc(p.pagamento||"")})</td><td class="n" style="font-weight:500">${money(p.valor)}</td></tr>`).join("")}
                ${o.status==="entregue"&&o.valorRetirada?`<tr><td colspan="3" class="muted" style="font-weight:500">Pago na retirada (${esc(o.pagamentoRetirada||"")})</td><td class="n" style="font-weight:500">${money(o.valorRetirada)}</td></tr><tr><td colspan="3">Situação</td><td class="n">Quitado</td></tr>`
                  : restante>0.001?`<tr class="pay"><td colspan="3">A pagar ${ondePaga(o)}</td><td class="n">${money(restante)}</td></tr>`:""}`}
         </tfoot>`:""}
@@ -1470,7 +1474,7 @@ function renderEdit(o){
       semCusto: r.tot>0.001 ? false : !!cur.semCusto,
       editadoEm:now, editadoPor:session?session.nome:"",
       historico:[...(cur.historico||[]),{status:cur.status, acao:"Pedido editado", por:session?session.nome:"", em:now}] };
-    if(cur.status==="entregue"){ patch.valorRetirada=Math.max(0,round2(r.tot-r.ent)); }
+    if(cur.status==="entregue"){ patch.valorRetirada=Math.max(0,round2(r.tot-r.ent-pagoAntes(cur))); }
     try{ await db.doc(`pedidos/${o.codigo}`).update(patch); editing=null; toast(`Pedido ${o.codigo} atualizado.`); saveCliente(patch.cliente.nome, patch.cliente.telefone, patch.endereco);
       renderSheet({...cur, ...patch}); $("#overlay").scrollTop=0; }
     catch(err){ writeErr(err); btn.disabled=false; btn.textContent="Salvar alterações"; }
@@ -1502,33 +1506,26 @@ function renderRetorno(o){
     if(!motivo){ toast("Descreva o motivo do retorno."); $("#rt-motivo").focus(); return; }
     const retItens=sel.map(i=>({nome:U("RETORNO · "+String(i.nome).replace(/^RETORNO · /,"")), preco:0, qtd:Number(i.qtd)||1, retorno:true}));
     const btn=$("#rt-save"); btn.disabled=true; btn.textContent="Abrindo…";
-    const code=newCode(); const now=Date.now(); const por=session?session.nome:"";
-    if(o.status!=="entregue"){
+    const now=Date.now(); const por=session?session.nome:"";
+    {
       const cur=orders.find(x=>x.codigo===o.codigo)||o;
       const itens=[...(cur.itens||[]), ...retItens];
-      const patch={ itens, status:"recebido", costureira:"", emRetorno:true, retornoCount:(cur.retornoCount||0)+1,
+      const patch={ itens, status:"recebido", emRetorno:true, retornoCount:(cur.retornoCount||0)+1,
         retornoItens:sel.map(i=>U(i.nome)), retornoMotivo:motivo,
         obs:U(`${cur.obs?cur.obs+" · ":""}RETORNO: ${sel.map(i=>U(i.nome)).join(", ")} - ${motivo}`),
         entrega:$("#rt-entrega").value||cur.entrega||"",
         historico:[...(cur.historico||[]),{status:"recebido", acao:`Retorno: ${motivo}`, por, em:now}] };
+      if(cur.status==="entregue"){
+        // guarda o que a cliente já pagou na entrega, para não cobrar de novo e manter o caixa daquele dia
+        const pago=Number(cur.valorRetirada)||0;
+        patch.pagRetiradas=[...(cur.pagRetiradas||[]), ...(pago>0?[{em:cur.entregueEm||now, valor:pago, pagamento:cur.pagamentoRetirada||""}]:[])];
+        patch.entregaAnteriorEm=cur.entregueEm||now; patch.entregueEm=null; patch.entreguePor=""; patch.valorRetirada=0; patch.pagamentoRetirada="";
+      }
       try{ await db.doc(`pedidos/${o.codigo}`).update(patch); editing=null;
-        toast(`Pedido ${o.codigo} voltou para a fila das costureiras.`); renderSheet({...cur, ...patch}); $("#overlay").scrollTop=0; }
+        toast(`Retorno registrado no pedido ${o.codigo}.`); renderSheet({...cur, ...patch}); $("#overlay").scrollTop=0; }
       catch(err){ writeErr(err); btn.disabled=false; btn.textContent="Abrir retorno"; }
       return;
     }
-    const novo={codigo:code, retornoDe:o.codigo, cliente:{nome:U(c.nome||""), telefone:c.telefone||""}, itens:retItens, semCusto:true,
-      subtotal:0, desconto:0, descontoTipo:"valor", descontoInformado:0, total:0, entrada:0, pagarEm:"retirada", pagamento:"Retorno sem custo",
-      entrega:$("#rt-entrega").value||"", entregaTipo:o.entregaTipo||"retirada", endereco:o.endereco||"", obs:`RETORNO DO PEDIDO ${o.codigo}: ${motivo}`, fotos:[], audio:null,
-      atendente:por, costureira:"", status:"recebido", criadoEm:now,
-      historico:[{status:"recebido", acao:`Retorno do pedido ${o.codigo}`, por, em:now}]};
-    try{
-      await db.doc(`pedidos/${code}`).set(novo);
-      const cur=orders.find(x=>x.codigo===o.codigo)||o;
-      await db.doc(`pedidos/${o.codigo}`).update({retornos:[...(cur.retornos||[]), code],
-        historico:[...(cur.historico||[]),{status:cur.status, acao:`Retorno aberto: ${code}`, por, em:now}]});
-      editing=null; toast(`Retorno ${code} aberto. Ele já está na fila das costureiras.`);
-      renderSheet(novo); openCode=code; $("#overlay").scrollTop=0;
-    }catch(err){ writeErr(err); btn.disabled=false; btn.textContent="Abrir retorno"; }
   };
 }
 function renderSheet(o){
@@ -1536,11 +1533,11 @@ function renderSheet(o){
   const c=o.cliente||{}; const restante=restOf(o);
   const papel = session ? (session.papel==="gerencia"?"admin":session.papel) : "";
   const verValores = papel!=="costureira";
-  const may = {recebido:["costureira"], em_costura:["costureira"], pronto:["atendente","admin"], entregue:[]};
-  const mayBack = {em_costura:["costureira"], pronto:["costureira"], entregue:["atendente","admin"]};
+  const may = {recebido:[], em_costura:[], pronto:["atendente","admin"], entregue:[]};
+  const mayBack = {em_costura:["atendente","admin"], pronto:["atendente","admin"], entregue:["atendente","admin"]};
   const canNext = (may[o.status]||[]).includes(papel);
   const canBack = (mayBack[o.status]||[]).includes(papel);
-  const waitMsg = {recebido:"Aguardando uma costureira pegar o pedido.", em_costura:"Em costura com "+esc(o.costureira||"a costureira")+".", pronto:"Pronto. A atendente entrega à cliente.", entregue:"Pedido entregue."}[o.status]||"";
+  const waitMsg = {recebido:"Pedido na costura.", em_costura:"Pedido na costura.", pronto:"Pronto. A atendente entrega à cliente.", entregue:"Pedido entregue."}[o.status]||"";
   const payBox = restante>0?`<div class="paybox"><div class="field"><label for="pg-rest">Cliente pagou ${money(restante)} com</label>
       <select id="pg-rest"><option>Pix</option><option>Dinheiro</option><option>Cartão de débito</option><option>Cartão de crédito</option></select></div></div>`:"";
   const prontoBtn = `<button class="btn pronto-btn" data-st="pronto" data-avisar="1">Pedido pronto · avisar a cliente</button>`;
@@ -1559,7 +1556,7 @@ function renderSheet(o){
       <select id="pg-rest"><option>Pix</option><option>Dinheiro</option><option>Cartão de débito</option><option>Cartão de crédito</option></select></div></div>`:""}
       <button class="btn primary" data-st="entregue">Entregue à cliente</button>`,
     entregue:``}[o.status]||"";
-  const back = {em_costura:"recebido",pronto:"em_costura",entregue:"pronto"}[o.status];
+  const back = {em_costura:"recebido",pronto:"recebido",entregue:"pronto"}[o.status];
   $("#sheet").innerHTML=`
     <div class="sheet-top"><span class="pill st-${o.status}">${STATUS[o.status]}</span><button class="btn" id="sh-close">Fechar</button></div>
     ${ehPrio(o)?`<div class="prio-banner">★ PEDIDO PRIORITÁRIO</div>`:""}
@@ -1583,10 +1580,12 @@ function renderSheet(o){
     ${o.costureira?`<div class="panel"><span class="label">Pego pela costureira</span><div class="proof"><div class="thumb" id="sh-take">${o.fotoCostureira?"":'<span class="muted" style="font-size:12px;padding:8px;display:block">sem foto</span>'}</div><div><b>${esc(o.costureira)}</b><span class="muted">${o.pegoEm?fmtDate(o.pegoEm):""}</span></div></div></div>`:""}
     <div class="panel"><span class="label">Andamento</span>
       <div class="hist">${(o.historico||[]).map(h=>`<span>${fmtDate(h.em)} · <b>${h.acao?esc(h.acao):STATUS[h.status]}</b>${h.por?" · "+esc(h.por):""}</span>`).join("")}</div>
+      ${papel==="admin"?`<div class="cost-box"><label for="sh-cost">Costureira que fez <small>(só a administração vê)</small></label>
+        <div class="locbox"><select id="sh-cost"><option value="">Escolher…</option>${[...new Set([...team.filter(m=>m.papel==="costureira").map(m=>U(m.nome)), ...(o.costureira?[U(o.costureira)]:[])])].map(n=>`<option${U(o.costureira||"")===n?" selected":""}>${esc(n)}</option>`).join("")}<option value="__outra">Outra (digitar nome)</option></select></div></div>`:""}
       <div class="actions">${nextBtn}${back&&canBack?`<button class="btn ghost" data-st="${back}">Voltar para “${STATUS[back]}”</button>`:""}</div>
     </div>
     ${papel==="admin" && o.status==="entregue" && !o.retornoDe?`<div class="panel ret-box"><span class="label">Retorno da cliente</span>
-      <p class="hint">Use quando a cliente voltar para refazer algum ajuste. Este pedido continua guardado como está, e um pedido de retorno ligado a ele vai para a fila das costureiras.</p>
+      <p class="hint">Use quando a cliente voltar para refazer algum ajuste. O retorno fica registrado neste mesmo pedido, com os valores da primeira nota guardados.</p>
       ${(o.retornos||[]).length?`<p class="hint">Retornos já abertos: ${o.retornos.map(r=>`<button class="link-btn" data-open="${esc(r)}">${esc(r)}</button>`).join(" ")}</p>`:""}
       <button class="btn" id="ret-open">Registrar retorno</button></div>`:""}
     ${o.retornoDe?`<div class="panel"><span class="label">Pedido original</span><button class="btn ghost" data-open="${esc(o.retornoDe)}">Abrir pedido ${esc(o.retornoDe)}</button></div>`:""}
@@ -1597,6 +1596,10 @@ function renderSheet(o){
       <p class="hint">Apaga o pedido, as fotos e o áudio. Não dá para desfazer.</p>
       <button class="btn del" id="del-ord">Excluir pedido ${esc(o.codigo)}</button></div>`:""}`;
   $("#sh-close").onclick=closeSheet;
+  const shc=$("#sh-cost"); if(shc) shc.onchange=async()=>{
+    let v=shc.value; if(v==="__outra"){ v=U((prompt("Nome da costureira:")||"").trim()); if(!v){ shc.value=U(o.costureira||""); return; } }
+    try{ await db.doc(`pedidos/${o.codigo}`).update({costureira:v}); o.costureira=v; const x=orders.find(z=>z.codigo===o.codigo); if(x) x.costureira=v;
+      toast(v?`Costureira: ${v}.`:"Costureira retirada."); if(shc.value==="__outra") renderSheet(o); }catch(e){ writeErr(e); } };
   const shp=$("#sh-prio"); if(shp) shp.onclick=async()=>{ shp.disabled=true; const v=!o.prioridade;
     try{ await db.doc(`pedidos/${o.codigo}`).update({prioridade:v}); o.prioridade=v; const x=orders.find(z=>z.codigo===o.codigo); if(x) x.prioridade=v; renderSheet(o);
       toast(v?"Pedido marcado como prioridade.":"Prioridade retirada."); }catch(e){ writeErr(e); shp.disabled=false; } };
@@ -1883,7 +1886,7 @@ function renderLogin(){
   }
   if(!loginPick){
     const grp=(p,t)=>{const m=team.filter(x=>x.papel===p); return m.length?`<div class="grp"><span class="label">${t}</span>${m.map(x=>`<button class="member" data-pick="${esc(x.id)}"><span class="av">${esc(initials(x.nome))}</span><span><b>${esc(x.nome)}</b><small>${esc(ROLES[x.papel]||"")}</small></span></button>`).join("")}</div>`:"";};
-    el.innerHTML=`<div class="grp" style="gap:18px"><h2>Quem está entrando?</h2>${grp("gerencia","Gerência")}${grp("admin","Administração")}${grp("atendente","Atendimento")}${grp("costureira","Costureiras")}${ownerLink}</div>`;
+    el.innerHTML=`<div class="grp" style="gap:18px"><h2>Quem está entrando?</h2>${grp("gerencia","Gerência")}${grp("admin","Administração")}${grp("atendente","Atendimento")}${ownerLink}</div>`;
     el.querySelectorAll("[data-pick]").forEach(b=>b.onclick=()=>{loginPick=team.find(x=>x.id===b.dataset.pick); loginErr=""; renderLogin();});
   } else {
     el.innerHTML=`<div class="grp" style="gap:14px">
@@ -1907,6 +1910,7 @@ function renderLogin(){
   }
 }
 function startSession(s){
+  if(s && s.papel==="costureira"){ ls.set("ce-sess",""); session=null; loginPick=null; loginErr="As costureiras não usam mais o app."; renderLogin(); return; }
   session=s; ls.set("ce-sess",s.id);
   $("#login").hidden=true; $("#who").hidden=false;
   $("#who-name").textContent=s.nome; $("#who-role").textContent=ROLES[s.papel];
@@ -1945,13 +1949,15 @@ $("#team-list").addEventListener("click",async e=>{
     if(pendingMemDel!==id){ pendingMemDel=id; renderTeam(); setTimeout(()=>{ if(pendingMemDel===id){pendingMemDel=null; renderTeam();} },4000); return; }
     pendingMemDel=null; try{ await db.doc(`equipe/${id}`).delete(); toast("Acesso removido."); }catch(err){ writeErr(err); } }
 });
+$("#m-papel").addEventListener("change",()=>{ const c=$("#m-papel").value==="costureira"; $("#m-pin").closest(".field").hidden=c; $("#m-add").textContent=c?"Adicionar costureira":"Criar acesso"; });
 $("#m-add").addEventListener("click",async()=>{
-  const nome=$("#m-nome").value.trim(), papel=$("#m-papel").value, pin=$("#m-pin").value.trim();
+  const nome=$("#m-nome").value.trim(), papel=$("#m-papel").value; let pin=$("#m-pin").value.trim();
   if(!nome){toast("Digite o nome."); return;}
+  if(papel==="costureira") pin=String(crypto.getRandomValues(new Uint32Array(1))[0]%1000000).padStart(6,"0"); // costureira não entra no app
   if(!validPin(pin)){toast("A senha precisa ter de 4 a 6 números."); return;}
   if(team.some(x=>x.nome.toLowerCase()===nome.toLowerCase())){toast("Já existe alguém com esse nome."); return;}
   try{ const salt=randSalt(); await db.collection("equipe").add({nome,papel,salt,pinHash:await hashPin(salt,pin),pinAlg:PIN_ALG,criadoEm:Date.now()});
-    $("#m-nome").value=""; $("#m-pin").value=""; toast(`Acesso de ${nome} criado.`); }catch(err){ writeErr(err); }
+    $("#m-nome").value=""; $("#m-pin").value=""; toast(papel==="costureira"?`${nome} adicionada às costureiras.`:`Acesso de ${nome} criado.`); }catch(err){ writeErr(err); }
 });
 
 
