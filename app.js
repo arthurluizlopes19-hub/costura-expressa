@@ -1357,7 +1357,7 @@ function notaHTML(o,{precos=true,qr=true,interna=false}={}){
         ${precos?`<tfoot>
           ${descOf(o)?`<tr><td colspan="3">Subtotal</td><td class="n">${money(subOf(o))}</td></tr><tr class="disc"><td colspan="3">${descLabel(o)}</td><td class="n">− ${money(descOf(o))}</td></tr>`:""}
           <tr><td colspan="3">Total</td><td class="n big">${money(o.total)}</td></tr>
-          ${pagoNoAto(o) ? `<tr><td colspan="3" class="muted" style="font-weight:500">Pago no ato (${esc(o.pagamento)})</td><td class="n" style="font-weight:500">${money(o.entrada)}</td></tr>`
+          ${o.semCusto ? `<tr><td colspan="3" class="muted" style="font-weight:600">Retorno sem custo para a cliente</td><td class="n" style="font-weight:600">${money(0)}</td></tr>` : pagoNoAto(o) ? `<tr><td colspan="3" class="muted" style="font-weight:500">Pago no ato (${esc(o.pagamento)})</td><td class="n" style="font-weight:500">${money(o.entrada)}</td></tr>`
             : `${Number(o.entrada)?`<tr><td colspan="3" class="muted" style="font-weight:500">Sinal (${esc(o.pagamento)})</td><td class="n" style="font-weight:500">${money(o.entrada)}</td></tr>`:""}
                ${o.status==="entregue"&&o.valorRetirada?`<tr><td colspan="3" class="muted" style="font-weight:500">Pago na retirada (${esc(o.pagamentoRetirada||"")})</td><td class="n" style="font-weight:500">${money(o.valorRetirada)}</td></tr><tr><td colspan="3">Situação</td><td class="n">Quitado</td></tr>`
                  : restante>0.001?`<tr class="pay"><td colspan="3">A pagar ${ondePaga(o)}</td><td class="n">${money(restante)}</td></tr>`:""}`}
@@ -1478,14 +1478,12 @@ function renderRetorno(o){
     <div class="sheet-top"><span class="pill st-${o.status}">Retorno de ${esc(o.codigo)}</span><button class="btn" id="rt-cancel-top">Cancelar</button></div>
     <div class="panel"><span class="label">Cliente</span><b style="text-transform:uppercase">${esc(c.nome||"")}</b>${c.telefone?`<span class="muted">${esc(c.telefone)}</span>`:""}</div>
     <div class="panel"><span class="label">O que precisa refazer</span>
-      <div class="ret-items">${(o.itens||[]).map((i,k)=>`<label><input type="checkbox" data-ri="${k}" checked> ${esc(U(i.nome))}${i.qtd>1?` (${i.qtd}×)`:""}</label>`).join("")}</div>
+      <p class="hint" style="margin:0">Marque os serviços que vão voltar para a costura. Eles entram no pedido como <b>RETORNO</b>, com valor <b>R$ 0,00</b>: a cliente não paga nada pelo retorno.</p>
+      <div class="ret-items">${(o.itens||[]).map((i,k)=>i.retorno?"":`<label><input type="checkbox" data-ri="${k}"> ${esc(U(i.nome))}${i.qtd>1?` (${i.qtd}×)`:""}</label>`).join("")}</div>
       <div class="field"><label for="rt-motivo">Motivo do retorno</label><textarea id="rt-motivo" placeholder="EX.: BARRA FICOU CURTA, APERTAR MAIS A CINTURA"></textarea></div>
     </div>
-    <div class="panel"><span class="label">Entrega e valor</span>
-      <div class="grid2">
-        <div class="field"><label for="rt-entrega">Nova entrega prevista</label><input type="date" id="rt-entrega"></div>
-        <div class="field"><label for="rt-valor">Cobrar pelo retorno (R$)</label><input type="number" id="rt-valor" min="0" step="0.01" inputmode="decimal" placeholder="0,00 (sem custo)"></div>
-      </div>
+    <div class="panel"><span class="label">Nova entrega</span>
+      <div class="field"><label for="rt-entrega">Nova entrega prevista</label><input type="date" id="rt-entrega"></div>
     </div>
     <div class="edit-bar"><button class="btn ghost" id="rt-cancel">Cancelar</button><button class="btn primary" id="rt-save">Abrir retorno</button></div>`;
   $("#overlay").scrollTop=0;
@@ -1496,28 +1494,24 @@ function renderRetorno(o){
     const motivo=U($("#rt-motivo").value.trim());
     if(!sel.length){ toast("Marque o que precisa refazer."); return; }
     if(!motivo){ toast("Descreva o motivo do retorno."); $("#rt-motivo").focus(); return; }
-    const valor=round2(Math.max(0,Number($("#rt-valor").value)||0));
+    const retItens=sel.map(i=>({nome:U("RETORNO · "+String(i.nome).replace(/^RETORNO · /,"")), preco:0, qtd:Number(i.qtd)||1, retorno:true}));
     const btn=$("#rt-save"); btn.disabled=true; btn.textContent="Abrindo…";
     const code=newCode(); const now=Date.now(); const por=session?session.nome:"";
     if(o.status!=="entregue"){
       const cur=orders.find(x=>x.codigo===o.codigo)||o;
-      const itens=[...(cur.itens||[])]; if(valor) itens.push({nome:"AJUSTE NO RETORNO", preco:valor, qtd:1});
-      const sub=round2(itens.reduce((a,i)=>a+(Number(i.preco)||0)*(Number(i.qtd)||0),0));
-      const patch={ status:"recebido", costureira:"", emRetorno:true, retornoCount:(cur.retornoCount||0)+1,
+      const itens=[...(cur.itens||[]), ...retItens];
+      const patch={ itens, status:"recebido", costureira:"", emRetorno:true, retornoCount:(cur.retornoCount||0)+1,
         retornoItens:sel.map(i=>U(i.nome)), retornoMotivo:motivo,
         obs:U(`${cur.obs?cur.obs+" · ":""}RETORNO: ${sel.map(i=>U(i.nome)).join(", ")} - ${motivo}`),
         entrega:$("#rt-entrega").value||cur.entrega||"",
-        ...(valor?{itens, subtotal:sub, total:round2(sub-(Number(cur.desconto)||0))}:{}),
         historico:[...(cur.historico||[]),{status:"recebido", acao:`Retorno: ${motivo}`, por, em:now}] };
       try{ await db.doc(`pedidos/${o.codigo}`).update(patch); editing=null;
         toast(`Pedido ${o.codigo} voltou para a fila das costureiras.`); renderSheet({...cur, ...patch}); $("#overlay").scrollTop=0; }
       catch(err){ writeErr(err); btn.disabled=false; btn.textContent="Abrir retorno"; }
       return;
     }
-    const itens=sel.map(i=>({nome:U(i.nome), preco:0, qtd:i.qtd}));
-    if(valor) itens.push({nome:"AJUSTE NO RETORNO", preco:valor, qtd:1});
-    const novo={codigo:code, retornoDe:o.codigo, cliente:{nome:U(c.nome||""), telefone:c.telefone||""}, itens,
-      subtotal:valor, desconto:0, descontoTipo:"valor", descontoInformado:0, total:valor, entrada:0, pagamento:"Pagar na retirada",
+    const novo={codigo:code, retornoDe:o.codigo, cliente:{nome:U(c.nome||""), telefone:c.telefone||""}, itens:retItens, semCusto:true,
+      subtotal:0, desconto:0, descontoTipo:"valor", descontoInformado:0, total:0, entrada:0, pagarEm:"retirada", pagamento:"Retorno sem custo",
       entrega:$("#rt-entrega").value||"", entregaTipo:o.entregaTipo||"retirada", endereco:o.endereco||"", obs:`RETORNO DO PEDIDO ${o.codigo}: ${motivo}`, fotos:[], audio:null,
       atendente:por, costureira:"", status:"recebido", criadoEm:now,
       historico:[{status:"recebido", acao:`Retorno do pedido ${o.codigo}`, por, em:now}]};
