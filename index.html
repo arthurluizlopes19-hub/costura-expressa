@@ -327,6 +327,9 @@ input[type="text"]:not(#app-link):not(#m-pin):not(#lg-pin):not([inputmode="numer
 .edit-items{display:flex;flex-direction:column;gap:8px}
 .ei{display:grid;grid-template-columns:1fr 92px auto auto;gap:8px;align-items:center;padding:8px;border:1px solid var(--line);border-radius:10px;background:var(--surface)}
 .ei .nm{font-weight:700;min-width:0;text-transform:uppercase;overflow-wrap:anywhere}
+.ei .nm{display:flex;flex-direction:column;gap:4px}
+.ei .nm-in{width:100%;resize:none;overflow:hidden;font:inherit;font-weight:700;text-transform:uppercase;color:var(--ink);background:var(--sunken);border:1.5px solid var(--line);border-radius:8px;padding:8px 10px;min-height:42px;line-height:1.3}
+.ei .nm-in:focus{outline:none;border-color:var(--accent)}
 .ei input{min-height:40px;padding:6px 8px;font-family:var(--f-mono)}
 .ei .x{border:0;background:none;color:var(--danger);font-weight:800;cursor:pointer;min-width:36px;min-height:36px;font-size:18px}
 @media (max-width:420px){.ei{grid-template-columns:1fr auto auto}.ei .nm{grid-column:1/-1}}

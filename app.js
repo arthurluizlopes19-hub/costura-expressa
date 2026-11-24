@@ -1419,13 +1419,15 @@ function renderEdit(o){
     return {sub,raw,desc,tot,ent,err};
   };
   const paint=()=>{
-    $("#ed-items").innerHTML = e.itens.length ? e.itens.map((i,k)=>`<div class="ei"><span class="nm">${esc(i.nome)}${i.orcamento?` <span class="aorcar">· A ORÇAR: digite o valor</span>`:""}</span>
+    $("#ed-items").innerHTML = e.itens.length ? e.itens.map((i,k)=>`<div class="ei"><div class="nm"><textarea class="nm-in" rows="1" data-en="${k}" aria-label="Nome do serviço ${k+1}">${esc(i.nome)}</textarea>${i.orcamento?`<span class="aorcar">A ORÇAR: digite o valor</span>`:""}</div>
       <input type="number" min="0" step="0.01" inputmode="decimal" data-ep="${k}" value="${i.orcamento?"":i.preco.toFixed(2)}" placeholder="a orçar" aria-label="Valor de ${esc(i.nome)}">
       <div class="step"><button type="button" data-edec="${k}" aria-label="Diminuir">−</button><span class="q">${i.qtd}</span><button type="button" data-einc="${k}" aria-label="Aumentar">+</button></div>
       <button type="button" class="x" data-erm="${k}" aria-label="Remover ${esc(i.nome)}">×</button></div>`).join("") : `<div class="empty">Nenhum serviço. Adicione abaixo.</div>`;
     $("#ed-dt-valor").setAttribute("aria-pressed",String(e.tipo==="valor")); $("#ed-dt-pct").setAttribute("aria-pressed",String(e.tipo==="pct"));
+    document.querySelectorAll("#ed-items .nm-in").forEach(cresce);
     sum();
   };
+  const cresce=t=>{ t.style.height="auto"; t.style.height=t.scrollHeight+"px"; };
   const sum=()=>{ const r=calc();
     $("#ed-sum").innerHTML=`<div><span>Serviços</span><span>${money(r.sub)}</span></div>${r.desc?`<div class="disc"><span>Desconto${e.tipo==="pct"?" ("+String(r.raw).replace(".",",")+"%)":""}</span><span>− ${money(r.desc)}</span></div>`:""}
       <div class="tot"><span>Total</span><span>${money(r.tot)}</span></div><div><span>A receber na retirada</span><span>${money(Math.max(0,r.tot-r.ent))}</span></div>${r.err?`<div class="err">${r.err}</div>`:""}`; };
@@ -1436,7 +1438,8 @@ function renderEdit(o){
     if(x) e.itens.splice(+x.dataset.erm,1);
     if(a||d||x) paint();
   });
-  $("#ed-items").addEventListener("input",ev=>{ const k=ev.target.dataset.ep; if(k==null) return; e.itens[+k].preco=round2(Math.max(0,Number(ev.target.value)||0)); if(e.itens[+k].preco>0) e.itens[+k].orcamento=false; sum(); });
+  $("#ed-items").addEventListener("input",ev=>{ const n=ev.target.dataset.en; if(n!=null){ e.itens[+n].nome=U(ev.target.value.replace(/\s*\n\s*/g," ")); cresce(ev.target); return; }
+    const k=ev.target.dataset.ep; if(k==null) return; e.itens[+k].preco=round2(Math.max(0,Number(ev.target.value)||0)); if(e.itens[+k].preco>0) e.itens[+k].orcamento=false; sum(); });
   $("#ed-add").onclick=()=>{ const sv=services.find(x=>x.id===$("#ed-add-sel").value); if(!sv){ toast("Escolha um serviço da tabela."); return; }
     const ex=e.itens.find(i=>i.nome===U(sv.nome) && i.preco===Number(sv.preco)); if(ex) ex.qtd++; else e.itens.push({nome:U(sv.nome), preco:Number(sv.preco)||0, qtd:1});
     $("#ed-add-sel").value=""; paint(); };
@@ -1454,6 +1457,8 @@ function renderEdit(o){
   const er=$("#ed-retorno"); if(er) er.onclick=()=>{ editing=null; renderRetorno(orders.find(x=>x.codigo===o.codigo)||o); };
   $("#ed-save").onclick=async()=>{
     const r=calc(); if(r.err){ toast(r.err); return; }
+    e.itens.forEach(i=>{ i.nome=U(String(i.nome||"").trim()); });
+    const vazio=e.itens.findIndex(i=>!i.nome); if(vazio>=0){ toast("Escreva o nome do serviço "+(vazio+1)+"."); const t=document.querySelector(`[data-en="${vazio}"]`); if(t) t.focus(); return; }
     const nome=U($("#ed-nome").value.trim()); if(!nome){ toast("Informe o nome da cliente."); $("#ed-nome").focus(); return; }
     if(edEt==="entrega" && !$("#ed-end").value.trim()){ toast("Informe o endereço de entrega."); $("#ed-end").focus(); return; }
     const btn=$("#ed-save"); btn.disabled=true; btn.textContent="Salvando…";
