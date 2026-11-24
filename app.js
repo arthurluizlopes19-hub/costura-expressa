@@ -1464,9 +1464,10 @@ function renderEdit(o){
     const btn=$("#ed-save"); btn.disabled=true; btn.textContent="Salvando…";
     const cur=orders.find(x=>x.codigo===o.codigo)||o; const now=Date.now();
     const patch={ cliente:{...(cur.cliente||{}), nome, telefone:$("#ed-tel").value.trim()}, entrega:$("#ed-entrega").value||"", entregaTipo:edEt, endereco: edEt==="entrega"?U($("#ed-end").value.trim()):"",
-      itens:e.itens.map(i=>({nome:i.nome, preco:i.preco, qtd:i.qtd, ...(i.orcamento?{orcamento:true}:{})})), subtotal:r.sub, desconto:r.desc, descontoTipo:e.tipo, descontoInformado:r.raw,
+      itens:e.itens.map(i=>({nome:i.nome, preco:i.preco, qtd:i.qtd, ...(i.orcamento?{orcamento:true}:{}), ...(i.retorno?{retorno:true}:{})})), subtotal:r.sub, desconto:r.desc, descontoTipo:e.tipo, descontoInformado:r.raw,
       total:r.tot, entrada:round2(r.ent), pagamento:$("#ed-pag").value, obs:U($("#ed-obs").value.trim()),
       pagarEm: ($("#ed-pag").value!=="Pagar na retirada" && r.ent>=r.tot-0.001 && r.tot>0) ? "ato" : "retirada",
+      semCusto: r.tot>0.001 ? false : !!cur.semCusto,
       editadoEm:now, editadoPor:session?session.nome:"",
       historico:[...(cur.historico||[]),{status:cur.status, acao:"Pedido editado", por:session?session.nome:"", em:now}] };
     if(cur.status==="entregue"){ patch.valorRetirada=Math.max(0,round2(r.tot-r.ent)); }
