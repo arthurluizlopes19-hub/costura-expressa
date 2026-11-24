@@ -110,7 +110,7 @@ const VIEW_INFO={
   despesas:{t:"Despesas", d:"Gastos do ateliê e lucro do mês", i:IC('<rect x="3" y="6" width="18" height="13" rx="2"/><path d="M3 10h18M7 15h4"/>')},
   faturamento:{t:"Faturamento", d:"Quanto entrou no mês", i:IC('<path d="M4 20V10M10 20V4M16 20v-7M22 20H2"/>')},
   costureiras:{t:"Fila de costura", d:"Pegar e terminar pedidos", i:IC('<path d="M6 3v6a6 6 0 0 0 12 0V3"/><path d="M4 21h16"/>')},
-  producao:{t:"Costureiras", d:"Quem está fazendo o quê", i:IC('<circle cx="9" cy="8" r="3.5"/><path d="M2 21a7 7 0 0 1 14 0"/><path d="M17 4a3.5 3.5 0 0 1 0 7M22 21a7 7 0 0 0-4-6.3"/>')},
+  producao:{t:"Costureiras", d:"Pedidos feitos por cada costureira", i:IC('<circle cx="9" cy="8" r="3.5"/><path d="M2 21a7 7 0 0 1 14 0"/><path d="M17 4a3.5 3.5 0 0 1 0 7M22 21a7 7 0 0 0-4-6.3"/>')},
   logistica:{t:"Logística", d:"Prazos e locais das peças", i:IC('<path d="M3 7h11v10H3zM14 10h4l3 3v4h-7"/><circle cx="7" cy="18" r="2"/><circle cx="17" cy="18" r="2"/>')},
   entregues:{t:"Entregues", d:"Histórico de pedidos entregues", i:IC('<path d="M20 6 9 17l-5-5"/>')},
   servicos:{t:"Serviços", d:"Tabela de serviços e preços", i:IC('<path d="M8 6h13M8 12h13M8 18h13M3 6h.01M3 12h.01M3 18h.01"/>')},
@@ -122,7 +122,7 @@ function menuBadges(){
   const ab=orders.filter(o=>o.status!=="entregue");
   b.dodia=[ab.filter(o=>o.entrega===hoje).length, ab.some(o=>o.entrega && o.entrega<hoje)];
   b.costureiras=[orders.filter(o=>o.status==="recebido").length,false];
-  b.producao=[orders.filter(o=>o.status==="em_costura").length,false];
+  b.producao=[0,false];
   b.clientes=[listaClientes().length,false];
   return b;
 }
@@ -1278,22 +1278,22 @@ function renderProducao(){
   const now=new Date(); const today=new Date(now.getFullYear(),now.getMonth(),now.getDate()).getTime();
   const from = prPer==="hoje"?today : prPer==="7"?today-6*864e5 : prPer==="mes"?new Date(now.getFullYear(),now.getMonth(),1).getTime() : 0;
   const perTxt={hoje:"hoje","7":"nos últimos 7 dias",mes:"neste mês",tudo:"no total"}[prPer];
-  const nomes=[...new Set([...team.filter(m=>m.papel==="costureira").map(m=>m.nome), ...orders.filter(o=>o.costureira).map(o=>o.costureira)])]
+  // Conta só os pedidos em que a administração escolheu a costureira (campo costureiraEm, a partir de 24/11/2026).
+  const marcados=orders.filter(o=>o.costureira && o.costureiraEm && o.costureiraEm>=from);
+  const nomes=[...new Set([...team.filter(m=>m.papel==="costureira").map(m=>U(m.nome)), ...marcados.map(o=>U(o.costureira))])]
     .sort((a,b)=>String(a).localeCompare(String(b),"pt-BR"));
-  const fila=orders.filter(o=>o.status==="recebido");
-  const fazendoTot=orders.filter(o=>o.status==="em_costura").length;
+  const pecas=l=>l.reduce((t,o)=>t+(o.itens||[]).filter(i=>!ehRet(i)).reduce((x,i)=>x+(Number(i.qtd)||0),0),0);
   const resumo=`<div class="hist-sum">
-    <div class="stat"><span class="n">${fila.length}</span><span class="t">Esperando costureira</span></div>
-    <div class="stat"><span class="n">${fazendoTot}</span><span class="t">Sendo feitos agora</span></div>
-    <div class="stat"><span class="n">${orders.filter(o=>o.costureira&&(o.status==="pronto"||o.status==="entregue")&&doneAt(o)>=from).length}</span><span class="t">Feitos ${perTxt}</span></div></div>`;
-  if(!nomes.length){ body.innerHTML=resumo+`<div class="empty">Cadastre as costureiras na aba Equipe para acompanhar o trabalho delas aqui.</div>`; return; }
-  const item=o=>`<button class="cs-item" data-open="${esc(o.codigo)}"><b>${esc(U((o.cliente||{}).nome||"Cliente"))}</b><span>${esc(o.codigo)}${o.entrega?" · "+fmtDay(o.entrega).slice(0,5):""}</span></button>`;
+    <div class="stat"><span class="n">${marcados.length}</span><span class="t">Pedidos feitos ${perTxt}</span></div>
+    <div class="stat"><span class="n">${pecas(marcados)}</span><span class="t">Serviços feitos ${perTxt}</span></div></div>
+    <p class="hint">Conta os pedidos em que a administração escolheu <b>Costureira que fez</b>, dentro do pedido.</p>`;
+  if(!nomes.length){ body.innerHTML=resumo+`<div class="empty">Cadastre as costureiras na página Equipe (Costureira, só o nome) e escolha quem fez em cada pedido.</div>`; return; }
+  const item=o=>`<button class="cs-item" data-open="${esc(o.codigo)}"><b>${esc(U((o.cliente||{}).nome||"Cliente"))}</b><span>${esc(o.codigo)} · ${fmtDate(o.costureiraEm).slice(0,5)}</span></button>`;
   body.innerHTML=resumo+`<span class="label cs-sec">Por costureira</span><div class="cs-grid">${nomes.map(n=>{
-    const fazendo=orders.filter(o=>o.status==="em_costura" && o.costureira===n).sort((a,b)=>(a.entrega||"9")<(b.entrega||"9")?-1:1);
-    const feitos=orders.filter(o=>o.costureira===n && (o.status==="pronto"||o.status==="entregue") && doneAt(o)>=from);
+    const feitos=marcados.filter(o=>U(o.costureira)===n).sort((a,b)=>(b.costureiraEm||0)-(a.costureiraEm||0));
     return `<div class="cs"><div class="cs-hd"><span class="av">${esc(initials(n))}</span><b>${esc(n)}</b></div>
-      <div class="cs-nums"><div><span class="n done">${feitos.length}</span><span class="t">Pedidos feitos ${perTxt}</span></div><div><span class="n doing">${fazendo.length}</span><span class="t">Fazendo agora</span></div></div>
-      ${fazendo.length?`<div class="cs-list"><span class="label">Está fazendo os pedidos de</span>${fazendo.map(item).join("")}</div>`:`<p class="hint">Sem pedido em costura agora.</p>`}
+      <div class="cs-nums"><div><span class="n done">${feitos.length}</span><span class="t">Pedidos feitos ${perTxt}</span></div><div><span class="n doing">${pecas(feitos)}</span><span class="t">Serviços ${perTxt}</span></div></div>
+      ${feitos.length?`<div class="cs-list"><span class="label">Pedidos</span>${feitos.slice(0,30).map(item).join("")}${feitos.length>30?`<p class="hint">e mais ${feitos.length-30}.</p>`:""}</div>`:`<p class="hint">Nenhum pedido ${perTxt}.</p>`}
     </div>`; }).join("")}</div>`;
 }
 $("#pr-periodo").addEventListener("click",e=>{ const b=e.target.closest("[data-per]"); if(!b) return; prPer=b.dataset.per;
@@ -1609,7 +1609,7 @@ function renderSheet(o){
   $("#sh-close").onclick=closeSheet;
   const shc=$("#sh-cost"); if(shc) shc.onchange=async()=>{
     let v=shc.value; if(v==="__outra"){ v=U((prompt("Nome da costureira:")||"").trim()); if(!v){ shc.value=U(o.costureira||""); return; } }
-    try{ await db.doc(`pedidos/${o.codigo}`).update({costureira:v}); o.costureira=v; const x=orders.find(z=>z.codigo===o.codigo); if(x) x.costureira=v;
+    try{ const em=v?Date.now():null; await db.doc(`pedidos/${o.codigo}`).update({costureira:v, costureiraEm:em}); o.costureira=v; o.costureiraEm=em; const x=orders.find(z=>z.codigo===o.codigo); if(x){ x.costureira=v; x.costureiraEm=em; }
       toast(v?`Costureira: ${v}.`:"Costureira retirada."); if(shc.value==="__outra") renderSheet(o); }catch(e){ writeErr(e); } };
   const shp=$("#sh-prio"); if(shp) shp.onclick=async()=>{ shp.disabled=true; const v=!o.prioridade;
     try{ await db.doc(`pedidos/${o.codigo}`).update({prioridade:v}); o.prioridade=v; const x=orders.find(z=>z.codigo===o.codigo); if(x) x.prioridade=v; renderSheet(o);
