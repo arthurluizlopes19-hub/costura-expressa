@@ -383,6 +383,9 @@ function resetForm(){
 }
 
 /* ---------- listas de pedidos ---------- */
+// Serviços de retorno (sem custo) ficam separados dos serviços com valor.
+const ehRet=i=>!!(i&&(i.retorno||/^RETORNO · /.test(String(i.nome||""))));
+const nomeRet=n=>String(n||"").replace(/^RETORNO · /,"");
 const ehAdm=()=>!!session && (session.papel==="admin"||session.papel==="gerencia");
 const ehPrio=o=>!!o.prioridade && o.status!=="entregue";
 function ordCls(o){ return (ehPrio(o)?" prio":"")+((session&&session.papel!=="costureira"&&o.status!=="entregue"&&restOf(o)>0.001)?" devendo":""); }
@@ -462,11 +465,14 @@ function layoutNota(doc,o,fmt,logo,qr){
   const cQ=R;
   font(fs.s,"bold",teal); T("SERVIÇO",M,y); T("QTD",cQ,y,{align:"right"});
   y+=1.8; hr(false); y+=thermal?3.8:5;
-  (o.itens||[]).forEach(i=>{
-    const nameW=cQ-12-M; font(fs.big-1,"bold",ink); const lines=doc.splitTextToSize(U(i.nome),nameW); T(lines,M,y);
+  const pItem=(i,nome)=>{
+    const nameW=cQ-12-M; font(fs.big-1,"bold",ink); const lines=doc.splitTextToSize(U(nome),nameW); T(lines,M,y);
     T(i.qtd+"×",cQ,y,{align:"right"});
     y+=lh(fs.big-1)*1.3*lines.length+(thermal?1.6:2.6);
-  });
+  };
+  (o.itens||[]).filter(i=>!ehRet(i)).forEach(i=>pItem(i,i.nome));
+  const pRets=(o.itens||[]).filter(ehRet);
+  if(pRets.length){ y+=thermal?1:2; hr(true); y+=thermal?4:6; font(fs.s,"bold",plum); T("RETORNO (SEM CUSTO)",M,y); y+=thermal?4:5.5; pRets.forEach(i=>pItem(i,nomeRet(i.nome))); }
   hr(false); y+=thermal?5:7;
   if(o.obs){ font(fs.s,"bold",teal); T("OBSERVAÇÕES",M,y); y+=thermal?3.8:5; font(fs.b,"normal",ink); const lines=doc.splitTextToSize(U(o.obs),CW); T(lines,M,y); y+=lh(fs.b)*1.35*lines.length+(thermal?3:5); }
   hr(true); y+=thermal?4:7;
@@ -619,7 +625,9 @@ function waNotaText(o){
   const L=[];
   L.push(`Olá${nome?", "+nome:""}! Aqui é da *Costura Expressa*.`);
   L.push(""); L.push(`*Pedido Nº ${o.codigo}*`); L.push(`Data: ${fmtDate(o.criadoEm)}`); L.push("");
-  (o.itens||[]).forEach(i=>L.push(`• ${i.qtd}× ${U(i.nome)}: ${i.orcamento?"em orçamento (valor a definir)":money(i.preco*i.qtd)}`));
+  (o.itens||[]).filter(i=>!ehRet(i)).forEach(i=>L.push(`• ${i.qtd}× ${U(i.nome)}: ${i.orcamento?"em orçamento (valor a definir)":money(i.preco*i.qtd)}`));
+  const wRets=(o.itens||[]).filter(ehRet);
+  if(wRets.length){ L.push(""); L.push("*Retorno (sem custo):*"); wRets.forEach(i=>L.push(`• ${i.qtd}× ${U(nomeRet(i.nome))}`)); }
   L.push("");
   if(descOf(o)){ L.push(`Subtotal: ${money(subOf(o))}`); L.push(`${descLabel(o)}: - ${money(descOf(o))}`); }
   L.push(`*Total: ${money(totOf(o))}*`);
@@ -1336,7 +1344,10 @@ document.addEventListener("keydown",e=>{ if(e.key==="Escape" && !$("#overlay").h
 function diaAntes(iso){ if(!iso) return ""; const d=new Date(iso+"T12:00:00"); d.setDate(d.getDate()-1); if(d.getDay()===0) d.setDate(d.getDate()-1); return isoDay(d); }
 function notaHTML(o,{precos=true,qr=true,interna=false}={}){
   const c=o.cliente||{}; const restante=restOf(o);
-  const rows=(o.itens||[]).map(i=>`<tr><td>${esc(i.nome)}${i.orcamento?` <span class="aorcar">· EM ORÇAMENTO</span>`:""}</td><td class="n">${i.qtd}×</td>${precos?(i.orcamento?`<td class="n aorcar" colspan="2">A ORÇAR</td>`:`<td class="n">${money(i.preco)}</td><td class="n">${money(i.preco*i.qtd)}</td>`):""}</tr>`).join("");
+  const linha=(i,nome)=>`<tr><td>${esc(nome)}${i.orcamento?` <span class="aorcar">· EM ORÇAMENTO</span>`:""}</td><td class="n">${i.qtd}×</td>${precos?(i.orcamento?`<td class="n aorcar" colspan="2">A ORÇAR</td>`:`<td class="n">${money(i.preco)}</td><td class="n">${money(i.preco*i.qtd)}</td>`):""}</tr>`;
+  const its=o.itens||[], normais=its.filter(i=>!ehRet(i)), rets=its.filter(ehRet);
+  const rows=normais.map(i=>linha(i,i.nome)).join("")
+    + (rets.length?`<tr class="ret-sep"><td colspan="${precos?4:2}"><span>↺ RETORNO${precos?" · SEM CUSTO PARA A CLIENTE":""}</span></td></tr>`+rets.map(i=>linha(i,nomeRet(i.nome)).replace("<tr>",'<tr class="ret-row">')).join(""):"");
   return `
     <article class="nota" aria-label="Pedido ${esc(o.codigo)}">
       <div class="nota-head">
@@ -1423,7 +1434,7 @@ function renderEdit(o){
     return {sub,raw,desc,tot,ent,err};
   };
   const paint=()=>{
-    $("#ed-items").innerHTML = e.itens.length ? e.itens.map((i,k)=>`<div class="ei"><div class="nm"><textarea class="nm-in" rows="1" data-en="${k}" aria-label="Nome do serviço ${k+1}">${esc(i.nome)}</textarea>${i.orcamento?`<span class="aorcar">A ORÇAR: digite o valor</span>`:""}</div>
+    $("#ed-items").innerHTML = e.itens.length ? e.itens.map((i,k)=>`<div class="ei${ehRet(i)?" ei-ret":""}"><div class="nm">${ehRet(i)?`<span class="ret-chip">↺ RETORNO · sem custo</span>`:""}<textarea class="nm-in" rows="1" data-en="${k}" aria-label="Nome do serviço ${k+1}">${esc(i.nome)}</textarea>${i.orcamento?`<span class="aorcar">A ORÇAR: digite o valor</span>`:""}</div>
       <input type="number" min="0" step="0.01" inputmode="decimal" data-ep="${k}" value="${i.orcamento?"":i.preco.toFixed(2)}" placeholder="a orçar" aria-label="Valor de ${esc(i.nome)}">
       <div class="step"><button type="button" data-edec="${k}" aria-label="Diminuir">−</button><span class="q">${i.qtd}</span><button type="button" data-einc="${k}" aria-label="Aumentar">+</button></div>
       <button type="button" class="x" data-erm="${k}" aria-label="Remover ${esc(i.nome)}">×</button></div>`).join("") : `<div class="empty">Nenhum serviço. Adicione abaixo.</div>`;
