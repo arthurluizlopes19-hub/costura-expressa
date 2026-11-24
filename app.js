@@ -361,6 +361,7 @@ async function finalizar(){
       obs:U($("#c-obs").value.trim()), fotos:fotoIds, audio:audioId,
       atendente:atend, costureira:"", status:"recebido", criadoEm:now,
       historico:[{status:"recebido", por:atend||"Atendimento", em:now}]};
+    if(ehAndroid && autoPrintLigado()) prepararNota(pedido).catch(()=>{});
     await db.doc(`pedidos/${code}`).set(pedido);
     saveCliente(pedido.cliente.nome, pedido.cliente.telefone, pedido.endereco);
     try{ resetForm(); }catch(e){ console.error(e); }
@@ -539,6 +540,23 @@ function autoPrintLigado(){ try{ return localStorage.getItem(AUTO_KEY)!=="0"; }c
 function autoPrintSet(v){ try{ localStorage.setItem(AUTO_KEY, v?"1":"0"); }catch(e){} }
 let autoImprimirCodigo="";
 function blobB64(b){ return new Promise((res,rej)=>{ const r=new FileReader(); r.onload=()=>res(String(r.result).split(",")[1]||""); r.onerror=rej; r.readAsDataURL(b); }); }
+// Chrome só deixa abrir outro app logo depois de um toque. Por isso a imagem fica pronta ANTES do toque
+// (cache em base64) e o toque abre o RawBT na hora, sem esperar nada.
+const notaCache=new Map(); // código -> Promise<{blob,b64}>
+function prepararNota(o){
+  const k=[o.codigo,(o.historico||[]).length,o.editadoEm||0,JSON.stringify(o.itens||[]).length,o.entrega||"",o.obs||"",o.prioridade?1:0].join("|");
+  if(!notaCache.has(k)){ if(notaCache.size>30) notaCache.clear();
+    notaCache.set(k, printImagem(o).then(async blob=>({blob, b64:await blobB64(blob)})).catch(e=>{ notaCache.delete(k); throw e; })); }
+  return notaCache.get(k);
+}
+function abrirRawBT(b64,pm){
+  let saiu=false; const vis=()=>{ if(document.hidden) saiu=true; };
+  document.addEventListener("visibilitychange",vis);
+  location.href="intent:data:image/png;base64,"+b64+"#Intent;scheme=rawbt;package=ru.a402d.rawbtprinter;end;";
+  setTimeout(()=>{ document.removeEventListener("visibilitychange",vis);
+    if(pm) pm.innerHTML = saiu ? "Enviado para o <b>RawBT</b>." : "Se o RawBT não abriu, toque no botão de imprimir de novo.";
+  },2500);
+}
 async function enviarRawBT(blob,pm){
   const b64=await blobB64(blob);
   let saiu=false; const vis=()=>{ if(document.hidden) saiu=true; };
@@ -549,16 +567,16 @@ async function enviarRawBT(blob,pm){
   },2500);
 }
 function wirePrint(o){
-  let img=null; const pb=$("#print-now"), pm=$("#print-msg");
+  let img=null, b64=null; const pb=$("#print-now"), pm=$("#print-msg");
   const html=pb.innerHTML; pb.disabled=true; pb.innerHTML='<span class="busy"><span class="spin"></span>Preparando a impressão</span>';
   const ac=$("#print-auto"); if(ac) ac.onchange=()=>{ autoPrintSet(ac.checked); toast(ac.checked?"Impressão automática ligada neste celular.":"Impressão automática desligada neste celular."); };
-  printImagem(o).then(b=>{ img=new File([b],`pedido-${o.codigo}.png`,{type:"image/png"});
-      if(ehAndroid && autoImprimirCodigo===o.codigo){ autoImprimirCodigo=""; pm.innerHTML="Mandando a nota para o RawBT…"; enviarRawBT(img,pm); } })
+  prepararNota(o).then(r=>{ img=new File([r.blob],`pedido-${o.codigo}.png`,{type:"image/png"}); b64=r.b64;
+      if(ehAndroid && autoImprimirCodigo===o.codigo){ autoImprimirCodigo=""; pm.innerHTML="Mandando a nota para o RawBT…"; abrirRawBT(b64,pm); } })
     .catch(e=>{ console.warn(e); pm.textContent="Não consegui preparar a impressão. Use Imprimir pelo navegador."; })
     .finally(()=>{ pb.disabled=false; pb.innerHTML=html; });
   $("#print-browser").onclick=()=>printBrowser(o);
   pb.onclick=async()=>{
-    if(ehAndroid){ if(!img){ toast("A nota ainda está sendo preparada. Tente de novo em instantes."); return; } await enviarRawBT(img,pm); return; }
+    if(ehAndroid){ if(!b64){ toast("A nota ainda está sendo preparada. Tente de novo em instantes."); return; } abrirRawBT(b64,pm); return; }
     if(img && navigator.canShare && navigator.canShare({files:[img]})){
       try{ await navigator.share({files:[img]}); pm.textContent="Escolha o app da impressora na lista e toque em imprimir."; return; }
       catch(e){ if(e && e.name==="AbortError") return; }
@@ -1160,6 +1178,7 @@ function renderDoDia(){
   const body=$("#dd-body"); if(!body) return;
   const inp=$("#dd-dia"); if(!inp.value) inp.value=isoDay(new Date());
   const dia=inp.value; const hoje=isoDay(new Date());
+  relPreparar();
   if(ddArq && ddArqChave.split("|")[0]!==dia){ ddArq=null; ddArqChave=""; const bb=$("#dd-print-btn"); if(bb) bb.textContent="Imprimir relatório do dia"; const mm=$("#dd-print-msg"); if(mm) mm.textContent="Prioridades, atrasados, entregas e retiradas do dia escolhido, em papel de 80 mm."; }
   const abertos=orders.filter(o=>o.status!=="entregue");
   const doDia=abertos.filter(o=>o.entrega===dia).sort((a,b)=>(a.status==="pronto"?0:1)-(b.status==="pronto"?0:1));
@@ -1223,9 +1242,26 @@ async function imagemRelatorio(dia){
     return await new Promise((res,rej)=>cv.toBlob(b=>b?res(b):rej(new Error("imagem")),"image/png"));
   } finally { box.remove(); }
 }
-var ddArq=null, ddArqChave="";
+var ddArq=null, ddArqChave="", ddPrep=null, ddPrepChave="", ddPrepT=null;
+function relChave(dia){ return dia+"|"+relatorioHTML(dia).replace(/Impresso em[^<]*/,""); }
+function relPreparar(){ // gera a imagem do relatório em segundo plano (Android), para o toque abrir o RawBT na hora
+  if(!ehAndroid) return;
+  clearTimeout(ddPrepT); ddPrepT=setTimeout(async()=>{ if(curView!=="dodia") return;
+    const dia=$("#dd-dia").value||isoDay(new Date()); const ch=relChave(dia); if(ch===ddPrepChave && ddPrep) return;
+    try{ const blob=await imagemRelatorio(dia); ddPrep={b64:await blobB64(blob), blob}; ddPrepChave=ch; }catch(e){ console.warn(e); }
+  },600);
+}
 $("#dd-print-btn").addEventListener("click",async()=>{
   const b=$("#dd-print-btn"), m=$("#dd-print-msg"); const dia=$("#dd-dia").value||isoDay(new Date());
+  if(ehAndroid){
+    const ch=relChave(dia);
+    if(ddPrep && ddPrepChave===ch){ abrirRawBT(ddPrep.b64,m); return; }   // já estava pronto: abre na hora
+    b.disabled=true; b.innerHTML='<span class="busy"><span class="spin"></span>Preparando o relatório</span>';
+    try{ const blob=await imagemRelatorio(dia); ddPrep={b64:await blobB64(blob), blob}; ddPrepChave=ch; abrirRawBT(ddPrep.b64,m); }
+    catch(e){ console.error(e); m.textContent="Não consegui preparar o relatório. Tente de novo."; }
+    finally{ b.disabled=false; b.textContent="Imprimir relatório do dia"; }
+    return;
+  }
   const chave=dia+"|"+relatorioHTML(dia).replace(/Impresso em[^<]*/,"").length;
   if(!ddArq || ddArqChave!==chave){
     b.disabled=true; b.innerHTML='<span class="busy"><span class="spin"></span>Preparando o relatório</span>';
