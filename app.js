@@ -364,6 +364,7 @@ async function finalizar(){
     await db.doc(`pedidos/${code}`).set(pedido);
     saveCliente(pedido.cliente.nome, pedido.cliente.telefone, pedido.endereco);
     try{ resetForm(); }catch(e){ console.error(e); }
+    if(ehAndroid && autoPrintLigado()) autoImprimirCodigo=code;
     try{ await openOrder(code, pedido); }catch(e){ console.error(e); }
     toast("Pedido "+code+" finalizado. Envie o pedido pelo WhatsApp.");
     setTimeout(()=>{ const w=$("#sheet .wa-box"); if(w) w.scrollIntoView({behavior:"smooth",block:"center"}); },500);
@@ -525,19 +526,37 @@ async function pdfNotasDoDia(lista,onProg){
   doc.setProperties({title:"Notas do dia · Costura Expressa"});
   return doc.output("blob");
 }
+/* ---------- RawBT (Android): imprime a imagem da nota direto na térmica ---------- */
+const AUTO_KEY="ce-rawbt-auto";
+function autoPrintLigado(){ try{ return localStorage.getItem(AUTO_KEY)!=="0"; }catch(e){ return true; } }
+function autoPrintSet(v){ try{ localStorage.setItem(AUTO_KEY, v?"1":"0"); }catch(e){} }
+let autoImprimirCodigo="";
+function blobB64(b){ return new Promise((res,rej)=>{ const r=new FileReader(); r.onload=()=>res(String(r.result).split(",")[1]||""); r.onerror=rej; r.readAsDataURL(b); }); }
+async function enviarRawBT(blob,pm){
+  const b64=await blobB64(blob);
+  let saiu=false; const vis=()=>{ if(document.hidden) saiu=true; };
+  document.addEventListener("visibilitychange",vis);
+  location.href="intent:data:image/png;base64,"+b64+"#Intent;scheme=rawbt;package=ru.a402d.rawbtprinter;end;";
+  setTimeout(()=>{ document.removeEventListener("visibilitychange",vis);
+    if(pm) pm.innerHTML = saiu ? "Nota enviada para o <b>RawBT</b>." : "Se o RawBT não abriu, toque em <b>Imprimir no RawBT</b>.";
+  },2500);
+}
 function wirePrint(o){
   let img=null; const pb=$("#print-now"), pm=$("#print-msg");
   const html=pb.innerHTML; pb.disabled=true; pb.innerHTML='<span class="busy"><span class="spin"></span>Preparando a impressão</span>';
-  printImagem(o).then(b=>{ img=new File([b],`pedido-${o.codigo}.png`,{type:"image/png"}); })
+  const ac=$("#print-auto"); if(ac) ac.onchange=()=>{ autoPrintSet(ac.checked); toast(ac.checked?"Impressão automática ligada neste celular.":"Impressão automática desligada neste celular."); };
+  printImagem(o).then(b=>{ img=new File([b],`pedido-${o.codigo}.png`,{type:"image/png"});
+      if(ehAndroid && autoImprimirCodigo===o.codigo){ autoImprimirCodigo=""; pm.innerHTML="Mandando a nota para o RawBT…"; enviarRawBT(img,pm); } })
     .catch(e=>{ console.warn(e); pm.textContent="Não consegui preparar a impressão. Use Imprimir pelo navegador."; })
     .finally(()=>{ pb.disabled=false; pb.innerHTML=html; });
   $("#print-browser").onclick=()=>printBrowser(o);
   pb.onclick=async()=>{
+    if(ehAndroid){ if(!img){ toast("A nota ainda está sendo preparada. Tente de novo em instantes."); return; } await enviarRawBT(img,pm); return; }
     if(img && navigator.canShare && navigator.canShare({files:[img]})){
-      try{ await navigator.share({files:[img]}); pm.textContent="Escolha o Fun Print na lista e toque em imprimir."; return; }
+      try{ await navigator.share({files:[img]}); pm.textContent="Escolha o app da impressora na lista e toque em imprimir."; return; }
       catch(e){ if(e && e.name==="AbortError") return; }
     }
-    if(img){ saveFile(img,img.name); pm.textContent="Imagem baixada ("+img.name+"). Abra o Fun Print e escolha essa imagem para imprimir."; return; }
+    if(img){ saveFile(img,img.name); pm.textContent="Imagem baixada ("+img.name+"). Abra o app da impressora e escolha essa imagem."; return; }
     printBrowser(o);
   };
 }
@@ -1218,18 +1237,18 @@ $("#pd-print-btn").addEventListener("click",async()=>{
     try{
       const blob=await pdfNotasDoDia(pdLista,(i,n)=>{ b.innerHTML=`<span class="busy"><span class="spin"></span>Preparando nota ${i} de ${n}</span>`; });
       pdArquivo=new File([blob],nome,{type:"application/pdf"}); pdArqChave=chave;
-      b.textContent=`Enviar para o Fun Print (${pdLista.length} nota${pdLista.length>1?"s":""})`;
-      m.innerHTML=`Arquivo pronto com <b>${pdLista.length}</b> nota${pdLista.length>1?"s":""}. Toque no botão de novo para escolher o <b>Fun Print</b>.`;
+      b.textContent=`Enviar para a impressora (${pdLista.length} nota${pdLista.length>1?"s":""})`;
+      m.innerHTML=`Arquivo pronto com <b>${pdLista.length}</b> nota${pdLista.length>1?"s":""}. Toque no botão de novo e escolha o <b>RawBT</b>.`;
     }catch(e){ console.error(e); b.textContent="Imprimir todas as notas deste dia"; m.textContent="Não consegui preparar as notas. Tente de novo."; }
     finally{ b.disabled=false; }
     return;
   }
   if(navigator.canShare && navigator.canShare({files:[pdArquivo]})){
-    try{ await navigator.share({files:[pdArquivo]}); m.innerHTML="Escolha o <b>Fun Print</b> na lista e imprima. As notas saem uma embaixo da outra, com a linha de corte."; return; }
+    try{ await navigator.share({files:[pdArquivo]}); m.innerHTML="Escolha o <b>RawBT</b> na lista e imprima. As notas saem uma embaixo da outra, com a linha de corte."; return; }
     catch(e){ if(e && e.name==="AbortError") return; }
   }
   saveFile(pdArquivo,pdArquivo.name);
-  m.innerHTML=`Arquivo baixado (<b>${esc(pdArquivo.name)}</b>). Abra o Fun Print e escolha esse PDF para imprimir.`;
+  m.innerHTML=`Arquivo baixado (<b>${esc(pdArquivo.name)}</b>). Abra o RawBT e escolha esse PDF para imprimir.`;
 });
 let pdT=null;
 $("#pd-busca").addEventListener("input",()=>{ clearTimeout(pdT); pdT=setTimeout(()=>{ pdLimit=60; renderPedidos(); },150); });
@@ -1553,9 +1572,10 @@ function renderSheet(o){
       <p class="hint" id="wa-msg">${o.whatsEnviadoEm?`Pedido enviado pelo WhatsApp em ${fmtDate(o.whatsEnviadoEm)}. `:""}Abre a conversa de ${esc((c.nome||"").split(" ")[0]||"cliente")}${waNumber(c.telefone)?" ("+esc(c.telefone)+")":""} com o texto “Segue o seu pedido” pronto e a imagem copiada: toque e segure na caixa de mensagem, escolha <b>Colar</b> e envie junto com o texto.</p>
     </div>`:""}
     ${verValores?`<div class="panel print-box"><span class="label">Imprimir (80 mm)</span>
-      <button class="btn primary" id="print-now">Imprimir</button>
+      <button class="btn primary" id="print-now">${ehAndroid?"Imprimir no RawBT":"Imprimir"}</button>
       <div class="grid2"><button class="btn" id="print-browser">Imprimir pelo navegador</button><button class="btn" data-print="80">Baixar PDF 80 mm</button></div>
-      <p class="hint" id="print-msg">Abre o compartilhar do celular: escolha o <b>Fun Print</b>. A impressão sai sem valores, só com os serviços, as observações e o QR code.</p>
+      ${ehAndroid?`<label class="auto-print"><input type="checkbox" id="print-auto" ${autoPrintLigado()?"checked":""}> Imprimir sozinho ao finalizar o pedido (neste celular)</label>`:""}
+      <p class="hint" id="print-msg">${ehAndroid?"Manda a nota direto para o <b>RawBT</b>.":"Abre o compartilhar do celular: escolha o app da impressora."} A impressão sai sem valores, só com os serviços, as observações e o QR code.</p>
     </div>`:""}
     ${o.audio?`<div class="panel"><span class="label">Áudio da atendente</span><div id="sh-audio" class="busy muted"><span class="spin"></span>Carregando áudio…</div></div>`:""}
     ${(o.fotos||[]).length?`<div class="panel"><span class="label">Fotos da peça</span><div class="thumbs" id="sh-photos">${o.fotos.map(()=>`<div class="thumb"></div>`).join("")}</div></div>`:""}
