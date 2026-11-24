@@ -1160,6 +1160,7 @@ function renderDoDia(){
   const body=$("#dd-body"); if(!body) return;
   const inp=$("#dd-dia"); if(!inp.value) inp.value=isoDay(new Date());
   const dia=inp.value; const hoje=isoDay(new Date());
+  if(ddArq && ddArqChave.split("|")[0]!==dia){ ddArq=null; ddArqChave=""; const bb=$("#dd-print-btn"); if(bb) bb.textContent="Imprimir relatório do dia"; const mm=$("#dd-print-msg"); if(mm) mm.textContent="Prioridades, atrasados, entregas e retiradas do dia escolhido, em papel de 80 mm."; }
   const abertos=orders.filter(o=>o.status!=="entregue");
   const doDia=abertos.filter(o=>o.entrega===dia).sort((a,b)=>(a.status==="pronto"?0:1)-(b.status==="pronto"?0:1));
   const atrasados = dia===hoje ? abertos.filter(o=>o.entrega && o.entrega<dia).sort((a,b)=>a.entrega<b.entrega?-1:1) : [];
@@ -1185,6 +1186,62 @@ function renderDoDia(){
     ${doDia.length?`<p class="hint">A receber nestes pedidos: <b>${money(receber)}</b>.</p>`:""}
     ${jaEntregues.length?`<div class="panel"><span class="label">Já entregues neste dia (${jaEntregues.length})</span><div class="orders">${jaEntregues.map(ddCard).join("")}</div></div>`:""}`;
 }
+/* ---------- relatório do dia (prioridades e entregas) para a térmica ---------- */
+function dadosRelatorio(dia){
+  const hoje=isoDay(new Date()); const abertos=orders.filter(o=>o.status!=="entregue");
+  const porData=(a,b)=>(a.entrega||"9")<(b.entrega||"9")?-1:1;
+  const prio=abertos.filter(ehPrio).sort(porData);
+  const doDia=abertos.filter(o=>o.entrega===dia && !ehPrio(o));
+  return { prio, atrasados: dia===hoje ? abertos.filter(o=>o.entrega && o.entrega<dia && !ehPrio(o)).sort(porData) : [],
+    entregas: doDia.filter(comEntrega), retiradas: doDia.filter(o=>!comEntrega(o)) };
+}
+function relatorioHTML(dia){
+  const d=dadosRelatorio(dia);
+  const dl=new Date(dia+"T12:00:00").toLocaleDateString("pt-BR",{weekday:"long",day:"2-digit",month:"long",year:"numeric"});
+  const it=o=>{ const c=o.cliente||{}; const r=restOf(o);
+    const sv=(o.itens||[]).map(i=>`<div class="sv">• ${i.qtd}× ${esc(ehRet(i)?"RETORNO: "+nomeRet(i.nome):i.nome)}</div>`).join("");
+    return `<div class="it"><div class="l1"><span class="cd">${esc(o.codigo)}</span><span>${esc(STATUS[o.status]||"")}</span></div>
+      <div><b>${esc(U(c.nome||""))}</b>${c.telefone?" · "+esc(c.telefone):""}</div>
+      <div>${ehPrio(o)?'<span class="tg">PRIORIDADE</span>':""}${o.emRetorno||o.retornoDe?'<span class="tg">RETORNO</span>':""}${comEntrega(o)?'<span class="tg">ENTREGA</span>':""}Data: <b>${o.entrega?fmtDay(o.entrega):"sem data"}</b></div>
+      ${comEntrega(o)&&o.endereco?`<div>Endereço: <b>${esc(U(o.endereco))}</b></div>`:""}
+      ${sv}${r>0.001?`<div>A receber: <b>${money(r)}</b></div>`:""}${o.obs?`<div>Obs.: ${esc(U(o.obs))}</div>`:""}</div>`; };
+  const sec=(t,l,vz)=>`<h2>${t} (${l.length})</h2>${l.length?l.map(it).join(""):`<div class="vz">${vz}</div>`}`;
+  return `<div class="rel"><h1>COSTURA EXPRESSA</h1><div class="dt">Relatório de ${esc(cap(dl))}</div>
+    <div class="tot"><div><b>${d.prio.length}</b>Prioridades</div><div><b>${d.entregas.length}</b>Entregas</div><div><b>${d.retiradas.length}</b>Retiradas</div>${d.atrasados.length?`<div><b>${d.atrasados.length}</b>Atrasados</div>`:""}</div>
+    ${sec("★ PRIORIDADES",d.prio,"Nenhum pedido prioritário em aberto.")}
+    ${d.atrasados.length?sec("ATRASADOS",d.atrasados,""):""}
+    ${sec("FAZER ENTREGA",d.entregas,"Nenhuma entrega neste dia.")}
+    ${sec("CLIENTE VEM BUSCAR",d.retiradas,"Nenhuma retirada neste dia.")}
+    <div class="ft">Impresso em ${fmtDate(Date.now())}${session?" por "+esc(session.nome):""}</div></div>`;
+}
+async function imagemRelatorio(dia){
+  if(!window.html2canvas) throw new Error("html2canvas");
+  const box=document.createElement("div"); box.className="force-light print-render"; box.innerHTML=relatorioHTML(dia);
+  document.body.appendChild(box);
+  try{ await new Promise(r=>setTimeout(r,60));
+    const cv=await html2canvas(box.querySelector(".rel"),{scale:1,backgroundColor:"#ffffff",logging:false,width:576,windowWidth:576});
+    return await new Promise((res,rej)=>cv.toBlob(b=>b?res(b):rej(new Error("imagem")),"image/png"));
+  } finally { box.remove(); }
+}
+var ddArq=null, ddArqChave="";
+$("#dd-print-btn").addEventListener("click",async()=>{
+  const b=$("#dd-print-btn"), m=$("#dd-print-msg"); const dia=$("#dd-dia").value||isoDay(new Date());
+  const chave=dia+"|"+relatorioHTML(dia).replace(/Impresso em[^<]*/,"").length;
+  if(!ddArq || ddArqChave!==chave){
+    b.disabled=true; b.innerHTML='<span class="busy"><span class="spin"></span>Preparando o relatório</span>';
+    try{ const blob=await imagemRelatorio(dia); ddArq=new File([blob],`relatorio-${dia}.png`,{type:"image/png"}); ddArqChave=chave; }
+    catch(e){ console.error(e); b.disabled=false; b.textContent="Imprimir relatório do dia"; m.textContent="Não consegui preparar o relatório. Tente de novo."; return; }
+    b.disabled=false; b.textContent=ehAndroid?"Mandar de novo para o RawBT":"Enviar para a impressora";
+    if(ehAndroid){ m.innerHTML="Mandando o relatório para o RawBT…"; enviarRawBT(ddArq,m); }
+    else m.innerHTML="Relatório pronto. Toque no botão de novo e escolha o app da impressora.";
+    return;
+  }
+  if(ehAndroid){ enviarRawBT(ddArq,m); return; }
+  if(navigator.canShare && navigator.canShare({files:[ddArq]})){
+    try{ await navigator.share({files:[ddArq]}); m.innerHTML="Escolha o app da impressora na lista e imprima."; return; }catch(e){ if(e && e.name==="AbortError") return; }
+  }
+  saveFile(ddArq,ddArq.name); m.innerHTML=`Relatório baixado (<b>${esc(ddArq.name)}</b>). Abra o app da impressora e escolha essa imagem.`;
+});
 const ddShift=d=>{ const inp=$("#dd-dia"); if(!inp.value) inp.value=isoDay(new Date()); const t=new Date(inp.value+"T12:00:00"); t.setDate(t.getDate()+d); inp.value=isoDay(t); renderDoDia(); };
 $("#dd-dia").addEventListener("change",renderDoDia);
 $("#dd-body").addEventListener("click",e=>{
