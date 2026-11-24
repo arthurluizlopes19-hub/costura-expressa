@@ -1225,7 +1225,7 @@ function relatorioHTML(dia){
       ${comEntrega(o)&&o.endereco?`<div>Endereço: <b>${esc(U(o.endereco))}</b></div>`:""}
       ${sv}${r>0.001?`<div>A receber: <b>${money(r)}</b></div>`:""}${o.obs?`<div>Obs.: ${esc(U(o.obs))}</div>`:""}</div>`; };
   const sec=(t,l,vz)=>`<h2>${t} (${l.length})</h2>${l.length?l.map(it).join(""):`<div class="vz">${vz}</div>`}`;
-  return `<div class="rel"><h1>COSTURA EXPRESSA</h1><div class="dt">Relatório de ${esc(cap(dl))}</div>
+  return `<div class="rel"><div class="rel-head"><span class="logo" role="img" aria-label="Costura Expressa"></span><div class="addr">Galeria Jaqueira Park Center<br>R. do Futuro, 913 · Graças · Recife/PE<br>WhatsApp (81) 99616-0055</div></div><h1>RELATÓRIO DO DIA</h1><div class="dt">${esc(cap(dl))}</div>
     <div class="tot"><div><b>${d.prio.length}</b>Prioridades</div><div><b>${d.entregas.length}</b>Entregas</div><div><b>${d.retiradas.length}</b>Retiradas</div>${d.atrasados.length?`<div><b>${d.atrasados.length}</b>Atrasados</div>`:""}</div>
     ${sec("★ PRIORIDADES",d.prio,"Nenhum pedido prioritário em aberto.")}
     ${d.atrasados.length?sec("ATRASADOS",d.atrasados,""):""}
@@ -1244,8 +1244,7 @@ async function imagemRelatorio(dia){
 }
 var ddArq=null, ddArqChave="", ddPrep=null, ddPrepChave="", ddPrepT=null;
 function relChave(dia){ return dia+"|"+relatorioHTML(dia).replace(/Impresso em[^<]*/,""); }
-function relPreparar(){ // gera a imagem do relatório em segundo plano (Android), para o toque abrir o RawBT na hora
-  if(!ehAndroid) return;
+function relPreparar(){ // gera a imagem do relatório em segundo plano, para o toque imprimir na hora (como a nota)
   clearTimeout(ddPrepT); ddPrepT=setTimeout(async()=>{ if(curView!=="dodia") return;
     const dia=$("#dd-dia").value||isoDay(new Date()); const ch=relChave(dia); if(ch===ddPrepChave && ddPrep) return;
     try{ const blob=await imagemRelatorio(dia); ddPrep={b64:await blobB64(blob), blob}; ddPrepChave=ch; }catch(e){ console.warn(e); }
@@ -1253,8 +1252,14 @@ function relPreparar(){ // gera a imagem do relatório em segundo plano (Android
 }
 $("#dd-print-btn").addEventListener("click",async()=>{
   const b=$("#dd-print-btn"), m=$("#dd-print-msg"); const dia=$("#dd-dia").value||isoDay(new Date());
+  const chP=relChave(dia);
+  if(!ehAndroid && ddPrep && ddPrepChave===chP){ // iPhone: já estava pronto, abre o compartilhar na hora
+    const f=new File([ddPrep.blob],`relatorio-${dia}.png`,{type:"image/png"});
+    if(navigator.canShare && navigator.canShare({files:[f]})){ try{ await navigator.share({files:[f]}); m.innerHTML="Escolha o app da impressora na lista e imprima."; }catch(e){} return; }
+    saveFile(f,f.name); m.innerHTML=`Relatório baixado (<b>${esc(f.name)}</b>). Abra o app da impressora e escolha essa imagem.`; return;
+  }
   if(ehAndroid){
-    const ch=relChave(dia);
+    const ch=chP;
     if(ddPrep && ddPrepChave===ch){ abrirRawBT(ddPrep.b64,m); return; }   // já estava pronto: abre na hora
     b.disabled=true; b.innerHTML='<span class="busy"><span class="spin"></span>Preparando o relatório</span>';
     try{ const blob=await imagemRelatorio(dia); ddPrep={b64:await blobB64(blob), blob}; ddPrepChave=ch; abrirRawBT(ddPrep.b64,m); }
