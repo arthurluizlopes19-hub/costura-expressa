@@ -1416,10 +1416,9 @@ function renderEdit(o){
       <div class="sumbox" id="ed-sum"></div>
     </div>
     <div class="panel"><span class="label">Observações</span><textarea id="ed-obs">${esc(U(o.obs||""))}</textarea></div>
-    ${(o.status==="entregue"||o.status==="pronto") && !o.retornoDe ? `<div class="panel ret-box"><span class="label">Retorno</span>
-      <p class="hint">A cliente voltou para refazer algum ajuste? Este pedido fica guardado e um pedido de retorno vai para a fila das costureiras.</p>
-      <button class="btn" type="button" id="ed-retorno">Este pedido vai ter retorno</button></div>`
-      : !o.retornoDe ? `<div class="panel"><span class="label">Retorno</span><p class="hint">O retorno fica disponível quando o pedido estiver pronto.</p></div>` : ""}
+    <div class="panel ret-box"><span class="label">Retorno</span>
+      <p class="hint">A cliente voltou para refazer algum ajuste? O retorno fica registrado neste mesmo pedido, sem custo.</p>
+      <button class="btn" type="button" id="ed-retorno">Este pedido vai ter retorno</button></div>
     <div class="edit-bar"><button class="btn ghost" id="ed-cancel">Cancelar</button><button class="btn primary" id="ed-save">Salvar alterações</button></div>`;
   $("#overlay").scrollTop=0;
   const calc=()=>{
@@ -1553,7 +1552,7 @@ function renderSheet(o){
       <select id="pg-rest"><option>Pix</option><option>Dinheiro</option><option>Cartão de débito</option><option>Cartão de crédito</option></select></div></div>`:"";
   const prontoBtn = `<button class="btn pronto-btn" data-st="pronto" data-avisar="1">Pedido pronto · avisar a cliente</button>`;
   const nextBtn = (papel==="atendente" && (o.status==="recebido"||o.status==="em_costura")) ? `<p class="hint">${waitMsg}</p>${prontoBtn}`
-    : (papel==="admin" && o.status!=="entregue") ? `${o.status!=="pronto"?`<p class="hint">${waitMsg}</p>${prontoBtn}`:""}${o.status==="pronto"?`<button class="btn" id="ret-pronto">Registrar retorno (a cliente pediu ajuste)</button>`:""}${payBox}<button class="btn primary" data-st="entregue">Marcar como entregue</button>`
+    : (papel==="admin" && o.status!=="entregue") ? `${o.status!=="pronto"?`<p class="hint">${waitMsg}</p>${prontoBtn}`:""}${payBox}<button class="btn primary" data-st="entregue">Marcar como entregue</button>`
     : !canNext ? `<p class="hint">${waitMsg}</p>` : {
     recebido:`<div class="take"><span class="label">Pegar este pedido</span>
       <p style="margin:0">Costureira: <b>${esc(session.nome)}</b></p>
@@ -1593,12 +1592,9 @@ function renderSheet(o){
       <div class="hist">${(o.historico||[]).map(h=>`<span>${fmtDate(h.em)} · <b>${h.acao?esc(h.acao):STATUS[h.status]}</b>${h.por?" · "+esc(h.por):""}</span>`).join("")}</div>
       ${papel==="admin"?`<div class="cost-box"><label for="sh-cost">Costureira que fez <small>(só a administração vê)</small></label>
         <div class="locbox"><select id="sh-cost"><option value="">Escolher…</option>${[...new Set([...team.filter(m=>m.papel==="costureira").map(m=>U(m.nome)), ...(o.costureira?[U(o.costureira)]:[])])].map(n=>`<option${U(o.costureira||"")===n?" selected":""}>${esc(n)}</option>`).join("")}<option value="__outra">Outra (digitar nome)</option></select></div></div>`:""}
-      <div class="actions">${nextBtn}${back&&canBack?`<button class="btn ghost" data-st="${back}">Voltar para “${STATUS[back]}”</button>`:""}</div>
+      <div class="actions">${(papel==="admin"||papel==="atendente")?`<button class="btn" id="ret-pronto">↺ Registrar retorno (a cliente pediu ajuste)</button>`:""}${nextBtn}${back&&canBack?`<button class="btn ghost" data-st="${back}">Voltar para “${STATUS[back]}”</button>`:""}</div>
     </div>
-    ${papel==="admin" && o.status==="entregue" && !o.retornoDe?`<div class="panel ret-box"><span class="label">Retorno da cliente</span>
-      <p class="hint">Use quando a cliente voltar para refazer algum ajuste. O retorno fica registrado neste mesmo pedido, com os valores da primeira nota guardados.</p>
-      ${(o.retornos||[]).length?`<p class="hint">Retornos já abertos: ${o.retornos.map(r=>`<button class="link-btn" data-open="${esc(r)}">${esc(r)}</button>`).join(" ")}</p>`:""}
-      <button class="btn" id="ret-open">Registrar retorno</button></div>`:""}
+
     ${o.retornoDe?`<div class="panel"><span class="label">Pedido original</span><button class="btn ghost" data-open="${esc(o.retornoDe)}">Abrir pedido ${esc(o.retornoDe)}</button></div>`:""}
     ${papel==="admin"?`<div class="panel"><span class="label">Editar pedido</span>
       <p class="hint">Altere cliente, serviços, valores, desconto, entrada, entrega e observações.</p>
