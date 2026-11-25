@@ -1186,7 +1186,7 @@ function renderDoDia(){
   const inp=$("#dd-dia"); if(!inp.value) inp.value=isoDay(new Date());
   const dia=inp.value; const hoje=isoDay(new Date());
   relPreparar();
-  if(ddArq && ddArqChave.split("|")[0]!==dia){ ddArq=null; ddArqChave=""; const bb=$("#dd-print-btn"); if(bb) bb.textContent="Imprimir relatório do dia"; const mm=$("#dd-print-msg"); if(mm) mm.textContent="Prioridades, atrasados, entregas e retiradas do dia escolhido, em papel de 80 mm."; }
+  if(ddArq && ddArqChave.split("|")[0]!==dia){ ddArq=null; ddArqChave=""; const bb=$("#dd-print-btn"); if(bb) bb.textContent="Imprimir relatório do dia"; const mm=$("#dd-print-msg"); if(mm) mm.textContent="Os pedidos para entregar no dia escolhido (entregas e retiradas), em papel de 80 mm."; }
   const abertos=orders.filter(o=>o.status!=="entregue");
   const doDia=abertos.filter(o=>o.entrega===dia).sort((a,b)=>(a.status==="pronto"?0:1)-(b.status==="pronto"?0:1));
   const atrasados = dia===hoje ? abertos.filter(o=>o.entrega && o.entrega<dia).sort((a,b)=>a.entrega<b.entrega?-1:1) : [];
@@ -1214,12 +1214,9 @@ function renderDoDia(){
 }
 /* ---------- relatório do dia (prioridades e entregas) para a térmica ---------- */
 function dadosRelatorio(dia){
-  const hoje=isoDay(new Date()); const abertos=orders.filter(o=>o.status!=="entregue");
-  const porData=(a,b)=>(a.entrega||"9")<(b.entrega||"9")?-1:1;
-  const prio=abertos.filter(ehPrio).sort(porData);
-  const doDia=abertos.filter(o=>o.entrega===dia && !ehPrio(o));
-  return { prio, atrasados: dia===hoje ? abertos.filter(o=>o.entrega && o.entrega<dia && !ehPrio(o)).sort(porData) : [],
-    entregas: doDia.filter(comEntrega), retiradas: doDia.filter(o=>!comEntrega(o)) };
+  // Só os pedidos com entrega marcada para o dia escolhido (ainda não entregues). Prioridades primeiro.
+  const doDia=orders.filter(o=>o.status!=="entregue" && o.entrega===dia).sort((a,b)=>prioPrim(a,b)||(a.criadoEm||0)-(b.criadoEm||0));
+  return { prio: doDia.filter(ehPrio), entregas: doDia.filter(comEntrega), retiradas: doDia.filter(o=>!comEntrega(o)), total: doDia.length };
 }
 function relatorioHTML(dia){
   const d=dadosRelatorio(dia);
@@ -1232,10 +1229,8 @@ function relatorioHTML(dia){
       ${comEntrega(o)&&o.endereco?`<div>Endereço: <b>${esc(U(o.endereco))}</b></div>`:""}
       ${sv}${r>0.001?`<div>A receber: <b>${money(r)}</b></div>`:""}${o.obs?`<div>Obs.: ${esc(U(o.obs))}</div>`:""}</div>`; };
   const sec=(t,l,vz)=>`<h2>${t} (${l.length})</h2>${l.length?l.map(it).join(""):`<div class="vz">${vz}</div>`}`;
-  return `<div class="rel"><div class="rel-head"><span class="logo" role="img" aria-label="Costura Expressa"></span><div class="addr">Galeria Jaqueira Park Center<br>R. do Futuro, 913 · Graças · Recife/PE<br>WhatsApp (81) 99616-0055</div></div><h1>RELATÓRIO DO DIA</h1><div class="dt">${esc(cap(dl))}</div>
-    <div class="tot"><div><b>${d.prio.length}</b>Prioridades</div><div><b>${d.entregas.length}</b>Entregas</div><div><b>${d.retiradas.length}</b>Retiradas</div>${d.atrasados.length?`<div><b>${d.atrasados.length}</b>Atrasados</div>`:""}</div>
-    ${sec("★ PRIORIDADES",d.prio,"Nenhum pedido prioritário em aberto.")}
-    ${d.atrasados.length?sec("ATRASADOS",d.atrasados,""):""}
+  return `<div class="rel"><div class="rel-head"><span class="logo" role="img" aria-label="Costura Expressa"></span><div class="addr">Galeria Jaqueira Park Center<br>R. do Futuro, 913 · Graças · Recife/PE<br>WhatsApp (81) 99616-0055</div></div><h1>ENTREGAS DO DIA</h1><div class="dt">${esc(cap(dl))}</div>
+    <div class="tot"><div><b>${d.total}</b>Pedidos do dia</div><div><b>${d.entregas.length}</b>Fazer entrega</div><div><b>${d.retiradas.length}</b>Vem buscar</div>${d.prio.length?`<div><b>${d.prio.length}</b>Prioridades</div>`:""}</div>
     ${sec("FAZER ENTREGA",d.entregas,"Nenhuma entrega neste dia.")}
     ${sec("CLIENTE VEM BUSCAR",d.retiradas,"Nenhuma retirada neste dia.")}
     <div class="ft">Impresso em ${fmtDate(Date.now())}${session?" por "+esc(session.nome):""}</div></div>`;
