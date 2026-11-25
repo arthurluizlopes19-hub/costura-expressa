@@ -1246,19 +1246,60 @@ async function imagemRelatorio(dia){
 }
 var ddArq=null, ddArqChave="", ddPrep=null, ddPrepChave="", ddPrepT=null;
 function relChave(dia){ return dia+"|"+relatorioHTML(dia).replace(/Impresso em[^<]*/,""); }
-function relPreparar(){ // gera a imagem do relatório em segundo plano, para o toque imprimir na hora (como a nota)
+function relPreparar(){ // iPhone: gera a imagem do relatório em segundo plano. Android usa texto, não precisa.
+  if(ehAndroid){ const bt=$("#dd-print-btn"); if(bt){ bt.disabled=false; bt.textContent="Imprimir relatório do dia"; } return; }
   clearTimeout(ddPrepT); ddPrepT=setTimeout(async()=>{ if(curView!=="dodia") return;
     const dia=$("#dd-dia").value||isoDay(new Date()); const ch=relChave(dia); if(ch===ddPrepChave && ddPrep) return;
     try{ const blob=await imagemRelatorio(dia); ddPrep={b64:await blobB64(blob), blob}; ddPrepChave=ch; }catch(e){ console.warn(e); }
     ddBtnEstado();
   },400); setTimeout(ddBtnEstado,0);
 }
-function ddBtnEstado(){ const bt=$("#dd-print-btn"); if(!bt) return; const dia=$("#dd-dia").value||isoDay(new Date());
+function ddBtnEstado(){ const bt=$("#dd-print-btn"); if(!bt) return; if(ehAndroid){ bt.disabled=false; bt.textContent="Imprimir relatório do dia"; return; } const dia=$("#dd-dia").value||isoDay(new Date());
   const pronto=!!ddPrep && ddPrepChave===relChave(dia);
   bt.disabled=!pronto; bt.innerHTML = pronto ? "Imprimir relatório do dia" : '<span class="busy"><span class="spin"></span>Preparando o relatório…</span>'; }
 // O toque tem que abrir a impressão NA HORA (sem esperar nada), senão o Android bloqueia ("about:blank#blocked").
+/* Relatório em TEXTO para a térmica (RawBT): leve, nítido e sai na hora. 48 colunas = papel 80 mm. */
+function relatorioTXT(dia){
+  const W=48, d=dadosRelatorio(dia);
+  const ESC="\x1b", GS="\x1d";
+  const INI=ESC+"@", CEN=ESC+"a\x01", ESQ=ESC+"a\x00", BON=ESC+"E\x01", BOFF=ESC+"E\x00", GRD=GS+"!\x11", NOR=GS+"!\x00";
+  const linha=c=>c.repeat(W)+"\n";
+  const quebra=(t,ind="")=>{ const out=[]; let l=""; String(t).split(/\s+/).forEach(w=>{ if(!w) return;
+      while(w.length>W-ind.length){ if(l){ out.push(l); l=""; } out.push(w.slice(0,W-ind.length)); w=w.slice(W-ind.length); }
+      if((l?l.length+1:0)+w.length>W-(out.length||l?ind.length:0)){ out.push(l); l=w; } else l=l?l+" "+w:w; });
+    if(l) out.push(l); return out.map((x,i)=>(i?ind:"")+x).join("\n")+"\n"; };
+  const lr=(a,b)=>{ a=String(a); b=String(b); const sp=W-a.length-b.length; return sp>=1 ? a+" ".repeat(sp)+b+"\n" : a+"\n"+" ".repeat(Math.max(0,W-b.length))+b+"\n"; };
+  const dl=cap(new Date(dia+"T12:00:00").toLocaleDateString("pt-BR",{weekday:"long",day:"2-digit",month:"long",year:"numeric"}));
+  const it=o=>{ const c=o.cliente||{}; const r=restOf(o); let t="";
+    t+=BON+lr(o.codigo,U(STATUS[o.status]||""))+BOFF;
+    t+=quebra(U(c.nome||"")+(c.telefone?" - "+c.telefone:""));
+    const tags=[ehPrio(o)?"[PRIORIDADE]":"", (o.emRetorno||o.retornoDe)?"[RETORNO]":"", comEntrega(o)?"[ENTREGA]":""].filter(Boolean).join(" ");
+    if(tags) t+=BON+tags+BOFF+"\n";
+    if(comEntrega(o)&&o.endereco) t+=quebra("Endereço: "+U(o.endereco),"  ");
+    (o.itens||[]).forEach(i=>{ t+=quebra(`${i.qtd}x ${(ehRet(i)?"RETORNO: "+nomeRet(i.nome):U(i.nome)).replace(/ · /g," - ")}`,"    "); });
+    if(r>0.001) t+=BON+"A receber: "+money(r).replace(/\u00a0/g," ")+BOFF+"\n";
+    if(o.obs && !(o.emRetorno||o.retornoDe)) t+=quebra("Obs.: "+U(o.obs),"  ");
+    return t+linha("-"); };
+  const sec=(tit,l,vz)=>BON+linha("=")+tit+" ("+l.length+")\n"+linha("=")+BOFF+(l.length?l.map(it).join(""):vz+"\n"+linha("-"));
+  let t=INI+CEN+GRD+"COSTURA\nEXPRESSA\n"+NOR
+    +"Galeria Jaqueira Park Center\nR. do Futuro, 913 - Graças - Recife/PE\nWhatsApp (81) 99616-0055\n"+linha("-")
+    +BON+"ENTREGAS DO DIA\n"+BOFF+dl+"\n"+ESQ+linha("-")
+    +lr("Pedidos do dia:",d.total)+lr("Fazer entrega:",d.entregas.length)+lr("Cliente vem buscar:",d.retiradas.length)+(d.prio.length?lr("Prioridades:",d.prio.length):"")
+    +sec("FAZER ENTREGA",d.entregas,"Nenhuma entrega neste dia.")
+    +sec("CLIENTE VEM BUSCAR",d.retiradas,"Nenhuma retirada neste dia.")
+    +CEN+"Impresso em "+fmtDate(Date.now())+(session?" por "+U(session.nome):"")+"\n"+ESQ+"\n\n\n\n"+GS+"V\x42\x00";
+  return t;
+}
+function b64utf8(t){ const by=new TextEncoder().encode(t); let s=""; for(let i=0;i<by.length;i+=0x8000) s+=String.fromCharCode.apply(null,by.subarray(i,i+0x8000)); return btoa(s); }
 $("#dd-print-btn").addEventListener("click",()=>{
   const m=$("#dd-print-msg"); const dia=$("#dd-dia").value||isoDay(new Date());
+  if(ehAndroid){ // texto: monta na hora e abre o RawBT dentro do toque
+    const b64=b64utf8(relatorioTXT(dia));
+    let saiu=false; const vis=()=>{ if(document.hidden) saiu=true; }; document.addEventListener("visibilitychange",vis);
+    location.href="intent:base64,"+b64+"#Intent;scheme=rawbt;package=ru.a402d.rawbtprinter;end;";
+    setTimeout(()=>{ document.removeEventListener("visibilitychange",vis); m.innerHTML = saiu ? "Relatório enviado para o <b>RawBT</b>." : "Se o RawBT não abriu, toque de novo."; },2500);
+    return;
+  }
   if(!ddPrep || ddPrepChave!==relChave(dia)){ relPreparar(); ddBtnEstado(); return; }
   const f=new File([ddPrep.blob],`relatorio-${dia}.png`,{type:"image/png"});
   if(ehAndroid){ abrirRawBT(ddPrep.b64,m); return; }
