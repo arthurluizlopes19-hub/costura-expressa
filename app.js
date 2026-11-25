@@ -667,7 +667,7 @@ function waNotaText(o){
   }
   if(comEntrega(o)){ L.push(`Entrega no endereço${o.entrega?" em "+fmtDay(o.entrega):""}: ${U(o.endereco||"")}`); }
   else if(o.entrega) L.push(`Retirada prevista: ${fmtDay(o.entrega)}`);
-  if(o.obs){ L.push(""); L.push(`Observações: ${U(o.obs)}`); }
+  if(o.obs && !(o.emRetorno||o.retornoDe||(o.itens||[]).some(ehRet))){ L.push(""); L.push(`Observações: ${U(o.obs)}`); }
   L.push(""); L.push(`Para retirar a peça, apresente o código *${o.codigo}*.`);
   L.push(""); L.push("Galeria Jaqueira Park Center, R. do Futuro, 913, Graças, Recife/PE"); L.push("WhatsApp (81) 99616-0055");
   return L.join("\n");
@@ -767,7 +767,7 @@ async function clienteImagem(o){
   if(!window.html2canvas) throw new Error("html2canvas");
   const box=document.createElement("div");
   box.className="force-light cli-render";
-  box.innerHTML=notaHTML(o,{precos:true, qr:false});
+  box.innerHTML=notaHTML(o,{precos:true, qr:false, cliente:true});
   document.body.appendChild(box);
   try{
     await new Promise(r=>requestAnimationFrame(()=>requestAnimationFrame(r)));
@@ -1422,7 +1422,8 @@ $("#overlay").addEventListener("click",e=>{ if(e.target.id==="overlay") closeShe
 document.addEventListener("keydown",e=>{ if(e.key==="Escape" && !$("#overlay").hidden) closeSheet(); });
 
 function diaAntes(iso){ if(!iso) return ""; const d=new Date(iso+"T12:00:00"); d.setDate(d.getDate()-1); if(d.getDay()===0) d.setDate(d.getDate()-1); return isoDay(d); }
-function notaHTML(o,{precos=true,qr=true,interna=false}={}){
+function notaHTML(o,{precos=true,qr=true,interna=false,cliente=false}={}){
+  const ehRetorno=!!(o.emRetorno||o.retornoDe||(o.itens||[]).some(ehRet));
   const c=o.cliente||{}; const restante=restOf(o);
   const linha=(i,nome)=>`<tr><td>${esc(nome)}${i.orcamento?` <span class="aorcar">· EM ORÇAMENTO</span>`:""}</td><td class="n">${i.qtd}×</td>${precos?(i.orcamento?`<td class="n aorcar" colspan="2">A ORÇAR</td>`:`<td class="n">${money(i.preco)}</td><td class="n">${money(i.preco*i.qtd)}</td>`):""}</tr>`;
   const its=o.itens||[], normais=its.filter(i=>!ehRet(i)), rets=its.filter(ehRet);
@@ -1458,7 +1459,7 @@ function notaHTML(o,{precos=true,qr=true,interna=false}={}){
                  : restante>0.001?`<tr class="pay"><td colspan="3">A pagar ${ondePaga(o)}</td><td class="n">${money(restante)}</td></tr>`:""}`}
         </tfoot>`:""}
       </table></div>
-      ${o.obs?`<div><div class="label" style="margin-bottom:6px">Observações</div><div class="obs">${esc(o.obs)}</div></div>`:""}
+      ${o.obs&&!(cliente&&ehRetorno)?`<div><div class="label" style="margin-bottom:6px">Observações</div><div class="obs">${esc(o.obs)}</div></div>`:""}
       ${qr?`<div class="qr-area"><div class="qr" id="qr"></div><div><div class="label">Código do pedido</div><div class="cd">${esc(o.codigo)}</div><p class="hint" style="margin-top:6px">Apresente este pedido para retirar a peça.</p></div></div>`:`<div class="cli-code"><span class="label">Código do pedido</span><b>${esc(o.codigo)}</b><span>Apresente este código para retirar a peça.</span></div>`}
       <div class="foot">WhatsApp (81) 99616-0055${qr?`<small>Comprovante interno do ateliê · sem valor fiscal</small>`:""}</div>
     </article>`;
