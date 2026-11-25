@@ -144,6 +144,7 @@ function setView(v,fromHistory){
   if(v==="menu") renderMenu();
   if(!fromHistory && v!=="menu" && curView==="menu"){ try{ history.pushState({ce:v},""); }catch(e){} }
   curView=v; window.scrollTo(0,0);
+  if(v==="dodia" && typeof relPreparar==="function") relPreparar();
 }
 $("#go-menu").addEventListener("click",()=>{ if(history.state&&history.state.ce){ history.back(); } else setView("menu"); });
 window.addEventListener("popstate",()=>{
@@ -539,6 +540,15 @@ const AUTO_KEY="ce-rawbt-auto";
 function autoPrintLigado(){ try{ return localStorage.getItem(AUTO_KEY)!=="0"; }catch(e){ return true; } }
 function autoPrintSet(v){ try{ localStorage.setItem(AUTO_KEY, v?"1":"0"); }catch(e){} }
 let autoImprimirCodigo="";
+function mostrarBarraImprimir(code,b64,pm){
+  let bar=$("#rawbt-bar"); if(!bar){ bar=document.createElement("div"); bar.id="rawbt-bar"; document.body.appendChild(bar); }
+  bar.innerHTML=`<button class="btn primary" id="rb-go">🖨 Imprimir pedido ${esc(code)} no RawBT</button><button class="btn" id="rb-no">Agora não</button>`;
+  bar.hidden=false;
+  const fechar=()=>{ bar.hidden=true; };
+  $("#rb-go").onclick=()=>{ abrirRawBT(b64,pm); fechar(); };
+  $("#rb-no").onclick=fechar;
+  setTimeout(fechar,60000);
+}
 function blobB64(b){ return new Promise((res,rej)=>{ const r=new FileReader(); r.onload=()=>res(String(r.result).split(",")[1]||""); r.onerror=rej; r.readAsDataURL(b); }); }
 // Chrome só deixa abrir outro app logo depois de um toque. Por isso a imagem fica pronta ANTES do toque
 // (cache em base64) e o toque abre o RawBT na hora, sem esperar nada.
@@ -571,7 +581,7 @@ function wirePrint(o){
   const html=pb.innerHTML; pb.disabled=true; pb.innerHTML='<span class="busy"><span class="spin"></span>Preparando a impressão</span>';
   const ac=$("#print-auto"); if(ac) ac.onchange=()=>{ autoPrintSet(ac.checked); toast(ac.checked?"Impressão automática ligada neste celular.":"Impressão automática desligada neste celular."); };
   prepararNota(o).then(r=>{ img=new File([r.blob],`pedido-${o.codigo}.png`,{type:"image/png"}); b64=r.b64;
-      if(ehAndroid && autoImprimirCodigo===o.codigo){ autoImprimirCodigo=""; pm.innerHTML="Mandando a nota para o RawBT…"; abrirRawBT(b64,pm); } })
+      if(ehAndroid && autoImprimirCodigo===o.codigo){ autoImprimirCodigo=""; mostrarBarraImprimir(o.codigo,b64,pm); } })
     .catch(e=>{ console.warn(e); pm.textContent="Não consegui preparar a impressão. Use Imprimir pelo navegador."; })
     .finally(()=>{ pb.disabled=false; pb.innerHTML=html; });
   $("#print-browser").onclick=()=>printBrowser(o);
@@ -1245,40 +1255,20 @@ function relPreparar(){ // gera a imagem do relatório em segundo plano, para o 
   clearTimeout(ddPrepT); ddPrepT=setTimeout(async()=>{ if(curView!=="dodia") return;
     const dia=$("#dd-dia").value||isoDay(new Date()); const ch=relChave(dia); if(ch===ddPrepChave && ddPrep) return;
     try{ const blob=await imagemRelatorio(dia); ddPrep={b64:await blobB64(blob), blob}; ddPrepChave=ch; }catch(e){ console.warn(e); }
-  },600);
+    ddBtnEstado();
+  },400); setTimeout(ddBtnEstado,0);
 }
-$("#dd-print-btn").addEventListener("click",async()=>{
-  const b=$("#dd-print-btn"), m=$("#dd-print-msg"); const dia=$("#dd-dia").value||isoDay(new Date());
-  const chP=relChave(dia);
-  if(!ehAndroid && ddPrep && ddPrepChave===chP){ // iPhone: já estava pronto, abre o compartilhar na hora
-    const f=new File([ddPrep.blob],`relatorio-${dia}.png`,{type:"image/png"});
-    if(navigator.canShare && navigator.canShare({files:[f]})){ try{ await navigator.share({files:[f]}); m.innerHTML="Escolha o app da impressora na lista e imprima."; }catch(e){} return; }
-    saveFile(f,f.name); m.innerHTML=`Relatório baixado (<b>${esc(f.name)}</b>). Abra o app da impressora e escolha essa imagem.`; return;
-  }
-  if(ehAndroid){
-    const ch=chP;
-    if(ddPrep && ddPrepChave===ch){ abrirRawBT(ddPrep.b64,m); return; }   // já estava pronto: abre na hora
-    b.disabled=true; b.innerHTML='<span class="busy"><span class="spin"></span>Preparando o relatório</span>';
-    try{ const blob=await imagemRelatorio(dia); ddPrep={b64:await blobB64(blob), blob}; ddPrepChave=ch; abrirRawBT(ddPrep.b64,m); }
-    catch(e){ console.error(e); m.textContent="Não consegui preparar o relatório. Tente de novo."; }
-    finally{ b.disabled=false; b.textContent="Imprimir relatório do dia"; }
-    return;
-  }
-  const chave=dia+"|"+relatorioHTML(dia).replace(/Impresso em[^<]*/,"").length;
-  if(!ddArq || ddArqChave!==chave){
-    b.disabled=true; b.innerHTML='<span class="busy"><span class="spin"></span>Preparando o relatório</span>';
-    try{ const blob=await imagemRelatorio(dia); ddArq=new File([blob],`relatorio-${dia}.png`,{type:"image/png"}); ddArqChave=chave; }
-    catch(e){ console.error(e); b.disabled=false; b.textContent="Imprimir relatório do dia"; m.textContent="Não consegui preparar o relatório. Tente de novo."; return; }
-    b.disabled=false; b.textContent=ehAndroid?"Mandar de novo para o RawBT":"Enviar para a impressora";
-    if(ehAndroid){ m.innerHTML="Mandando o relatório para o RawBT…"; enviarRawBT(ddArq,m); }
-    else m.innerHTML="Relatório pronto. Toque no botão de novo e escolha o app da impressora.";
-    return;
-  }
-  if(ehAndroid){ enviarRawBT(ddArq,m); return; }
-  if(navigator.canShare && navigator.canShare({files:[ddArq]})){
-    try{ await navigator.share({files:[ddArq]}); m.innerHTML="Escolha o app da impressora na lista e imprima."; return; }catch(e){ if(e && e.name==="AbortError") return; }
-  }
-  saveFile(ddArq,ddArq.name); m.innerHTML=`Relatório baixado (<b>${esc(ddArq.name)}</b>). Abra o app da impressora e escolha essa imagem.`;
+function ddBtnEstado(){ const bt=$("#dd-print-btn"); if(!bt) return; const dia=$("#dd-dia").value||isoDay(new Date());
+  const pronto=!!ddPrep && ddPrepChave===relChave(dia);
+  bt.disabled=!pronto; bt.innerHTML = pronto ? "Imprimir relatório do dia" : '<span class="busy"><span class="spin"></span>Preparando o relatório…</span>'; }
+// O toque tem que abrir a impressão NA HORA (sem esperar nada), senão o Android bloqueia ("about:blank#blocked").
+$("#dd-print-btn").addEventListener("click",()=>{
+  const m=$("#dd-print-msg"); const dia=$("#dd-dia").value||isoDay(new Date());
+  if(!ddPrep || ddPrepChave!==relChave(dia)){ relPreparar(); ddBtnEstado(); return; }
+  const f=new File([ddPrep.blob],`relatorio-${dia}.png`,{type:"image/png"});
+  if(ehAndroid){ abrirRawBT(ddPrep.b64,m); return; }
+  if(navigator.canShare && navigator.canShare({files:[f]})){ navigator.share({files:[f]}).then(()=>{ m.innerHTML="Escolha o app da impressora na lista e imprima."; }).catch(()=>{}); return; }
+  saveFile(f,f.name); m.innerHTML=`Relatório baixado (<b>${esc(f.name)}</b>). Abra o app da impressora e escolha essa imagem.`;
 });
 const ddShift=d=>{ const inp=$("#dd-dia"); if(!inp.value) inp.value=isoDay(new Date()); const t=new Date(inp.value+"T12:00:00"); t.setDate(t.getDate()+d); inp.value=isoDay(t); renderDoDia(); };
 $("#dd-dia").addEventListener("change",renderDoDia);
@@ -1432,7 +1422,7 @@ async function openOrder(code, given){
   openCode=code; renderSheet(o); $("#overlay").hidden=false; document.body.style.overflow="hidden";
   $("#overlay").scrollTop=0;
 }
-function closeSheet(){ editing=null; if(!$("#overlay")) return; $("#overlay").hidden=true; openCode=null; if(takePhoto){URL.revokeObjectURL(takePhoto.url); takePhoto=null;} document.body.style.overflow=""; }
+function closeSheet(){ const rb=document.getElementById("rawbt-bar"); if(rb) rb.hidden=true; editing=null; if(!$("#overlay")) return; $("#overlay").hidden=true; openCode=null; if(takePhoto){URL.revokeObjectURL(takePhoto.url); takePhoto=null;} document.body.style.overflow=""; }
 $("#overlay").addEventListener("click",e=>{ if(e.target.id==="overlay") closeSheet(); });
 document.addEventListener("keydown",e=>{ if(e.key==="Escape" && !$("#overlay").hidden) closeSheet(); });
 
@@ -1676,7 +1666,7 @@ function renderSheet(o){
     ${verValores?`<div class="panel print-box"><span class="label">Imprimir (80 mm)</span>
       <button class="btn primary" id="print-now">${ehAndroid?"Imprimir no RawBT":"Imprimir"}</button>
       <div class="grid2"><button class="btn" id="print-browser">Imprimir pelo navegador</button><button class="btn" data-print="80">Baixar PDF 80 mm</button></div>
-      ${ehAndroid?`<label class="auto-print"><input type="checkbox" id="print-auto" ${autoPrintLigado()?"checked":""}> Imprimir sozinho ao finalizar o pedido (neste celular)</label>`:""}
+      ${ehAndroid?`<label class="auto-print"><input type="checkbox" id="print-auto" ${autoPrintLigado()?"checked":""}> Mostrar o botão de imprimir assim que finalizar o pedido (neste celular)</label>`:""}
       <p class="hint" id="print-msg">${ehAndroid?"Manda a nota direto para o <b>RawBT</b>.":"Abre o compartilhar do celular: escolha o app da impressora."} A impressão sai sem valores, só com os serviços, as observações e o QR code.</p>
     </div>`:""}
     ${o.audio?`<div class="panel"><span class="label">Áudio da atendente</span><div id="sh-audio" class="busy muted"><span class="spin"></span>Carregando áudio…</div></div>`:""}

@@ -424,6 +424,9 @@ input[type="text"]:not(#app-link):not(#m-pin):not(#lg-pin):not([inputmode="numer
 .nota tr.ret-row td{background:rgba(156,53,103,.06)}
 .ei.ei-ret{border-style:dashed;border-color:var(--accent);background:rgba(156,53,103,.05)}
 .ret-chip{align-self:flex-start;font-size:11px;font-weight:800;letter-spacing:.05em;color:#fff;background:var(--accent);border-radius:6px;padding:2px 8px}
+#rawbt-bar{position:fixed;left:0;right:0;bottom:0;z-index:300;display:grid;grid-template-columns:1fr auto;gap:8px;padding:12px max(12px,env(safe-area-inset-left)) calc(12px + env(safe-area-inset-bottom)) max(12px,env(safe-area-inset-right));background:var(--surface);border-top:2px solid var(--accent);box-shadow:0 -8px 24px rgba(0,0,0,.2)}
+#rawbt-bar[hidden]{display:none}
+#rawbt-bar #rb-go{min-height:56px;font-size:17px}
 .dd-print{display:flex;flex-direction:column;gap:6px;margin:4px 0 12px}
 .rel{width:576px;background:#fff;color:#000;font-family:"Nunito",system-ui,sans-serif;padding:14px 16px 22px;box-sizing:border-box}
 .rel .rel-head{display:flex;flex-direction:column;align-items:center;gap:6px;border-bottom:2px dashed #000;padding-bottom:10px;margin-bottom:10px}
